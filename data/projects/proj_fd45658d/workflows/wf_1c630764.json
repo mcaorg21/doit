@@ -1,0 +1,109 @@
+{
+  "id": "wf_1c630764",
+  "projectId": "proj_fd45658d",
+  "name": "Signup Automation",
+  "createdAt": "2026-08-03T14:03:22.396283Z",
+  "updatedAt": "2026-08-03T18:06:00.025672Z",
+  "nodes": [
+    {
+      "id": "node_1785766081772_1",
+      "type": "http_request",
+      "position": {
+        "x": 30.399529281289333,
+        "y": 15.23101460148272
+      },
+      "params": {
+        "url": "https://jsonplaceholder.typicode.com/users?id=1",
+        "method": "GET",
+        "body": null,
+        "resultPath": ""
+      },
+      "title": "GET",
+      "note": null
+    },
+    {
+      "id": "node_1785766086827_2",
+      "type": "open_browser",
+      "position": {
+        "x": 33.95638741109327,
+        "y": 173.24291195801771
+      },
+      "params": {
+        "headless": false,
+        "browserChannel": "chrome",
+        "profileName": "teste"
+      },
+      "title": "abre_chrome",
+      "note": null
+    },
+    {
+      "id": "node_1785766096849_3",
+      "type": "goto",
+      "position": {
+        "x": 26.280674665088284,
+        "y": 348.2715585826443
+      },
+      "params": {
+        "url": "https://google.com.br"
+      },
+      "title": "site_dias_costa",
+      "note": null
+    },
+    {
+      "id": "node_1785779006373_2",
+      "type": "fill",
+      "position": {
+        "x": 34.39535360021188,
+        "y": 486.22398879639366
+      },
+      "params": {
+        "selector": "/html/body/div[2]/div[6]/form/div[1]/div/div[1]/div[2]/div[2]/textarea",
+        "selectorType": "full_xpath",
+        "value": "teste"
+      },
+      "title": "escreve_search",
+      "note": null
+    },
+    {
+      "id": "node_1785780334949_4",
+      "type": "pause",
+      "position": {
+        "x": 31.373168812391924,
+        "y": 632.1539972851436
+      },
+      "params": {},
+      "title": null,
+      "note": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_node_1785766121281_6",
+      "source": "node_1785766081772_1",
+      "target": "node_1785766086827_2",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1785766126315_8",
+      "source": "node_1785766086827_2",
+      "target": "node_1785766096849_3",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1785779009577_3",
+      "source": "node_1785766096849_3",
+      "target": "node_1785779006373_2",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1785780338942_5",
+      "source": "node_1785779006373_2",
+      "target": "node_1785780334949_4",
+      "sourceHandle": null,
+      "breakpoint": false
+    }
+  ]
+}

@@ -28,6 +28,7 @@ interface Props {
   onSelectNode: (nodeId: string | null) => void
   onAddNode: (spec: NodeTypeSpec, position: { x: number; y: number }) => void
   onToggleBreakpoint: (edgeId: string) => void
+  onDeleteEdge: (edgeId: string) => void
   onDeleteNode: (nodeId: string) => void
   nodeTypesByType: Map<string, NodeTypeSpec>
 }
@@ -41,6 +42,7 @@ function FlowCanvasInner({
   onSelectNode,
   onAddNode,
   onToggleBreakpoint,
+  onDeleteEdge,
   onDeleteNode,
   nodeTypesByType,
 }: Props) {
@@ -49,9 +51,11 @@ function FlowCanvasInner({
 
   const edgeTypeComponents = useMemo(
     () => ({
-      breakpoint: (props: EdgeProps) => <BreakpointEdge {...props} onToggle={onToggleBreakpoint} />,
+      breakpoint: (props: EdgeProps) => (
+        <BreakpointEdge {...props} onToggle={onToggleBreakpoint} onDelete={onDeleteEdge} />
+      ),
     }),
-    [onToggleBreakpoint],
+    [onToggleBreakpoint, onDeleteEdge],
   )
 
   const nodeTypeComponents = useMemo(

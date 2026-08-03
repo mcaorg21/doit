@@ -9,7 +9,23 @@ from playwright.sync_api import sync_playwright
 
 def _dig(obj, path):
     for part in path.split("."):
-        obj = obj[part]
+        if isinstance(obj, list):
+            if not part.lstrip("-").isdigit():
+                raise ValueError(
+                    f"Result Path {path!r}: the response at this point is a list (length {len(obj)}), "
+                    f"so {part!r} must be a numeric index, not a key. If the response is already the "
+                    f"list you want, leave Result Path empty instead."
+                )
+            index = int(part)
+            if index >= len(obj) or index < -len(obj):
+                raise ValueError(f"Result Path {path!r}: index {index} is out of range for a list of length {len(obj)}")
+            obj = obj[index]
+        elif isinstance(obj, dict):
+            if part not in obj:
+                raise ValueError(f"Result Path {path!r}: key {part!r} not found — available keys: {list(obj.keys())}")
+            obj = obj[part]
+        else:
+            raise ValueError(f"Result Path {path!r}: can't look up {part!r} on a {type(obj).__name__} value")
     return obj
 '''
 

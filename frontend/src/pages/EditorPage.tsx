@@ -224,14 +224,24 @@ export default function EditorPage() {
     markDirty()
   }
 
-  function handleAddNode(spec: NodeTypeSpec, position: { x: number; y: number }) {
+  function handleDeleteEdge(edgeId: string) {
+    recordHistory(true)
+    setEdges((prev) => prev.filter((e) => e.id !== edgeId))
+    markDirty()
+  }
+
+  function handleAddNode(spec: NodeTypeSpec, position?: { x: number; y: number }) {
     recordHistory(true)
     const params: Record<string, unknown> = {}
     for (const p of spec.params) params[p.key] = p.default
+    // Click-to-add (no drop position) lands in a loose grid instead of stacking every
+    // new node exactly on top of the last one.
+    const resolvedPosition =
+      position ?? { x: 120 + (nodes.length % 4) * 180, y: 120 + Math.floor(nodes.length / 4) * 160 }
     const newNode: Node<FlowNodeData> = {
       id: nextNodeId(),
       type: 'generic',
-      position,
+      position: resolvedPosition,
       data: { nodeType: spec.type, label: spec.label, params, isBranch: spec.isBranch, icon: spec.icon },
     }
     setNodes((prev) => [...prev, newNode])
@@ -317,7 +327,7 @@ export default function EditorPage() {
       </div>
 
       <div className="editor-body" style={{ gridTemplateRows: `1fr ${bottomPanelHeight}px` }}>
-        <NodePalette />
+        <NodePalette onAddNode={(spec) => handleAddNode(spec)} />
 
         <FlowCanvas
           nodes={nodes}
@@ -328,6 +338,7 @@ export default function EditorPage() {
           onSelectNode={setSelectedNodeId}
           onAddNode={handleAddNode}
           onToggleBreakpoint={handleToggleBreakpoint}
+          onDeleteEdge={handleDeleteEdge}
           onDeleteNode={handleDeleteNodeById}
           nodeTypesByType={nodeTypesByType}
         />

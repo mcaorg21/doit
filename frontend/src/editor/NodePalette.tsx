@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { nodeTypesApi } from '../api/nodeTypes'
-import type { NodeCategory } from '../types/nodeType'
+import type { NodeCategory, NodeTypeSpec } from '../types/nodeType'
 
 const CATEGORY_LABELS: Record<NodeCategory, string> = {
   dataSource: 'Data Sources',
@@ -9,7 +9,11 @@ const CATEGORY_LABELS: Record<NodeCategory, string> = {
   logic: 'Logic',
 }
 
-export default function NodePalette() {
+interface Props {
+  onAddNode: (spec: NodeTypeSpec) => void
+}
+
+export default function NodePalette({ onAddNode }: Props) {
   const { data: nodeTypes } = useQuery({
     queryKey: ['node-types'],
     queryFn: nodeTypesApi.list,
@@ -39,6 +43,7 @@ export default function NodePalette() {
                   e.dataTransfer.setData('application/x-automation-node-type', spec.type)
                   e.dataTransfer.effectAllowed = 'move'
                 }}
+                onClick={() => onAddNode(spec)}
                 title={spec.description}
               >
                 {spec.label}

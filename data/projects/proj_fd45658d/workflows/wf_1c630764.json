@@ -3,14 +3,14 @@
   "projectId": "proj_fd45658d",
   "name": "Signup Automation",
   "createdAt": "2026-08-03T14:03:22.396283Z",
-  "updatedAt": "2026-08-03T18:06:00.025672Z",
+  "updatedAt": "2026-08-03T18:24:55.203447Z",
   "nodes": [
     {
       "id": "node_1785766081772_1",
       "type": "http_request",
       "position": {
-        "x": 30.399529281289333,
-        "y": 15.23101460148272
+        "x": -200.2479713902023,
+        "y": 119.26775958521937
       },
       "params": {
         "url": "https://jsonplaceholder.typicode.com/users?id=1",
@@ -25,8 +25,8 @@
       "id": "node_1785766086827_2",
       "type": "open_browser",
       "position": {
-        "x": 33.95638741109327,
-        "y": 173.24291195801771
+        "x": -200.5678608910154,
+        "y": 273.46229939770126
       },
       "params": {
         "headless": false,
@@ -40,8 +40,8 @@
       "id": "node_1785766096849_3",
       "type": "goto",
       "position": {
-        "x": 26.280674665088284,
-        "y": 348.2715585826443
+        "x": -202.1822913545731,
+        "y": 423.8850138958352
       },
       "params": {
         "url": "https://google.com.br"
@@ -53,8 +53,8 @@
       "id": "node_1785779006373_2",
       "type": "fill",
       "position": {
-        "x": 34.39535360021188,
-        "y": 486.22398879639366
+        "x": -201.99862901162805,
+        "y": 575.1934047132668
       },
       "params": {
         "selector": "/html/body/div[2]/div[6]/form/div[1]/div/div[1]/div[2]/div[2]/textarea",
@@ -62,17 +62,6 @@
         "value": "teste"
       },
       "title": "escreve_search",
-      "note": null
-    },
-    {
-      "id": "node_1785780334949_4",
-      "type": "pause",
-      "position": {
-        "x": 31.373168812391924,
-        "y": 632.1539972851436
-      },
-      "params": {},
-      "title": null,
       "note": null
     }
   ],
@@ -92,16 +81,9 @@
       "breakpoint": false
     },
     {
-      "id": "e_node_1785779009577_3",
+      "id": "e_node_1785781487994_1",
       "source": "node_1785766096849_3",
       "target": "node_1785779006373_2",
-      "sourceHandle": null,
-      "breakpoint": false
-    },
-    {
-      "id": "e_node_1785780338942_5",
-      "source": "node_1785779006373_2",
-      "target": "node_1785780334949_4",
       "sourceHandle": null,
       "breakpoint": false
     }

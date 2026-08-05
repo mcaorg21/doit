@@ -1,37 +1,22 @@
 {
   "id": "wf_1c630764",
   "projectId": "proj_fd45658d",
-  "name": "Signup Automation",
+  "name": "Primeira automacao",
   "createdAt": "2026-08-03T14:03:22.396283Z",
-  "updatedAt": "2026-08-03T18:24:55.203447Z",
+  "updatedAt": "2026-08-05T20:12:19.117756Z",
   "nodes": [
-    {
-      "id": "node_1785766081772_1",
-      "type": "http_request",
-      "position": {
-        "x": -200.2479713902023,
-        "y": 119.26775958521937
-      },
-      "params": {
-        "url": "https://jsonplaceholder.typicode.com/users?id=1",
-        "method": "GET",
-        "body": null,
-        "resultPath": ""
-      },
-      "title": "GET",
-      "note": null
-    },
     {
       "id": "node_1785766086827_2",
       "type": "open_browser",
       "position": {
-        "x": -200.5678608910154,
-        "y": 273.46229939770126
+        "x": -1420.883852374456,
+        "y": 116.2996633986805
       },
       "params": {
         "headless": false,
         "browserChannel": "chrome",
-        "profileName": "teste"
+        "profileName": "Marcelo2",
+        "multiUser": false
       },
       "title": "abre_chrome",
       "note": null
@@ -40,39 +25,139 @@
       "id": "node_1785766096849_3",
       "type": "goto",
       "position": {
-        "x": -202.1822913545731,
-        "y": 423.8850138958352
+        "x": -1299.9891546455506,
+        "y": 118.07057428179947
       },
       "params": {
         "url": "https://google.com.br"
       },
-      "title": "site_dias_costa",
+      "title": "site_google",
       "note": null
     },
     {
-      "id": "node_1785779006373_2",
-      "type": "fill",
+      "id": "node_1785793282761_11",
+      "type": "http_request",
       "position": {
-        "x": -201.99862901162805,
-        "y": 575.1934047132668
+        "x": -1190.0666464992546,
+        "y": 119.68708727523429
       },
       "params": {
-        "selector": "/html/body/div[2]/div[6]/form/div[1]/div/div[1]/div[2]/div[2]/textarea",
-        "selectorType": "full_xpath",
-        "value": "teste"
+        "url": "https://jsonplaceholder.typicode.com/users",
+        "method": "GET",
+        "body": null,
+        "resultPath": "",
+        "autoLoop": true
       },
-      "title": "escreve_search",
+      "title": "get",
+      "note": null
+    },
+    {
+      "id": "node_1785851789444_5",
+      "type": "pause",
+      "position": {
+        "x": -746.202417127296,
+        "y": 3.3465784978239697
+      },
+      "params": {},
+      "title": null,
+      "note": null
+    },
+    {
+      "id": "node_1785863847489_6",
+      "type": "fill",
+      "position": {
+        "x": -848.8876456006033,
+        "y": 7.666194251068262
+      },
+      "params": {
+        "selector": "/html[1]/body[1]/div[2]/div[6]/form[1]/div[1]/div[1]/div[1]/div[2]/div[2]/textarea[1]",
+        "selectorType": "full_xpath",
+        "value": "{{item.name}}"
+      },
+      "title": "preencher",
+      "note": null
+    },
+    {
+      "id": "node_1785878867884_2",
+      "type": "get_text",
+      "position": {
+        "x": -1071.8309506040237,
+        "y": 119.6754559620058
+      },
+      "params": {
+        "selector": "/html[1]/body[1]/div[2]/div[9]/div[1]/div[1]",
+        "selectorType": "full_xpath",
+        "resultVar": "texto_pais"
+      },
+      "title": "pegar_texto",
+      "note": null
+    },
+    {
+      "id": "node_1785879529953_3",
+      "type": "if",
+      "position": {
+        "x": -968.5145903003621,
+        "y": 120.54083829111568
+      },
+      "params": {
+        "value1": "{{item.name}}",
+        "type": "string",
+        "operator": "contains",
+        "value2": "Schulist"
+      },
+      "title": "se",
+      "note": null
+    },
+    {
+      "id": "node_1785880658785_5",
+      "type": "fill",
+      "position": {
+        "x": -851.4944110025406,
+        "y": 213.30198162321648
+      },
+      "params": {
+        "selector": "/html[1]/body[1]/div[2]/div[6]/form[1]/div[1]/div[1]/div[1]/div[2]/div[2]/textarea[1]",
+        "selectorType": "full_xpath",
+        "value": "{{item.name}}"
+      },
+      "title": "preencher2",
+      "note": null
+    },
+    {
+      "id": "node_1785959784260_5",
+      "type": "webhook_trigger",
+      "position": {
+        "x": -1547.712706407183,
+        "y": 113.87418984120765
+      },
+      "params": {
+        "method": "GET",
+        "path": "teste",
+        "secret": "af7ffd9461ef408daffa1013"
+      },
+      "title": null,
+      "note": null
+    },
+    {
+      "id": "node_1785960733692_1",
+      "type": "http_request",
+      "position": {
+        "x": -1212.1969203455712,
+        "y": -83.03487908223035
+      },
+      "params": {
+        "url": null,
+        "method": "POST",
+        "body": null,
+        "resultPath": null,
+        "autoLoop": true,
+        "resultVar": null
+      },
+      "title": null,
       "note": null
     }
   ],
   "edges": [
-    {
-      "id": "e_node_1785766121281_6",
-      "source": "node_1785766081772_1",
-      "target": "node_1785766086827_2",
-      "sourceHandle": null,
-      "breakpoint": false
-    },
     {
       "id": "e_node_1785766126315_8",
       "source": "node_1785766086827_2",
@@ -81,11 +166,54 @@
       "breakpoint": false
     },
     {
-      "id": "e_node_1785781487994_1",
+      "id": "e_node_1785851747030_1",
       "source": "node_1785766096849_3",
-      "target": "node_1785779006373_2",
+      "target": "node_1785793282761_11",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1785878875267_3",
+      "source": "node_1785793282761_11",
+      "target": "node_1785878867884_2",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1785879532698_4",
+      "source": "node_1785878867884_2",
+      "target": "node_1785879529953_3",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1785879613173_6",
+      "source": "node_1785879529953_3",
+      "target": "node_1785863847489_6",
+      "sourceHandle": "true",
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1785880635708_3",
+      "source": "node_1785863847489_6",
+      "target": "node_1785851789444_5",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1785880664345_6",
+      "source": "node_1785879529953_3",
+      "target": "node_1785880658785_5",
+      "sourceHandle": "false",
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1785959788339_6",
+      "source": "node_1785959784260_5",
+      "target": "node_1785766086827_2",
       "sourceHandle": null,
       "breakpoint": false
     }
-  ]
+  ],
+  "published": true
 }

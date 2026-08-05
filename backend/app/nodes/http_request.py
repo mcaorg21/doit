@@ -1,7 +1,12 @@
 from app.codegen.context import CodegenContext
-from app.codegen.template_utils import render_template_expr
+from app.codegen.template_utils import render_template_expr, validate_identifier
 from app.nodes.base import NodeSpec, ParamField
 from app.nodes.registry import register
+
+
+def _auto_loop(ctx: CodegenContext) -> bool:
+    value = ctx.params.get("autoLoop")
+    return True if value is None else bool(value)
 
 
 def codegen_http_request(ctx: CodegenContext) -> str:
@@ -9,6 +14,7 @@ def codegen_http_request(ctx: CodegenContext) -> str:
     url_expr = render_template_expr(params.get("url", ""), ctx)
     method = str(params.get("method", "GET")).upper()
     result_path = params.get("resultPath") or ""
+    auto_loop = _auto_loop(ctx)
 
     lines = []
     if method == "POST":
@@ -17,13 +23,16 @@ def codegen_http_request(ctx: CodegenContext) -> str:
     else:
         lines.append(f"_raw = requests.get({url_expr}).json()")
 
-    if result_path:
-        lines.append(f"data = _dig(_raw, {result_path!r})")
-    else:
-        lines.append("data = _raw")
+    var_name = "data" if auto_loop else validate_identifier(params.get("resultVar"), ctx, "Result Variable")
 
-    lines.append(f'print(f"[{ctx.node_id}] fetched {{len(data)}} item(s)")')
-    lines.append("for item in data:")
+    if result_path:
+        lines.append(f"{var_name} = _dig(_raw, {result_path!r})")
+    else:
+        lines.append(f"{var_name} = _raw")
+
+    lines.append(f'print(f"[{ctx.node_id}] fetched {{len({var_name})}} item(s)")')
+    if auto_loop:
+        lines.append("for item in data:")
     return "\n".join(lines)
 
 
@@ -32,9 +41,14 @@ register(
         type="http_request",
         label="HTTP Request",
         category="dataSource",
-        description="Fetches a list of records that drive one loop iteration each for the rest of the workflow.",
+        description=(
+            "Fetches data from an API. By default it loops over the result directly "
+            '(one iteration per item); turn off "Loop automatically" to instead store '
+            "the fetched data in a named variable for a separate Loop node to pick up "
+            "and iterate later."
+        ),
         icon="globe",
-        opens_block=True,
+        opens_block=_auto_loop,
         params=[
             ParamField(key="url", label="URL", type="text", required=True, placeholder="https://api.example.com/leads"),
             ParamField(
@@ -50,6 +64,15 @@ register(
                 label="Result Path (optional)",
                 type="text",
                 placeholder="results.items",
+            ),
+            ParamField(key="autoLoop", label="Loop automatically over results", type="boolean", default=True),
+            ParamField(
+                key="resultVar",
+                label="Result Variable",
+                type="text",
+                placeholder="leads",
+                producesVariable=True,
+                visibleWhen={"key": "autoLoop", "equals": False},
             ),
         ],
         codegen=codegen_http_request,

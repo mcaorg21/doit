@@ -35,6 +35,7 @@ export interface Workflow {
   updatedAt: string
   nodes: WFNode[]
   edges: WFEdge[]
+  published: boolean
 }
 
 export interface RunLogLine {

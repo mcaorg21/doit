@@ -50,6 +50,16 @@ def create_workflow(project_id: str, payload: WorkflowCreate) -> Workflow:
     return workflow
 
 
+def _resync_triggers(project_id: str, workflow: Workflow) -> None:
+    # Local import: scheduler.py/webhook_registry.py import this module too (to reload
+    # the workflow fresh when a job/webhook fires), so importing them at module load
+    # time here would be circular.
+    from app.execution import scheduler, webhook_registry
+
+    scheduler.sync_workflow(project_id, workflow)
+    webhook_registry.sync_workflow(project_id, workflow)
+
+
 def save_workflow(project_id: str, workflow_id: str, payload: WorkflowSave) -> Workflow:
     existing = get_workflow(project_id, workflow_id)
     updated = existing.model_copy(
@@ -62,7 +72,32 @@ def save_workflow(project_id: str, workflow_id: str, payload: WorkflowSave) -> W
     )
     _workflow_file(project_id, workflow_id).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
     project_store.touch_project(project_id)
+    # Keeps a published workflow's trigger in sync with edits (e.g. changed cron
+    # expression or webhook path) without requiring an unpublish/republish round-trip.
+    _resync_triggers(project_id, updated)
     return updated
+
+
+def set_published(project_id: str, workflow_id: str, published: bool) -> Workflow:
+    existing = get_workflow(project_id, workflow_id)
+    updated = existing.model_copy(update={"published": published, "updatedAt": now_utc()})
+    _workflow_file(project_id, workflow_id).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
+    project_store.touch_project(project_id)
+    _resync_triggers(project_id, updated)
+    return updated
+
+
+def duplicate_workflow(project_id: str, workflow_id: str) -> Workflow:
+    existing = get_workflow(project_id, workflow_id)
+    new_id = gen_id("wf")
+    ts = now_utc()
+    duplicate = existing.model_copy(
+        update={"id": new_id, "name": f"{existing.name} (copy)", "createdAt": ts, "updatedAt": ts, "published": False}
+    )
+    workflows_dir(project_id).mkdir(parents=True, exist_ok=True)
+    _workflow_file(project_id, new_id).write_text(duplicate.model_dump_json(indent=2), encoding="utf-8")
+    project_store.touch_project(project_id)
+    return duplicate
 
 
 def delete_workflow(project_id: str, workflow_id: str) -> None:
@@ -71,3 +106,8 @@ def delete_workflow(project_id: str, workflow_id: str) -> None:
         raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
     wfile.unlink()
     project_store.touch_project(project_id)
+
+    from app.execution import scheduler, webhook_registry
+
+    scheduler.remove_workflow_job(workflow_id)
+    webhook_registry.remove_workflow(workflow_id)

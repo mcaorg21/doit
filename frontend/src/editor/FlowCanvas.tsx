@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react'
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react'
 import {
   Background,
   Controls,
@@ -19,6 +19,13 @@ import BreakpointEdge from './edges/BreakpointEdge'
 import type { FlowEdgeData, FlowNodeData } from './types'
 import type { NodeTypeSpec } from '../types/nodeType'
 
+export interface FlowCanvasHandle {
+  /** Flow-space coordinates of the center of the currently visible canvas area —
+   * used to drop click-to-add nodes where the user is actually looking instead of a
+   * viewport-independent grid that can land far outside the current pan/zoom. */
+  getViewportCenterPosition: () => { x: number; y: number }
+}
+
 interface Props {
   nodes: Node<FlowNodeData>[]
   edges: Edge<FlowEdgeData>[]
@@ -30,24 +37,43 @@ interface Props {
   onToggleBreakpoint: (edgeId: string) => void
   onDeleteEdge: (edgeId: string) => void
   onDeleteNode: (nodeId: string) => void
+  onDuplicateNode: (nodeId: string) => void
+  onRunNodePreview: (nodeId: string) => Promise<unknown>
   nodeTypesByType: Map<string, NodeTypeSpec>
 }
 
-function FlowCanvasInner({
-  nodes,
-  edges,
-  onNodesChange,
-  onEdgesChange,
-  onConnect,
-  onSelectNode,
-  onAddNode,
-  onToggleBreakpoint,
-  onDeleteEdge,
-  onDeleteNode,
-  nodeTypesByType,
-}: Props) {
+function FlowCanvasInner(
+  {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    onSelectNode,
+    onAddNode,
+    onToggleBreakpoint,
+    onDeleteEdge,
+    onDeleteNode,
+    onDuplicateNode,
+    onRunNodePreview,
+    nodeTypesByType,
+  }: Props,
+  ref: React.ForwardedRef<FlowCanvasHandle>,
+) {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const { screenToFlowPosition } = useReactFlow()
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getViewportCenterPosition: () => {
+        const rect = wrapperRef.current?.getBoundingClientRect()
+        if (!rect) return { x: 0, y: 0 }
+        return screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
+      },
+    }),
+    [screenToFlowPosition],
+  )
 
   const edgeTypeComponents = useMemo(
     () => ({
@@ -60,9 +86,11 @@ function FlowCanvasInner({
 
   const nodeTypeComponents = useMemo(
     () => ({
-      generic: (props: NodeProps & { data: FlowNodeData }) => <GenericNode {...props} onDelete={onDeleteNode} />,
+      generic: (props: NodeProps & { data: FlowNodeData }) => (
+        <GenericNode {...props} onDelete={onDeleteNode} onDuplicate={onDuplicateNode} onRunPreview={onRunNodePreview} />
+      ),
     }),
-    [onDeleteNode],
+    [onDeleteNode, onDuplicateNode, onRunNodePreview],
   )
 
   const handleDrop = useCallback(
@@ -98,10 +126,12 @@ function FlowCanvasInner({
   )
 }
 
-export default function FlowCanvas(props: Props) {
-  return (
-    <ReactFlowProvider>
-      <FlowCanvasInner {...props} />
-    </ReactFlowProvider>
-  )
-}
+const FlowCanvasInnerWithRef = forwardRef(FlowCanvasInner)
+
+const FlowCanvas = forwardRef<FlowCanvasHandle, Props>((props, ref) => (
+  <ReactFlowProvider>
+    <FlowCanvasInnerWithRef {...props} ref={ref} />
+  </ReactFlowProvider>
+))
+
+export default FlowCanvas

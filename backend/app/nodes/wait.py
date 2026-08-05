@@ -8,7 +8,10 @@ from app.nodes.registry import register
 def codegen_wait(ctx: CodegenContext) -> str:
     if ctx.params.get("waitType") == "element":
         selector = resolve_selector(ctx)
-        return f'page.wait_for_selector({selector})\nprint(f"[{ctx.node_id}] waited for element " + {selector})'
+        return (
+            f"{ctx.target_var}.locator({selector}).wait_for()\n"
+            f'print(f"[{ctx.node_id}] waited for element " + {selector})'
+        )
 
     try:
         seconds = float(ctx.params.get("duration") or 1)

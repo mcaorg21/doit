@@ -1,6 +1,8 @@
 import type { Node } from '@xyflow/react'
 import { fieldComponents } from './fields'
+import VariablePickerField from './fields/VariablePickerField'
 import type { FlowNodeData } from './types'
+import type { VariableSource } from './graph'
 import type { NodeTypeSpec, ParamFieldSpec } from '../types/nodeType'
 
 interface Props {
@@ -9,6 +11,8 @@ interface Props {
   onChangeParam: (key: string, value: unknown) => void
   onChangeMeta: (key: 'title' | 'note', value: string) => void
   onDeleteNode: () => void
+  upstreamVariables: VariableSource[]
+  onPreviewVariable: (source: VariableSource) => Promise<unknown>
 }
 
 // The "selector" field's example depends on which locator strategy is selected in the
@@ -22,7 +26,23 @@ const SELECTOR_TYPE_PLACEHOLDERS: Record<string, string> = {
   full_xpath: '/html/body/div[1]/form/input[2]',
 }
 
-export default function NodeConfigPanel({ node, spec, onChangeParam, onChangeMeta, onDeleteNode }: Props) {
+function isFieldVisible(paramSpec: ParamFieldSpec, allParams: ParamFieldSpec[], values: Record<string, unknown>) {
+  if (!paramSpec.visibleWhen) return true
+  const dep = allParams.find((p) => p.key === paramSpec.visibleWhen!.key)
+  const value = values[paramSpec.visibleWhen.key] ?? dep?.default
+  if (paramSpec.visibleWhen.in) return paramSpec.visibleWhen.in.includes(value)
+  return value === paramSpec.visibleWhen.equals
+}
+
+export default function NodeConfigPanel({
+  node,
+  spec,
+  onChangeParam,
+  onChangeMeta,
+  onDeleteNode,
+  upstreamVariables,
+  onPreviewVariable,
+}: Props) {
   if (!node || !spec) {
     return <div className="node-config-empty">Select a node to configure it.</div>
   }
@@ -58,15 +78,36 @@ export default function NodeConfigPanel({ node, spec, onChangeParam, onChangeMet
       <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '12px 0' }} />
 
       {spec.params.map((paramSpec) => {
+        if (!isFieldVisible(paramSpec, spec.params, node.data.params)) {
+          return null
+        }
+
+        if (paramSpec.consumesVariable) {
+          return (
+            <VariablePickerField
+              key={paramSpec.key}
+              spec={paramSpec}
+              value={node.data.params[paramSpec.key] ?? paramSpec.default}
+              onChange={(value) => onChangeParam(paramSpec.key, value)}
+              sources={upstreamVariables}
+              onPreview={onPreviewVariable}
+            />
+          )
+        }
+
         const FieldComponent = fieldComponents[paramSpec.type]
-        const fieldSpec: ParamFieldSpec =
-          paramSpec.key === 'selector'
-            ? {
-                ...paramSpec,
-                placeholder:
-                  SELECTOR_TYPE_PLACEHOLDERS[String(node.data.params.selectorType ?? 'css')] ?? paramSpec.placeholder,
-              }
-            : paramSpec
+        let fieldSpec: ParamFieldSpec = paramSpec
+        if (paramSpec.key === 'selector') {
+          fieldSpec = {
+            ...fieldSpec,
+            placeholder:
+              SELECTOR_TYPE_PLACEHOLDERS[String(node.data.params.selectorType ?? 'css')] ?? fieldSpec.placeholder,
+          }
+        }
+        if (paramSpec.optionsSource) {
+          const depValue = String(node.data.params[paramSpec.optionsSource.key] ?? '')
+          fieldSpec = { ...fieldSpec, options: paramSpec.optionsSource.map[depValue] ?? [] }
+        }
 
         return (
           <FieldComponent
@@ -77,6 +118,26 @@ export default function NodeConfigPanel({ node, spec, onChangeParam, onChangeMet
           />
         )
       })}
+
+      {node.data.nodeType === 'webhook_trigger' && (
+        <div className="field">
+          <label>Full URL</label>
+          {(() => {
+            const method = String(node.data.params.method ?? 'POST')
+            const path = String(node.data.params.path ?? '').trim().replace(/^\/+|\/+$/g, '')
+            const secret = String(node.data.params.secret ?? '').trim()
+            const route = `/api/webhooks/${path || '<path>'}/${secret || '<secret>'}`
+            return (
+              <>
+                <input readOnly value={`${window.location.origin}${route}`} style={{ fontFamily: 'var(--mono)', fontSize: 12 }} />
+                <span className="hint">
+                  {method} {route} — only responds while this workflow is Published (topbar toggle).
+                </span>
+              </>
+            )
+          })()}
+        </div>
+      )}
     </div>
   )
 }

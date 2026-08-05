@@ -6,6 +6,7 @@ export interface FlowNodeData {
   icon?: string | null
   title?: string
   note?: string
+  isExecuting?: boolean
   [key: string]: unknown
 }
 

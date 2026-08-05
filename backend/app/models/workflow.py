@@ -38,6 +38,11 @@ class Workflow(BaseModel):
     updatedAt: datetime
     nodes: list[WFNode] = Field(default_factory=list)
     edges: list[WFEdge] = Field(default_factory=list)
+    published: bool = False
+    """Whether this workflow is published. The backend scheduler only fires a
+    workflow's Schedule Trigger node (see app/execution/scheduler.py) while it's
+    published — draft/unpublished workflows never run on a schedule, only manually
+    via the Run button. Toggled independently of saving the graph."""
 
 
 class WorkflowCreate(BaseModel):
@@ -56,3 +61,13 @@ class WorkflowSave(BaseModel):
     name: str
     nodes: list[WFNode] = Field(default_factory=list)
     edges: list[WFEdge] = Field(default_factory=list)
+
+
+class VariablePreviewRequest(BaseModel):
+    """Payload for previewing a variable's real runtime value — runs the graph up to
+    (and including) nodeId, then reports variableName's value."""
+
+    nodes: list[WFNode] = Field(default_factory=list)
+    edges: list[WFEdge] = Field(default_factory=list)
+    nodeId: str
+    variableName: str

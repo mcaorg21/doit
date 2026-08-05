@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
 
-FieldType = Literal["text", "textarea", "number", "select", "boolean"]
-NodeCategory = Literal["dataSource", "browser", "action", "logic"]
+FieldType = Literal["text", "textarea", "number", "select", "boolean", "fieldList"]
+NodeCategory = Literal["trigger", "dataSource", "browser", "action", "logic"]
 
 
 @dataclass
@@ -15,6 +15,31 @@ class ParamField:
     options: list[dict] | None = None  # for "select": [{"value": "GET", "label": "GET"}, ...]
     placeholder: str | None = None
     supportsTemplate: bool = False
+    producesVariable: bool = False
+    """True when this field's value names a Python variable that this node assigns
+    (e.g. Element Present?'s "resultVar") — lets the frontend offer it as a pickable
+    source for other nodes that consume a named variable (e.g. Loop's "Variable from
+    earlier node" mode)."""
+    consumesVariable: bool = False
+    """True when this field should be filled in by picking from an upstream node's
+    producesVariable field (e.g. Loop's "arrayVar") rather than typed freely — the
+    frontend renders a picker with a live preview instead of a plain text input."""
+    visibleWhen: dict[str, Any] | None = None
+    """{"key": <sibling param key>, "equals": <value>} or {"key": ..., "in": [<values>]} —
+    the frontend only shows this field when the sibling param currently equals that
+    value / is one of those values (e.g. Result Variable only makes sense when "Loop
+    automatically" is off; the IF node's "Value 2" only makes sense for operators that
+    take a second operand)."""
+    optionsSource: dict[str, Any] | None = None
+    """{"key": <sibling param key>, "map": {<sibling value>: [{"value":.., "label":..}, ...]}} —
+    when set, this field's dropdown options are looked up from `map` using the
+    sibling field's current value instead of the static `options` list (e.g. the IF
+    node's "Operator" choices depend on its "Type" field)."""
+    autoGenerate: bool = False
+    """True when this field should be seeded with a fresh random token client-side
+    the moment the node is added (rather than a fixed `default`), and shown read-only
+    with a "regenerate" button (e.g. Webhook's Secret) — every node instance gets its
+    own value instead of a shared spec-level default."""
 
 
 @dataclass
@@ -26,7 +51,10 @@ class NodeSpec:
     params: list[ParamField]
     codegen: Callable[[Any], str]
     icon: str | None = None
-    opens_block: bool = False
+    opens_block: bool | Callable[[Any], bool] = False
+    """Whether this node's fragment ends by opening an indented block (a `for`/`with`
+    line). Can be a per-instance callable when that depends on the node's own params
+    (e.g. HTTP Request only opens its loop when "loop automatically" is on)."""
     closing_stmt: Callable[[Any], str] | None = None
     is_branch: bool = False
     """True for nodes with two named outgoing edges (sourceHandle "true"/"false"),
@@ -36,6 +64,9 @@ class NodeSpec:
     function's return value (e.g. Open Browser sets it to "browser"/"context", Close
     Browser resets it to None). Nodes that don't touch browser state leave this unset
     so the incoming value just passes through unchanged."""
+    target_var_after: Callable[[Any], str] | None = None
+    """If set, replaces CodegenContext.target_var for downstream nodes (e.g. Switch
+    Frame sets it to "frame", Open Browser resets it to "page")."""
 
     def to_public_dict(self) -> dict:
         """Serializable form for the frontend — excludes the server-only codegen callables."""
@@ -56,6 +87,11 @@ class NodeSpec:
                     "options": p.options,
                     "placeholder": p.placeholder,
                     "supportsTemplate": p.supportsTemplate,
+                    "producesVariable": p.producesVariable,
+                    "consumesVariable": p.consumesVariable,
+                    "visibleWhen": p.visibleWhen,
+                    "optionsSource": p.optionsSource,
+                    "autoGenerate": p.autoGenerate,
                 }
                 for p in self.params
             ],

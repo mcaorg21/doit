@@ -8,7 +8,10 @@ from app.nodes.registry import register
 def codegen_select_option(ctx: CodegenContext) -> str:
     selector = resolve_selector(ctx)
     value_expr = render_template_expr(ctx.params.get("value", ""), ctx)
-    return f'page.select_option({selector}, {value_expr})\nprint(f"[{ctx.node_id}] selected option on " + {selector})'
+    return (
+        f"{ctx.target_var}.locator({selector}).select_option({value_expr})\n"
+        f'print(f"[{ctx.node_id}] selected option on " + {selector})'
+    )
 
 
 register(

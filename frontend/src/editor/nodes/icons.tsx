@@ -9,10 +9,16 @@ import {
   LuMousePointerClick,
   LuMousePointer2,
   LuClock,
+  LuCalendarClock,
   LuScanSearch,
+  LuScanText,
   LuSplit,
   LuPause,
+  LuFrame,
+  LuRepeat,
+  LuRows3,
   LuBox,
+  LuWebhook,
 } from 'react-icons/lu'
 
 // One specific, deliberately-picked icon per node type — Lucide for general/functional
@@ -27,12 +33,26 @@ const ICONS: Record<string, IconType> = {
   'mouse-pointer-click': LuMousePointerClick, // Click
   'mouse-pointer-2': LuMousePointer2, // Hover
   clock: LuClock, // Wait
+  schedule: LuCalendarClock, // Schedule Trigger
+  webhook: LuWebhook, // Webhook Trigger
   'scan-search': LuScanSearch, // Element Present?
+  'scan-text': LuScanText, // Get Text
   split: LuSplit, // IF
   pause: LuPause, // Pause (debugger)
+  frame: LuFrame, // Switch Frame
+  repeat: LuRepeat, // Loop
+  rows: LuRows3, // Multi Input
+}
+
+// LuSplit's glyph reads top-to-bottom (a path forking upward) — the canvas flows
+// left-to-right now, so it needs a quarter turn to actually point the way the branches
+// (true/false) come out of the node.
+const ROTATE: Record<string, number> = {
+  split: 90,
 }
 
 export default function NodeIcon({ name, size = 24 }: { name?: string | null; size?: number }) {
   const Icon = (name && ICONS[name]) || LuBox
-  return <Icon size={size} />
+  const rotation = (name && ROTATE[name]) || 0
+  return <Icon size={size} style={rotation ? { transform: `rotate(${rotation}deg)` } : undefined} />
 }

@@ -59,4 +59,15 @@ def delete_project(project_id: str) -> None:
     pdir = project_dir(project_id)
     if not pdir.exists():
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
+
+    # Local imports: workflow_store imports this module at load time (touch_project),
+    # and execution.scheduler/webhook_registry import workflow_store — importing
+    # either eagerly here would be circular.
+    from app.execution import scheduler, webhook_registry
+    from app.storage import workflow_store
+
+    for workflow in workflow_store.list_workflows(project_id):
+        scheduler.remove_workflow_job(workflow.id)
+        webhook_registry.remove_workflow(workflow.id)
+
     shutil.rmtree(pdir)

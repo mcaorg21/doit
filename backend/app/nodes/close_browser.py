@@ -6,7 +6,7 @@ from app.nodes.registry import register
 def codegen_close_browser(ctx: CodegenContext) -> str:
     if ctx.browser_var is None:
         raise CodegenError(
-            f"Node '{ctx.node_id}' (Close Browser) has no browser open before it — add an Open Browser node earlier in the chain"
+            f"Node '{ctx.node_label}' (Close Browser) has no browser open before it — add an Open Browser node earlier in the chain"
         )
     var = ctx.browser_var
     return f'{var}.close()\nprint("[{ctx.node_id}] browser closed")'

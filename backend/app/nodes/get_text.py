@@ -5,35 +5,34 @@ from app.nodes.common import selector_field, selector_type_field
 from app.nodes.registry import register
 
 
-def codegen_element_present(ctx: CodegenContext) -> str:
+def codegen_get_text(ctx: CodegenContext) -> str:
     selector = resolve_selector(ctx)
     var = validate_identifier(ctx.params.get("resultVar", ""), ctx, "Result Variable")
-    return f'{var} = {ctx.target_var}.locator({selector}).count() > 0\nprint(f"[{ctx.node_id}] {var} = " + str({var}))'
+    return f'{var} = {ctx.target_var}.locator({selector}).inner_text()\nprint(f"[{ctx.node_id}] {var} = " + {var})'
 
 
 register(
     NodeSpec(
-        type="element_present",
-        label="Element Present?",
-        category="logic",
+        type="get_text",
+        label="Get Text",
+        category="action",
         description=(
-            "Checks whether an element matching a selector currently exists on the page "
-            "(e.g. to detect whether login succeeded), storing True/False in a variable for a "
-            "later IF node to branch on."
+            "Reads the visible text of an element matching a selector (ID/Class/CSS/XPath/Full XPath) "
+            "and stores it in a variable, ready to reference elsewhere as {{varName}} or feed a Loop node."
         ),
-        icon="scan-search",
+        icon="scan-text",
         params=[
-            selector_field(placeholder="logged-in-badge"),
+            selector_field(placeholder="price"),
             selector_type_field(),
             ParamField(
                 key="resultVar",
                 label="Result Variable",
                 type="text",
                 required=True,
-                placeholder="logged_in",
+                placeholder="price_text",
                 producesVariable=True,
             ),
         ],
-        codegen=codegen_element_present,
+        codegen=codegen_get_text,
     )
 )

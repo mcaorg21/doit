@@ -11,6 +11,12 @@ export const workflowsApi = {
     api.put<Workflow>(`/api/projects/${projectId}/workflows/${workflowId}`, { name, nodes, edges }),
   remove: (projectId: string, workflowId: string) =>
     api.delete<void>(`/api/projects/${projectId}/workflows/${workflowId}`),
+  duplicate: (projectId: string, workflowId: string) =>
+    api.post<Workflow>(`/api/projects/${projectId}/workflows/${workflowId}/duplicate`),
+  publish: (projectId: string, workflowId: string) =>
+    api.post<Workflow>(`/api/projects/${projectId}/workflows/${workflowId}/publish`),
+  unpublish: (projectId: string, workflowId: string) =>
+    api.post<Workflow>(`/api/projects/${projectId}/workflows/${workflowId}/unpublish`),
   generateCode: (projectId: string, workflowId: string, nodes: WFNode[], edges: WFEdge[]) =>
     api.post<{ code: string }>(`/api/projects/${projectId}/workflows/${workflowId}/generate-code`, {
       nodes,
@@ -19,4 +25,18 @@ export const workflowsApi = {
   run: (projectId: string, workflowId: string, nodes: WFNode[], edges: WFEdge[]) =>
     api.post<{ runId: string }>(`/api/projects/${projectId}/workflows/${workflowId}/run`, { nodes, edges }),
   listRuns: (projectId: string) => api.get<RunRecord[]>(`/api/projects/${projectId}/runs`),
+  previewVariable: (
+    projectId: string,
+    workflowId: string,
+    nodes: WFNode[],
+    edges: WFEdge[],
+    nodeId: string,
+    variableName: string,
+  ) =>
+    api.post<{ value: unknown }>(`/api/projects/${projectId}/workflows/${workflowId}/preview-variable`, {
+      nodes,
+      edges,
+      nodeId,
+      variableName,
+    }),
 }

@@ -12,13 +12,14 @@ if sys.platform == "win32":
 
 from app.config import ensure_dirs
 import app.nodes  # noqa: F401  (populates NODE_REGISTRY on import)
-from app.api import codegen, node_types, projects, runs, workflows
+from app.api import codegen, node_types, projects, runs, webhooks, workflows
+from app.execution import scheduler, webhook_registry
 
 app = FastAPI(title="Auto-mation")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:5183"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -27,6 +28,13 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     ensure_dirs()
+    scheduler.start_scheduler()  # also does its own initial sync
+    webhook_registry.sync_all()
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    scheduler.stop_scheduler()
 
 
 app.include_router(projects.router)
@@ -34,6 +42,7 @@ app.include_router(workflows.router)
 app.include_router(node_types.router)
 app.include_router(codegen.router)
 app.include_router(runs.router)
+app.include_router(webhooks.router)
 
 
 @app.get("/api/health")

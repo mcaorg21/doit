@@ -8,7 +8,10 @@ from app.nodes.registry import register
 def codegen_fill(ctx: CodegenContext) -> str:
     selector = resolve_selector(ctx)
     value_expr = render_template_expr(ctx.params.get("value", ""), ctx)
-    return f'page.fill({selector}, {value_expr})\nprint(f"[{ctx.node_id}] filled " + {selector})'
+    return (
+        f"{ctx.target_var}.locator({selector}).fill({value_expr})\n"
+        f'print(f"[{ctx.node_id}] filled " + {selector})'
+    )
 
 
 register(

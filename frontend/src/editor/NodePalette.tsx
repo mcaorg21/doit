@@ -3,6 +3,7 @@ import { nodeTypesApi } from '../api/nodeTypes'
 import type { NodeCategory, NodeTypeSpec } from '../types/nodeType'
 
 const CATEGORY_LABELS: Record<NodeCategory, string> = {
+  trigger: 'Triggers',
   dataSource: 'Data Sources',
   browser: 'Browser',
   action: 'Actions',
@@ -28,7 +29,7 @@ export default function NodePalette({ onAddNode }: Props) {
 
   return (
     <div className="palette">
-      {(['dataSource', 'browser', 'action', 'logic'] as NodeCategory[]).map((category) => {
+      {(['trigger', 'dataSource', 'browser', 'action', 'logic'] as NodeCategory[]).map((category) => {
         const specs = byCategory.get(category)
         if (!specs || specs.length === 0) return null
         return (

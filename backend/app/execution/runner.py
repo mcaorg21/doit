@@ -28,6 +28,10 @@ async def start_run(project_id: str, workflow_id: str, script: str) -> RunHandle
 
     process = await asyncio.create_subprocess_exec(
         PYTHON_EXECUTABLE,
+        "-u",  # unbuffered stdout/stderr — without this, Python fully buffers output
+        # when it isn't attached to a real terminal (i.e. always, here, since stdout is
+        # a pipe), so every print() from the script sits in a buffer and only reaches
+        # us in one burst at process exit instead of streaming live as each node runs.
         str(script_path),
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
@@ -37,6 +41,46 @@ async def start_run(project_id: str, workflow_id: str, script: str) -> RunHandle
     register_run(handle)
     asyncio.create_task(_stream_output(handle))
     return handle
+
+
+class PreviewTimeout(Exception):
+    """Raised when a variable-preview script doesn't finish within the timeout."""
+
+
+class PreviewFailed(Exception):
+    """Raised when a variable-preview script exits non-zero (e.g. selector not found)."""
+
+    def __init__(self, output: str):
+        super().__init__(output)
+        self.output = output
+
+
+async def run_preview_script(script: str, timeout: float = 20.0) -> str:
+    """Runs a (usually truncated) script to completion and returns its raw stdout —
+    used by the variable-preview feature, which needs the real value of a variable at
+    a specific point in the graph, not a tracked/streamed run."""
+    run_id = gen_id("preview")
+    script_path = GENERATED_SCRIPTS_DIR / f"{run_id}.py"
+    script_path.write_text(script, encoding="utf-8")
+
+    process = await asyncio.create_subprocess_exec(
+        PYTHON_EXECUTABLE,
+        "-u",
+        str(script_path),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
+    try:
+        stdout, _ = await asyncio.wait_for(process.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        process.kill()
+        await process.wait()
+        raise PreviewTimeout(f"Preview didn't finish within {timeout:.0f}s")
+
+    output = stdout.decode(errors="replace")
+    if process.returncode != 0:
+        raise PreviewFailed(output)
+    return output
 
 
 async def send_input(handle: RunHandle, text: str) -> None:

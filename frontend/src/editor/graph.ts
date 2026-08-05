@@ -1,6 +1,7 @@
 import type { Edge, Node } from '@xyflow/react'
 import type { FlowEdgeData, FlowNodeData } from './types'
 import type { NodeTypeSpec } from '../types/nodeType'
+import { referencePrefix } from './jsonPaths'
 
 /** Walks backward from nodeId via edges (target -> source) to the root, in order
  * from nearest ancestor to furthest — matches the engine's <=1-incoming-edge rule. */
@@ -57,4 +58,32 @@ export function getUpstreamVariables(
     }
   }
   return sources
+}
+
+export interface FieldMapOption {
+  nodeLabel: string
+  path: string
+  expr: string
+}
+
+/** Upstream nodes' saved field mappings (see GenericNode's "Save Mapping" button),
+ * turned into ready-to-insert {{prefix.path}} expressions — the prefix is derived
+ * from each source node's *current* params, so it stays correct even if the user
+ * changes "Loop automatically" or renames the Result Variable after saving. */
+export function getUpstreamFieldMapOptions(
+  nodeId: string,
+  nodes: Node<FlowNodeData>[],
+  edges: Edge<FlowEdgeData>[],
+): FieldMapOption[] {
+  const options: FieldMapOption[] = []
+  for (const node of getUpstreamNodes(nodeId, nodes, edges)) {
+    const fieldMap = node.data.fieldMap
+    if (!fieldMap || fieldMap.length === 0) continue
+    const prefix = referencePrefix(node.data.params)
+    const nodeLabel = node.data.title?.trim() || node.data.label
+    for (const path of fieldMap) {
+      options.push({ nodeLabel, path, expr: `{{${prefix}.${path}}}` })
+    }
+  }
+  return options
 }

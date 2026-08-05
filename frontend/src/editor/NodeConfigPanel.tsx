@@ -1,8 +1,9 @@
+import { useEffect, useState } from 'react'
 import type { Node } from '@xyflow/react'
 import { fieldComponents } from './fields'
 import VariablePickerField from './fields/VariablePickerField'
 import type { FlowNodeData } from './types'
-import type { VariableSource } from './graph'
+import type { FieldMapOption, VariableSource } from './graph'
 import type { NodeTypeSpec, ParamFieldSpec } from '../types/nodeType'
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
   onDeleteNode: () => void
   upstreamVariables: VariableSource[]
   onPreviewVariable: (source: VariableSource) => Promise<unknown>
+  upstreamFieldMapOptions: FieldMapOption[]
 }
 
 // The "selector" field's example depends on which locator strategy is selected in the
@@ -42,10 +44,28 @@ export default function NodeConfigPanel({
   onDeleteNode,
   upstreamVariables,
   onPreviewVariable,
+  upstreamFieldMapOptions,
 }: Props) {
+  const [noteOpen, setNoteOpen] = useState(false)
+
+  // Starts collapsed again for every newly selected node — closed by default is the
+  // point (it otherwise eats vertical space in the side panel for a field most nodes
+  // never use), not "remembers whichever node you last opened it on".
+  useEffect(() => {
+    setNoteOpen(false)
+  }, [node?.id])
+
   if (!node || !spec) {
     return <div className="node-config-empty">Select a node to configure it.</div>
   }
+
+  // Every upstream field the user can reference in a {{...}} field: whole variables
+  // an earlier node produced (e.g. Get Text's Result Variable), plus any nested
+  // paths saved via an HTTP Request node's "Save Mapping" button.
+  const insertOptions: FieldMapOption[] = [
+    ...upstreamVariables.map((v) => ({ nodeLabel: v.nodeLabel, path: v.variableName, expr: `{{${v.variableName}}}` })),
+    ...upstreamFieldMapOptions,
+  ]
 
   return (
     <div>
@@ -66,14 +86,29 @@ export default function NodeConfigPanel({
         />
       </div>
       <div className="field">
-        <label>Note (what does this node do?)</label>
-        <textarea
-          value={node.data.note ?? ''}
-          placeholder="Explain what this node is for…"
-          rows={3}
-          onChange={(e) => onChangeMeta('note', e.target.value)}
-        />
-        <span className="hint">Shown as a comment above this node's code, and as a tooltip on the canvas.</span>
+        <label
+          onClick={() => setNoteOpen((v) => !v)}
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, userSelect: 'none' }}
+        >
+          <span style={{ display: 'inline-block', transform: noteOpen ? 'rotate(90deg)' : undefined, transition: 'transform 0.1s' }}>
+            ▸
+          </span>
+          Note (what does this node do?)
+          {!noteOpen && node.data.note?.trim() && (
+            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(set)</span>
+          )}
+        </label>
+        {noteOpen && (
+          <>
+            <textarea
+              value={node.data.note ?? ''}
+              placeholder="Explain what this node is for…"
+              rows={3}
+              onChange={(e) => onChangeMeta('note', e.target.value)}
+            />
+            <span className="hint">Shown as a comment above this node's code, and as a tooltip on the canvas.</span>
+          </>
+        )}
       </div>
       <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '12px 0' }} />
 
@@ -115,6 +150,7 @@ export default function NodeConfigPanel({
             spec={fieldSpec}
             value={node.data.params[paramSpec.key] ?? paramSpec.default}
             onChange={(value) => onChangeParam(paramSpec.key, value)}
+            insertOptions={paramSpec.supportsTemplate ? insertOptions : undefined}
           />
         )
       })}

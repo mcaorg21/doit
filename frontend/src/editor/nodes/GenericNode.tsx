@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { ApiError } from '../../api/client'
 import type { FlowNodeData } from '../types'
+import { flattenJsonPaths, referencePrefix } from '../jsonPaths'
+import JsonPathViewer from '../JsonPathViewer'
 import NodeIcon from './icons'
 
 interface Props extends NodeProps {
@@ -10,20 +12,23 @@ interface Props extends NodeProps {
   onDelete: (nodeId: string) => void
   onDuplicate: (nodeId: string) => void
   onRunPreview?: (nodeId: string) => Promise<unknown>
+  onSaveFieldMap?: (nodeId: string, fieldMap: string[]) => void
 }
 
 const SQUARE_SIZE = 56
 
 type PreviewState = { loading: boolean; value?: unknown; error?: string }
 
-export default function GenericNode({ id, data, selected, onDelete, onDuplicate, onRunPreview }: Props) {
+export default function GenericNode({ id, data, selected, onDelete, onDuplicate, onRunPreview, onSaveFieldMap }: Props) {
   const [preview, setPreview] = useState<PreviewState | null>(null)
+  const [mappingSaved, setMappingSaved] = useState(false)
   const heading = data.title?.trim() || data.label
 
   async function handleRun(e: React.MouseEvent) {
     e.stopPropagation()
     if (!onRunPreview) return
     setPreview({ loading: true })
+    setMappingSaved(false)
     try {
       const value = await onRunPreview(id)
       setPreview({ loading: false, value })
@@ -167,25 +172,39 @@ export default function GenericNode({ id, data, selected, onDelete, onDuplicate,
               {preview.loading && <span className="hint">Running…</span>}
               {preview.error && <div className="error-banner">{preview.error}</div>}
               {!preview.loading && preview.value !== undefined && (
-                <pre
-                  style={{
-                    margin: 0,
-                    fontFamily: 'var(--mono)',
-                    fontSize: 12,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-all',
-                    background: 'var(--bg)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 6,
-                    padding: '8px 10px',
-                    maxHeight: '60vh',
-                    overflow: 'auto',
-                  }}
-                >
-                  {JSON.stringify(preview.value, null, 2)}
-                </pre>
+                <>
+                  <span className="hint">
+                    Hover a value for its {'{{'}
+                    {referencePrefix(data.params)}
+                    {'.field}}'} reference, click to copy.
+                  </span>
+                  <div
+                    style={{
+                      background: 'var(--bg)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 6,
+                      padding: '8px 10px',
+                      maxHeight: '60vh',
+                      overflow: 'auto',
+                    }}
+                  >
+                    <JsonPathViewer value={preview.value} prefix={referencePrefix(data.params)} />
+                  </div>
+                </>
               )}
               <div className="modal-actions">
+                {!preview.loading && preview.value !== undefined && onSaveFieldMap && (
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      onSaveFieldMap(id, flattenJsonPaths(preview.value))
+                      setMappingSaved(true)
+                    }}
+                    title="Saves these field paths so other nodes' template-capable fields can suggest them"
+                  >
+                    {mappingSaved ? 'Mapping saved ✓' : 'Save Mapping'}
+                  </button>
+                )}
                 <button className="btn btn-primary" onClick={() => setPreview(null)}>
                   Close
                 </button>

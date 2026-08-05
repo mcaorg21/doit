@@ -10,6 +10,7 @@ export function toWFNodes(nodes: Node<FlowNodeData>[]): WFNode[] {
     params: n.data.params,
     title: n.data.title,
     note: n.data.note,
+    fieldMap: n.data.fieldMap,
   }))
 }
 

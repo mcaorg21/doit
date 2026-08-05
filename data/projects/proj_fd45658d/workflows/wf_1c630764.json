@@ -3,7 +3,7 @@
   "projectId": "proj_fd45658d",
   "name": "Primeira automacao",
   "createdAt": "2026-08-03T14:03:22.396283Z",
-  "updatedAt": "2026-08-05T20:24:17.719713Z",
+  "updatedAt": "2026-08-05T21:39:09.809368Z",
   "nodes": [
     {
       "id": "node_1785766086827_2",
@@ -19,7 +19,8 @@
         "multiUser": false
       },
       "title": "abre_chrome",
-      "note": null
+      "note": null,
+      "fieldMap": null
     },
     {
       "id": "node_1785766096849_3",
@@ -32,7 +33,8 @@
         "url": "https://google.com.br"
       },
       "title": "site_google",
-      "note": null
+      "note": null,
+      "fieldMap": null
     },
     {
       "id": "node_1785793282761_11",
@@ -49,7 +51,24 @@
         "autoLoop": true
       },
       "title": "get",
-      "note": null
+      "note": null,
+      "fieldMap": [
+        "id",
+        "name",
+        "username",
+        "email",
+        "address.street",
+        "address.suite",
+        "address.city",
+        "address.zipcode",
+        "address.geo.lat",
+        "address.geo.lng",
+        "phone",
+        "website",
+        "company.name",
+        "company.catchPhrase",
+        "company.bs"
+      ]
     },
     {
       "id": "node_1785851789444_5",
@@ -60,7 +79,8 @@
       },
       "params": {},
       "title": null,
-      "note": null
+      "note": null,
+      "fieldMap": null
     },
     {
       "id": "node_1785863847489_6",
@@ -75,7 +95,8 @@
         "value": "{{item.name}}"
       },
       "title": "preencher",
-      "note": null
+      "note": null,
+      "fieldMap": null
     },
     {
       "id": "node_1785878867884_2",
@@ -90,7 +111,8 @@
         "resultVar": "texto_pais"
       },
       "title": "pegar_texto",
-      "note": null
+      "note": null,
+      "fieldMap": null
     },
     {
       "id": "node_1785879529953_3",
@@ -106,7 +128,8 @@
         "value2": "Schulist"
       },
       "title": "se",
-      "note": null
+      "note": null,
+      "fieldMap": null
     },
     {
       "id": "node_1785880658785_5",
@@ -121,7 +144,8 @@
         "value": "{{item.name}}"
       },
       "title": "preencher2",
-      "note": null
+      "note": null,
+      "fieldMap": null
     },
     {
       "id": "node_1785959784260_5",
@@ -135,8 +159,26 @@
         "path": "teste",
         "secret": "af7ffd9461ef408daffa1013"
       },
-      "title": null,
-      "note": null
+      "title": "trigger_1",
+      "note": null,
+      "fieldMap": null
+    },
+    {
+      "id": "node_1785965943107_1",
+      "type": "open_browser",
+      "position": {
+        "x": -1282.491256589654,
+        "y": -39.379275910468806
+      },
+      "params": {
+        "headless": false,
+        "browserChannel": "chrome",
+        "profileName": "Marcelo2",
+        "multiUser": false
+      },
+      "title": "abre_chrome",
+      "note": null,
+      "fieldMap": null
     }
   ],
   "edges": [
@@ -193,6 +235,13 @@
       "id": "e_node_1785959788339_6",
       "source": "node_1785959784260_5",
       "target": "node_1785766086827_2",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1785965945792_2",
+      "source": "node_1785766086827_2",
+      "target": "node_1785965943107_1",
       "sourceHandle": null,
       "breakpoint": false
     }

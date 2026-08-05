@@ -20,7 +20,7 @@ import NodeConfigPanel from '../editor/NodeConfigPanel'
 import CodePreviewPanel from '../editor/CodePreviewPanel'
 import RunPanel from '../editor/RunPanel'
 import { toWFEdges, toWFNodes } from '../editor/convert'
-import { getUpstreamVariables, type VariableSource } from '../editor/graph'
+import { getUpstreamVariables, getUpstreamFieldMapOptions, type VariableSource } from '../editor/graph'
 import { genRandomToken } from '../editor/randomToken'
 import type { FlowEdgeData, FlowNodeData } from '../editor/types'
 import type { NodeTypeSpec } from '../types/nodeType'
@@ -112,6 +112,7 @@ export default function EditorPage() {
               icon: nodeTypesByType.get(n.type)?.icon ?? null,
               title: n.title ?? undefined,
               note: n.note ?? undefined,
+              fieldMap: n.fieldMap ?? undefined,
             },
           }
         }),
@@ -446,6 +447,11 @@ export default function EditorPage() {
     [selectedNode, nodes, edges, nodeTypesByType],
   )
 
+  const upstreamFieldMapOptions = useMemo(
+    () => (selectedNode ? getUpstreamFieldMapOptions(selectedNode.id, nodes, edges) : []),
+    [selectedNode, nodes, edges],
+  )
+
   async function handlePreviewVariable(source: VariableSource) {
     const { value } = await workflowsApi.previewVariable(
       projectId!,
@@ -479,6 +485,14 @@ export default function EditorPage() {
       return value
     },
     [projectId, workflowId],
+  )
+
+  const handleSaveFieldMap = useCallback(
+    (nodeId: string, fieldMap: string[]) => {
+      setNodes((prev) => prev.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, fieldMap } } : n)))
+      markDirty()
+    },
+    [markDirty],
   )
 
   function handleExport() {
@@ -612,6 +626,7 @@ export default function EditorPage() {
           onDeleteNode={handleDeleteNodeById}
           onDuplicateNode={handleDuplicateNode}
           onRunNodePreview={handleRunNodePreview}
+          onSaveFieldMap={handleSaveFieldMap}
           nodeTypesByType={nodeTypesByType}
         />
 
@@ -624,6 +639,7 @@ export default function EditorPage() {
             onDeleteNode={handleDeleteNode}
             upstreamVariables={upstreamVariables}
             onPreviewVariable={handlePreviewVariable}
+            upstreamFieldMapOptions={upstreamFieldMapOptions}
           />
         </div>
 

@@ -7,7 +7,7 @@ from app.nodes.registry import register
 
 def codegen_hover(ctx: CodegenContext) -> str:
     selector = resolve_selector(ctx)
-    return f'{ctx.target_var}.locator({selector}).hover()\nprint(f"[{ctx.node_id}] hovered " + {selector})'
+    return f'{ctx.target_var}.locator({selector}).hover()\nprint(f"[{ctx.node_label}] hovered " + {selector})'
 
 
 register(

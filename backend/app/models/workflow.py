@@ -20,6 +20,10 @@ class WFNode(BaseModel):
     note: str | None = None
     """Free-text explanation of what this node instance does — emitted as a comment
     above the node's code in the generated script."""
+    fieldMap: list[str] | None = None
+    """Dot-paths (e.g. "address.geo.lat") discovered from a Result preview and saved
+    via the node's "Save Mapping" button — purely a frontend convenience so other
+    fields' template picker can suggest them; doesn't affect codegen."""
 
 
 class WFEdge(BaseModel):

@@ -1,13 +1,15 @@
 import type { ParamFieldSpec } from '../../types/nodeType'
 import { genRandomToken } from '../randomToken'
+import type { FieldMapOption } from '../graph'
 
 export interface FieldProps {
   spec: ParamFieldSpec
   value: unknown
   onChange: (value: unknown) => void
+  insertOptions?: FieldMapOption[]
 }
 
-export default function TextField({ spec, value, onChange }: FieldProps) {
+export default function TextField({ spec, value, onChange, insertOptions }: FieldProps) {
   return (
     <div className="field">
       <label>
@@ -37,10 +39,32 @@ export default function TextField({ spec, value, onChange }: FieldProps) {
         />
       )}
       {spec.supportsTemplate && (
-        <span className="hint">
-          Supports {'{{item.field}}'} inside a loop, or {'{{varName.field}}'} for a variable set by an earlier node
-          (e.g. HTTP Request's Result Variable) — nested fields work too, e.g. {'{{item.address.street}}'}
-        </span>
+        <>
+          <span className="hint">
+            Supports {'{{item.field}}'} inside a loop, or {'{{varName.field}}'} for a variable set by an earlier node
+            (e.g. HTTP Request's Result Variable) — nested fields work too, e.g. {'{{item.address.street}}'}
+          </span>
+          {insertOptions && insertOptions.length > 0 && (
+            <select
+              value=""
+              title="Insert a variable discovered via an upstream node's Save Mapping"
+              onChange={(e) => {
+                if (!e.target.value) return
+                const current = (value as string) ?? ''
+                onChange(current ? `${current} ${e.target.value}` : e.target.value)
+                e.target.value = ''
+              }}
+              style={{ marginTop: 4, fontSize: 12 }}
+            >
+              <option value="">+ Insert variable…</option>
+              {insertOptions.map((opt) => (
+                <option key={opt.expr} value={opt.expr}>
+                  {opt.nodeLabel}: {opt.path}
+                </option>
+              ))}
+            </select>
+          )}
+        </>
       )}
     </div>
   )

@@ -10,7 +10,7 @@ def codegen_select_option(ctx: CodegenContext) -> str:
     value_expr = render_template_expr(ctx.params.get("value", ""), ctx)
     return (
         f"{ctx.target_var}.locator({selector}).select_option({value_expr})\n"
-        f'print(f"[{ctx.node_id}] selected option on " + {selector})'
+        f'print(f"[{ctx.node_label}] selected option on " + {selector})'
     )
 
 

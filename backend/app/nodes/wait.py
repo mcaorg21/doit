@@ -10,7 +10,7 @@ def codegen_wait(ctx: CodegenContext) -> str:
         selector = resolve_selector(ctx)
         return (
             f"{ctx.target_var}.locator({selector}).wait_for()\n"
-            f'print(f"[{ctx.node_id}] waited for element " + {selector})'
+            f'print(f"[{ctx.node_label}] waited for element " + {selector})'
         )
 
     try:
@@ -18,7 +18,7 @@ def codegen_wait(ctx: CodegenContext) -> str:
     except (TypeError, ValueError):
         seconds = 1.0
     ms = int(seconds * 1000)
-    return f'page.wait_for_timeout({ms})\nprint("[{ctx.node_id}] waited {seconds}s")'
+    return f'page.wait_for_timeout({ms})\nprint("[{ctx.node_label}] waited {seconds}s")'
 
 
 register(

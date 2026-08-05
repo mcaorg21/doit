@@ -11,9 +11,9 @@ def _raw_selector(ctx: CodegenContext) -> str:
 
 def codegen_switch_frame(ctx: CodegenContext) -> str:
     if not _raw_selector(ctx):
-        return f'print("[{ctx.node_id}] switched to default content (main page)")'
+        return f'print("[{ctx.node_label}] switched to default content (main page)")'
     selector = resolve_selector(ctx)
-    return f'frame = page.frame_locator({selector})\nprint(f"[{ctx.node_id}] switched to iframe " + {selector})'
+    return f'frame = page.frame_locator({selector})\nprint(f"[{ctx.node_label}] switched to iframe " + {selector})'
 
 
 def target_var_after_switch_frame(ctx: CodegenContext) -> str:

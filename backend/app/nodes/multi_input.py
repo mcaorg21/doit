@@ -22,7 +22,7 @@ def codegen_multi_input(ctx: CodegenContext) -> str:
         value_expr = render_template_expr(row.get("value", ""), ctx)
         method = "select_option" if kind == "select" else "fill"
         lines.append(f"{ctx.target_var}.locator({selector_expr}).{method}({value_expr})")
-    lines.append(f'print("[{ctx.node_id}] filled {len(rows)} field(s)")')
+    lines.append(f'print("[{ctx.node_label}] filled {len(rows)} field(s)")')
     return "\n".join(lines)
 
 

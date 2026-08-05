@@ -30,7 +30,7 @@ def codegen_http_request(ctx: CodegenContext) -> str:
     else:
         lines.append(f"{var_name} = _raw")
 
-    lines.append(f'print(f"[{ctx.node_id}] fetched {{len({var_name})}} item(s)")')
+    lines.append(f'print(f"[{ctx.node_label}] fetched {{len({var_name})}} item(s)")')
     if auto_loop:
         lines.append("for item in data:")
     return "\n".join(lines)

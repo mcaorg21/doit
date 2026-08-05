@@ -13,7 +13,7 @@ def codegen_loop(ctx: CodegenContext) -> str:
         validate_json_array(raw, ctx, "Array (JSON)")
         lines = [f"data = json.loads({raw!r})"]
 
-    lines.append(f'print(f"[{ctx.node_id}] looping over {{len(data)}} item(s)")')
+    lines.append(f'print(f"[{ctx.node_label}] looping over {{len(data)}} item(s)")')
     lines.append("for item in data:")
     return "\n".join(lines)
 

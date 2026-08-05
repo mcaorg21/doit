@@ -311,14 +311,19 @@ export default function WorkflowListPage() {
           ))}
 
           {childWorkflows.map((w) => (
-            <Link key={w.id} to={`/projects/${projectId}/workflows/${w.id}`} className="list-item">
-              <div>
-                <div className="list-item-title">{w.name}</div>
-                <div className="list-item-meta">
-                  {w.nodes.length} node{w.nodes.length === 1 ? '' : 's'} · Updated{' '}
-                  {new Date(w.updatedAt).toLocaleString()}
+            <div key={w.id} className="list-item">
+              <Link
+                to={`/projects/${projectId}/workflows/${w.id}`}
+                style={{ display: 'contents', color: 'inherit', textDecoration: 'none' }}
+              >
+                <div>
+                  <div className="list-item-title">{w.name}</div>
+                  <div className="list-item-meta">
+                    {w.nodes.length} node{w.nodes.length === 1 ? '' : 's'} · Updated{' '}
+                    {new Date(w.updatedAt).toLocaleString()}
+                  </div>
                 </div>
-              </div>
+              </Link>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span
                   title={w.published ? 'Published' : 'Not published'}
@@ -334,7 +339,6 @@ export default function WorkflowListPage() {
                   <select
                     value={w.folderId ?? ''}
                     title="Move to folder"
-                    onClick={(e) => e.stopPropagation()}
                     onChange={(e) => {
                       moveMutation.mutate({ workflowId: w.id, folderId: e.target.value || null })
                     }}
@@ -349,29 +353,13 @@ export default function WorkflowListPage() {
                     ))}
                   </select>
                 )}
-                <button
-                  className="icon-btn"
-                  title="Duplicate workflow"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    duplicateMutation.mutate(w.id)
-                  }}
-                >
+                <button className="icon-btn" title="Duplicate workflow" onClick={() => duplicateMutation.mutate(w.id)}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
                 </button>
-                <button
-                  className="icon-btn icon-btn-danger"
-                  title="Delete workflow"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setConfirmDelete(w)
-                  }}
-                >
+                <button className="icon-btn icon-btn-danger" title="Delete workflow" onClick={() => setConfirmDelete(w)}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="3 6 5 6 21 6" />
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -380,7 +368,7 @@ export default function WorkflowListPage() {
                   </svg>
                 </button>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       </div>

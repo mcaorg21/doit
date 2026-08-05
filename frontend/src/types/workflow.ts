@@ -17,6 +17,7 @@ export interface WFNode {
   params: Record<string, unknown>
   title?: string | null
   note?: string | null
+  fieldMap?: string[] | null
 }
 
 export interface WFEdge {

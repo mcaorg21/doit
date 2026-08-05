@@ -6,7 +6,7 @@ from app.nodes.registry import register
 
 def codegen_goto(ctx: CodegenContext) -> str:
     url_expr = render_template_expr(ctx.params.get("url", ""), ctx)
-    return f'page.goto({url_expr})\nprint(f"[{ctx.node_id}] navigated to " + {url_expr})'
+    return f'page.goto({url_expr})\nprint(f"[{ctx.node_label}] navigated to " + {url_expr})'
 
 
 register(

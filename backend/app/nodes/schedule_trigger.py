@@ -8,7 +8,7 @@ def codegen_schedule_trigger(ctx: CodegenContext) -> str:
     # by the backend scheduler (see app/execution/scheduler.py), not by anything this
     # node's own code does. A manual "Run" simply executes the rest of the graph once,
     # same as clicking Run on any other workflow.
-    return f'print("[{ctx.node_id}] triggered")'
+    return f'print("[{ctx.node_label}] triggered")'
 
 
 register(

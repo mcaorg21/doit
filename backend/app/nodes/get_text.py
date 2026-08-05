@@ -8,7 +8,7 @@ from app.nodes.registry import register
 def codegen_get_text(ctx: CodegenContext) -> str:
     selector = resolve_selector(ctx)
     var = validate_identifier(ctx.params.get("resultVar", ""), ctx, "Result Variable")
-    return f'{var} = {ctx.target_var}.locator({selector}).inner_text()\nprint(f"[{ctx.node_id}] {var} = " + {var})'
+    return f'{var} = {ctx.target_var}.locator({selector}).inner_text()\nprint(f"[{ctx.node_label}] {var} = " + {var})'
 
 
 register(

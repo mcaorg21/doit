@@ -7,7 +7,7 @@ def codegen_webhook_trigger(ctx: CodegenContext) -> str:
     # Same idea as Schedule Trigger's codegen: purely a marker. Incoming HTTP calls
     # are matched to a workflow by app/execution/webhook_registry.py, which is what
     # actually decides *when* this runs — this node's own code has nothing to do.
-    return f'print("[{ctx.node_id}] webhook triggered")'
+    return f'print("[{ctx.node_label}] webhook triggered")'
 
 
 register(

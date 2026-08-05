@@ -10,7 +10,7 @@ def codegen_fill(ctx: CodegenContext) -> str:
     value_expr = render_template_expr(ctx.params.get("value", ""), ctx)
     return (
         f"{ctx.target_var}.locator({selector}).fill({value_expr})\n"
-        f'print(f"[{ctx.node_id}] filled " + {selector})'
+        f'print(f"[{ctx.node_label}] filled " + {selector})'
     )
 
 

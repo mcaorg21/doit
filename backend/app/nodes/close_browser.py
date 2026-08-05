@@ -9,7 +9,7 @@ def codegen_close_browser(ctx: CodegenContext) -> str:
             f"Node '{ctx.node_label}' (Close Browser) has no browser open before it — add an Open Browser node earlier in the chain"
         )
     var = ctx.browser_var
-    return f'{var}.close()\nprint("[{ctx.node_id}] browser closed")'
+    return f'{var}.close()\nprint("[{ctx.node_label}] browser closed")'
 
 
 def browser_var_after_close_browser(ctx: CodegenContext) -> None:

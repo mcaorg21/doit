@@ -7,7 +7,7 @@ from app.nodes.registry import register
 
 def codegen_click(ctx: CodegenContext) -> str:
     selector = resolve_selector(ctx)
-    return f'{ctx.target_var}.locator({selector}).click()\nprint(f"[{ctx.node_id}] clicked " + {selector})'
+    return f'{ctx.target_var}.locator({selector}).click()\nprint(f"[{ctx.node_label}] clicked " + {selector})'
 
 
 register(

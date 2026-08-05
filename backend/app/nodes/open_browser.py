@@ -41,14 +41,14 @@ def codegen_open_browser(ctx: CodegenContext) -> str:
             "with sync_playwright() as p:",
             f"    context = p.chromium.launch_persistent_context({profile_dir}, channel={channel!r}, headless={headless}, args={args_expr})",
             "    page = context.pages[0] if context.pages else context.new_page()",
-            f'    print("[{ctx.node_id}] browser launched (profile: {safe_profile})")',
+            f'    print("[{ctx.node_label}] browser launched (profile: {safe_profile})")',
         ]
     else:
         lines = [
             "with sync_playwright() as p:",
             f"    browser = p.chromium.launch(channel={channel!r}, headless={headless}, args={args_expr})",
             "    page = browser.new_page()",
-            f'    print("[{ctx.node_id}] browser launched")',
+            f'    print("[{ctx.node_label}] browser launched")',
         ]
     return "\n".join(lines)
 

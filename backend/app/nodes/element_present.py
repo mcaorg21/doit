@@ -8,7 +8,7 @@ from app.nodes.registry import register
 def codegen_element_present(ctx: CodegenContext) -> str:
     selector = resolve_selector(ctx)
     var = validate_identifier(ctx.params.get("resultVar", ""), ctx, "Result Variable")
-    return f'{var} = {ctx.target_var}.locator({selector}).count() > 0\nprint(f"[{ctx.node_id}] {var} = " + str({var}))'
+    return f'{var} = {ctx.target_var}.locator({selector}).count() > 0\nprint(f"[{ctx.node_label}] {var} = " + str({var}))'
 
 
 register(

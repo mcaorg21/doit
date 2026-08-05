@@ -43,10 +43,14 @@ class Workflow(BaseModel):
     workflow's Schedule Trigger node (see app/execution/scheduler.py) while it's
     published — draft/unpublished workflows never run on a schedule, only manually
     via the Run button. Toggled independently of saving the graph."""
+    folderId: str | None = None
+    """Which folder (see app/models/folder.py) this workflow is organized under
+    within its project — null means the project's root level."""
 
 
 class WorkflowCreate(BaseModel):
     name: str
+    folderId: str | None = None
 
 
 class WorkflowGraph(BaseModel):
@@ -61,6 +65,16 @@ class WorkflowSave(BaseModel):
     name: str
     nodes: list[WFNode] = Field(default_factory=list)
     edges: list[WFEdge] = Field(default_factory=list)
+
+
+class WorkflowImport(BaseModel):
+    """Payload for creating a new workflow from an exported graph (see the frontend's
+    Export button) — same shape as WorkflowSave plus which folder to drop it into."""
+
+    name: str
+    nodes: list[WFNode] = Field(default_factory=list)
+    edges: list[WFEdge] = Field(default_factory=list)
+    folderId: str | None = None
 
 
 class VariablePreviewRequest(BaseModel):

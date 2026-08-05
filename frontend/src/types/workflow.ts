@@ -36,6 +36,16 @@ export interface Workflow {
   nodes: WFNode[]
   edges: WFEdge[]
   published: boolean
+  folderId: string | null
+}
+
+export interface Folder {
+  id: string
+  projectId: string
+  name: string
+  parentId: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface RunLogLine {

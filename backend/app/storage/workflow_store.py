@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 
 from app.config import workflows_dir
-from app.models.workflow import Workflow, WorkflowCreate, WorkflowSave
+from app.models.workflow import Workflow, WorkflowCreate, WorkflowImport, WorkflowSave
 from app.models.project import now_utc
 from app.storage import project_store
 from app.storage.ids import gen_id
@@ -31,8 +31,18 @@ def get_workflow(project_id: str, workflow_id: str) -> Workflow:
     return Workflow.model_validate_json(wfile.read_text(encoding="utf-8"))
 
 
+def _validate_folder(project_id: str, folder_id: str | None) -> None:
+    if folder_id is None:
+        return
+    from app.storage import folder_store
+
+    if not any(f.id == folder_id for f in folder_store.list_folders(project_id)):
+        raise HTTPException(status_code=404, detail=f"Folder '{folder_id}' not found")
+
+
 def create_workflow(project_id: str, payload: WorkflowCreate) -> Workflow:
     project_store.get_project(project_id)  # 404 if project missing
+    _validate_folder(project_id, payload.folderId)
     workflow_id = gen_id("wf")
     ts = now_utc()
     workflow = Workflow(
@@ -43,6 +53,33 @@ def create_workflow(project_id: str, payload: WorkflowCreate) -> Workflow:
         updatedAt=ts,
         nodes=[],
         edges=[],
+        folderId=payload.folderId,
+    )
+    workflows_dir(project_id).mkdir(parents=True, exist_ok=True)
+    _workflow_file(project_id, workflow_id).write_text(workflow.model_dump_json(indent=2), encoding="utf-8")
+    project_store.touch_project(project_id)
+    return workflow
+
+
+def import_workflow(project_id: str, payload: WorkflowImport) -> Workflow:
+    """Creates a new workflow from an exported graph (see the frontend's Export
+    button). Always starts unpublished, even if the exported file came from a
+    published workflow — an imported Schedule/Webhook trigger shouldn't silently
+    start firing before the user has had a chance to review it."""
+    project_store.get_project(project_id)  # 404 if project missing
+    _validate_folder(project_id, payload.folderId)
+    workflow_id = gen_id("wf")
+    ts = now_utc()
+    workflow = Workflow(
+        id=workflow_id,
+        projectId=project_id,
+        name=payload.name,
+        createdAt=ts,
+        updatedAt=ts,
+        nodes=payload.nodes,
+        edges=payload.edges,
+        published=False,
+        folderId=payload.folderId,
     )
     workflows_dir(project_id).mkdir(parents=True, exist_ok=True)
     _workflow_file(project_id, workflow_id).write_text(workflow.model_dump_json(indent=2), encoding="utf-8")
@@ -75,6 +112,15 @@ def save_workflow(project_id: str, workflow_id: str, payload: WorkflowSave) -> W
     # Keeps a published workflow's trigger in sync with edits (e.g. changed cron
     # expression or webhook path) without requiring an unpublish/republish round-trip.
     _resync_triggers(project_id, updated)
+    return updated
+
+
+def move_workflow(project_id: str, workflow_id: str, folder_id: str | None) -> Workflow:
+    _validate_folder(project_id, folder_id)
+    existing = get_workflow(project_id, workflow_id)
+    updated = existing.model_copy(update={"folderId": folder_id, "updatedAt": now_utc()})
+    _workflow_file(project_id, workflow_id).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
+    project_store.touch_project(project_id)
     return updated
 
 

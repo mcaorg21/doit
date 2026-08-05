@@ -12,7 +12,7 @@ if sys.platform == "win32":
 
 from app.config import ensure_dirs
 import app.nodes  # noqa: F401  (populates NODE_REGISTRY on import)
-from app.api import codegen, node_types, projects, runs, webhooks, workflows
+from app.api import codegen, folders, node_types, projects, runs, webhooks, workflows
 from app.execution import scheduler, webhook_registry
 
 app = FastAPI(title="Auto-mation")
@@ -38,6 +38,7 @@ def on_shutdown():
 
 
 app.include_router(projects.router)
+app.include_router(folders.router)
 app.include_router(workflows.router)
 app.include_router(node_types.router)
 app.include_router(codegen.router)

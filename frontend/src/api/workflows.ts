@@ -3,8 +3,10 @@ import type { RunRecord, WFEdge, WFNode, Workflow } from '../types/workflow'
 
 export const workflowsApi = {
   list: (projectId: string) => api.get<Workflow[]>(`/api/projects/${projectId}/workflows`),
-  create: (projectId: string, name: string) =>
-    api.post<Workflow>(`/api/projects/${projectId}/workflows`, { name }),
+  create: (projectId: string, name: string, folderId: string | null = null) =>
+    api.post<Workflow>(`/api/projects/${projectId}/workflows`, { name, folderId }),
+  import: (projectId: string, name: string, nodes: WFNode[], edges: WFEdge[], folderId: string | null = null) =>
+    api.post<Workflow>(`/api/projects/${projectId}/workflows/import`, { name, nodes, edges, folderId }),
   get: (projectId: string, workflowId: string) =>
     api.get<Workflow>(`/api/projects/${projectId}/workflows/${workflowId}`),
   save: (projectId: string, workflowId: string, name: string, nodes: WFNode[], edges: WFEdge[]) =>
@@ -13,6 +15,8 @@ export const workflowsApi = {
     api.delete<void>(`/api/projects/${projectId}/workflows/${workflowId}`),
   duplicate: (projectId: string, workflowId: string) =>
     api.post<Workflow>(`/api/projects/${projectId}/workflows/${workflowId}/duplicate`),
+  move: (projectId: string, workflowId: string, folderId: string | null) =>
+    api.post<Workflow>(`/api/projects/${projectId}/workflows/${workflowId}/move`, { folderId }),
   publish: (projectId: string, workflowId: string) =>
     api.post<Workflow>(`/api/projects/${projectId}/workflows/${workflowId}/publish`),
   unpublish: (projectId: string, workflowId: string) =>

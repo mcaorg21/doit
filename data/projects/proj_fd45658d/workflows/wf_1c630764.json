@@ -3,7 +3,7 @@
   "projectId": "proj_fd45658d",
   "name": "Primeira automacao",
   "createdAt": "2026-08-03T14:03:22.396283Z",
-  "updatedAt": "2026-08-05T20:12:19.117756Z",
+  "updatedAt": "2026-08-05T20:24:17.719713Z",
   "nodes": [
     {
       "id": "node_1785766086827_2",
@@ -127,31 +127,13 @@
       "id": "node_1785959784260_5",
       "type": "webhook_trigger",
       "position": {
-        "x": -1547.712706407183,
-        "y": 113.87418984120765
+        "x": -1543.5978816428715,
+        "y": 117.16604965265705
       },
       "params": {
         "method": "GET",
         "path": "teste",
         "secret": "af7ffd9461ef408daffa1013"
-      },
-      "title": null,
-      "note": null
-    },
-    {
-      "id": "node_1785960733692_1",
-      "type": "http_request",
-      "position": {
-        "x": -1212.1969203455712,
-        "y": -83.03487908223035
-      },
-      "params": {
-        "url": null,
-        "method": "POST",
-        "body": null,
-        "resultPath": null,
-        "autoLoop": true,
-        "resultVar": null
       },
       "title": null,
       "note": null
@@ -215,5 +197,6 @@
       "breakpoint": false
     }
   ],
-  "published": true
+  "published": true,
+  "folderId": "fold_f9b5c1ac"
 }

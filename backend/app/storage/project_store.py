@@ -39,6 +39,16 @@ def create_project(payload: ProjectCreate) -> Project:
     return project
 
 
+def put_project(project: Project) -> None:
+    """Writes a project verbatim, preserving its id/timestamps as-is — used by
+    restore (app/services/backup_orchestrator.py) to reconstruct a project exactly
+    as it was in the backup, unlike create_project() which always mints a new id."""
+    project_dir(project.id).mkdir(parents=True, exist_ok=True)
+    workflows_dir(project.id).mkdir(parents=True, exist_ok=True)
+    runs_dir(project.id).mkdir(parents=True, exist_ok=True)
+    _project_file(project.id).write_text(project.model_dump_json(indent=2), encoding="utf-8")
+
+
 def update_project(project_id: str, payload: ProjectUpdate) -> Project:
     project = get_project(project_id)
     project.name = payload.name

@@ -84,7 +84,7 @@ def sync_workflow(project_id: str, workflow: Workflow) -> None:
     if not workflow.published:
         return
 
-    root = find_root_node(workflow.nodes, workflow.edges)
+    root = find_root_node(workflow.nodes, workflow.edges, workflow.startNodeId)
     if root is None or root.type != "schedule_trigger":
         print(f"[scheduler] workflow '{workflow.name}' ({workflow.id}) is published but has no Schedule Trigger start node — not scheduled")
         return
@@ -133,7 +133,7 @@ async def _run_workflow_job(project_id: str, workflow_id: str) -> None:
         return
 
     try:
-        script = generate_script(workflow.nodes, workflow.edges)
+        script = generate_script(workflow.nodes, workflow.edges, project_id, start_node_id=workflow.startNodeId)
     except CodegenError as exc:
         print(f"[scheduler] workflow '{workflow.name}' ({workflow_id}) failed to generate: {exc}")
         return

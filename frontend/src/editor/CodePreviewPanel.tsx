@@ -12,9 +12,10 @@ interface Props {
   workflowId: string
   nodes: Node<FlowNodeData>[]
   edges: Edge[]
+  startNodeId: string | null
 }
 
-export default function CodePreviewPanel({ projectId, workflowId, nodes, edges }: Props) {
+export default function CodePreviewPanel({ projectId, workflowId, nodes, edges, startNodeId }: Props) {
   const debouncedNodes = useDebouncedValue(nodes, 400)
   const debouncedEdges = useDebouncedValue(edges, 400)
 
@@ -22,8 +23,8 @@ export default function CodePreviewPanel({ projectId, workflowId, nodes, edges }
   const wfEdges = toWFEdges(debouncedEdges)
 
   const { data, error } = useQuery({
-    queryKey: ['generate-code', projectId, workflowId, wfNodes, wfEdges],
-    queryFn: () => workflowsApi.generateCode(projectId, workflowId, wfNodes, wfEdges),
+    queryKey: ['generate-code', projectId, workflowId, wfNodes, wfEdges, startNodeId],
+    queryFn: () => workflowsApi.generateCode(projectId, workflowId, wfNodes, wfEdges, startNodeId),
     enabled: wfNodes.length > 0,
     retry: false,
   })

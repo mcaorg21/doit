@@ -7,6 +7,10 @@ class CodegenContext:
     node_id: str
     params: dict[str, Any]
     in_loop: bool
+    project_id: str = ""
+    """The workflow's project id — lets a node's codegen resolve a credentialId param
+    to its actual secret value (see app/storage/credential_store.py) at codegen time,
+    since credentials are stored per-project."""
     browser_var: str | None = None
     """Name of the currently-open browser/context variable ("browser" or "context"),
     set by Open Browser and cleared by Close Browser — lets Close Browser know which

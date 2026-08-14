@@ -19,6 +19,10 @@ import {
   LuRows3,
   LuBox,
   LuWebhook,
+  LuListChecks,
+  LuPuzzle,
+  LuCircleHelp,
+  LuCloud,
 } from 'react-icons/lu'
 
 // One specific, deliberately-picked icon per node type — Lucide for general/functional
@@ -42,6 +46,10 @@ const ICONS: Record<string, IconType> = {
   frame: LuFrame, // Switch Frame
   repeat: LuRepeat, // Loop
   rows: LuRows3, // Multi Input
+  'list-checks': LuListChecks, // Multi Click
+  puzzle: LuPuzzle, // 2Captcha
+  'help-circle': LuCircleHelp, // Unknown (from AI import)
+  cloud: LuCloud, // Browser (2Captcha)
 }
 
 // LuSplit's glyph reads top-to-bottom (a path forking upward) — the canvas flows

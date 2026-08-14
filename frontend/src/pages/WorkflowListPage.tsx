@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { projectsApi } from '../api/projects'
 import { workflowsApi } from '../api/workflows'
 import { foldersApi } from '../api/folders'
+import CredentialsManager from '../editor/CredentialsManager'
+import PythonImportModal from '../editor/PythonImportModal'
 import type { Folder, Workflow } from '../types/workflow'
 
 // Flattens the folder tree into a depth-ordered list for the "move to" picker —
@@ -32,6 +34,8 @@ export default function WorkflowListPage() {
   const [renameFolderValue, setRenameFolderValue] = useState('')
   const [folderError, setFolderError] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+  const [showCredentials, setShowCredentials] = useState(false)
+  const [showPythonImport, setShowPythonImport] = useState(false)
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -149,8 +153,20 @@ export default function WorkflowListPage() {
   })
 
   const importMutation = useMutation({
-    mutationFn: (payload: { name: string; nodes: Workflow['nodes']; edges: Workflow['edges'] }) =>
-      workflowsApi.import(projectId!, payload.name, payload.nodes, payload.edges, currentFolderId),
+    mutationFn: (payload: {
+      name: string
+      nodes: Workflow['nodes']
+      edges: Workflow['edges']
+      startNodeId?: string | null
+    }) =>
+      workflowsApi.import(
+        projectId!,
+        payload.name,
+        payload.nodes,
+        payload.edges,
+        currentFolderId,
+        payload.startNodeId ?? null,
+      ),
     onSuccess: (workflow) => {
       queryClient.invalidateQueries({ queryKey: ['workflows', projectId] })
       navigate(`/projects/${projectId}/workflows/${workflow.id}`)
@@ -171,6 +187,7 @@ export default function WorkflowListPage() {
         name: typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name : file.name.replace(/\.json$/i, ''),
         nodes: parsed.nodes,
         edges: parsed.edges,
+        startNodeId: typeof parsed.startNodeId === 'string' ? parsed.startNodeId : null,
       })
     } catch (err) {
       setImportError(err instanceof Error ? err.message : 'Failed to read file')
@@ -240,6 +257,15 @@ export default function WorkflowListPage() {
                 e.target.value = ''
               }}
             />
+            <Link to={`/projects/${projectId}/executions`} className="btn btn-sm">
+              Executions
+            </Link>
+            <button className="btn btn-sm" onClick={() => setShowCredentials(true)}>
+              Credentials
+            </button>
+            <button className="btn btn-sm" onClick={() => setShowPythonImport(true)}>
+              Import Python (AI)
+            </button>
             <button className="btn btn-sm" onClick={() => setShowNewFolder(true)}>
               + New Folder
             </button>
@@ -372,6 +398,12 @@ export default function WorkflowListPage() {
           ))}
         </div>
       </div>
+
+      {showCredentials && projectId && <CredentialsManager projectId={projectId} onClose={() => setShowCredentials(false)} />}
+
+      {showPythonImport && projectId && (
+        <PythonImportModal projectId={projectId} defaultFolderId={currentFolderId} onClose={() => setShowPythonImport(false)} />
+      )}
 
       {showNewWorkflow && (
         <div className="modal-overlay" onClick={() => setShowNewWorkflow(false)}>

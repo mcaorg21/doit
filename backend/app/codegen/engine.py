@@ -149,11 +149,25 @@ def _validate_and_index(
     return node_map, outgoing, incoming_count
 
 
+def _reachable_from(start_id: str, outgoing: dict[str, list[WFEdge]]) -> set[str]:
+    seen = {start_id}
+    stack = [start_id]
+    while stack:
+        node_id = stack.pop()
+        for edge in outgoing.get(node_id, []):
+            if edge.target not in seen:
+                seen.add(edge.target)
+                stack.append(edge.target)
+    return seen
+
+
 def generate_script(
     nodes: list[WFNode],
     edges: list[WFEdge],
+    project_id: str = "",
     preview_node_id: str | None = None,
     preview_var: str | None = None,
+    start_node_id: str | None = None,
 ) -> str:
     """Single source of truth for the live code preview, the executed script, and the
     variable-preview feature (run the chain up to a node, dump one variable, stop).
@@ -179,9 +193,23 @@ def generate_script(
     roots = [n for n in nodes if incoming_count[n.id] == 0]
     if len(roots) == 0:
         raise CodegenError("Workflow has no start node — check for a cycle among the connected nodes")
+
+    excluded_ids: set[str] = set()
     if len(roots) > 1:
-        names = ", ".join(n.id for n in roots)
-        raise CodegenError(f"Workflow must have exactly one start node, found {len(roots)}: {names}")
+        chosen = next((n for n in roots if n.id == start_node_id), None) if start_node_id else None
+        if chosen is None:
+            names = ", ".join(f"'{_node_label(n)}'" for n in roots)
+            raise CodegenError(
+                f"Workflow must have exactly one start node, found {len(roots)}: {names}. "
+                'Right-click a node and choose "Set as Start Node" to pick one, or connect/delete the extra one.'
+            )
+        # An explicit start node was chosen — everything unreachable from it (e.g. a
+        # leftover disconnected trigger from earlier edits) is intentionally left out
+        # of the generated script instead of erroring; that's the whole point of being
+        # able to designate a start node.
+        reachable = _reachable_from(chosen.id, outgoing)
+        excluded_ids = {n.id for n in nodes} - reachable
+        roots = [chosen]
 
     visited: set[str] = set()
     has_breakpoints = any(n.type == "pause" for n in nodes) or any(e.breakpoint for e in edges)
@@ -206,6 +234,7 @@ def generate_script(
             node_id=node.id,
             params=node.params,
             in_loop=in_loop,
+            project_id=project_id,
             browser_var=browser_var,
             target_var=target_var,
             has_breakpoints=has_breakpoints,
@@ -307,10 +336,19 @@ def generate_script(
     body_lines = render(roots[0].id, 0, False, None, "page", frozenset())
 
     # In preview mode, generation deliberately stops partway through the graph, so
-    # nodes past the preview target are expected to stay unvisited.
-    if preview_node_id is None and len(visited) != len(nodes):
-        missing = ", ".join(n.id for n in nodes if n.id not in visited)
-        raise CodegenError(f"Workflow has disconnected node(s): {missing}")
+    # nodes past the preview target are expected to stay unvisited. Nodes excluded by
+    # an explicit start-node choice (see above) are expected to stay unvisited too —
+    # they're a different, intentionally-ignored connected component, not a mistake.
+    if preview_node_id is None:
+        expected = {n.id for n in nodes} - excluded_ids
+        missing = expected - visited
+        if missing:
+            names = ", ".join(sorted(missing))
+            raise CodegenError(f"Workflow has disconnected node(s): {names}")
 
     body = "\n".join(body_lines)
-    return f"{HEADER}\n{body}\n"
+    header = HEADER
+    if excluded_ids:
+        skipped = ", ".join(_node_label(node_map[nid]) for nid in sorted(excluded_ids))
+        header += f"\n# Start Node set explicitly — {len(excluded_ids)} unreachable node(s) skipped: {skipped}"
+    return f"{header}\n{body}\n"

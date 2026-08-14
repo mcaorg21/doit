@@ -1,0 +1,71 @@
+{
+  "id": "wf_70ac6e9e",
+  "projectId": "proj_fd45658d",
+  "name": "teste",
+  "createdAt": "2026-08-12T15:40:02.590964Z",
+  "updatedAt": "2026-08-14T19:29:46.549716Z",
+  "nodes": [
+    {
+      "id": "node_1786549415100_6",
+      "type": "goto",
+      "position": {
+        "x": 317.91312280690335,
+        "y": 342.01369224824526
+      },
+      "params": {
+        "url": "https://uol.com.br"
+      },
+      "title": "navegar",
+      "note": null,
+      "fieldMap": null
+    },
+    {
+      "id": "node_1786549432136_9",
+      "type": "pause",
+      "position": {
+        "x": 600.0,
+        "y": 337.0
+      },
+      "params": {},
+      "title": null,
+      "note": null,
+      "fieldMap": null
+    },
+    {
+      "id": "node_1786711697297_1",
+      "type": "open_browser",
+      "position": {
+        "x": 185.25527739841357,
+        "y": 340.12882751233053
+      },
+      "params": {
+        "headless": false,
+        "browserChannel": "chrome",
+        "profileName": null,
+        "multiUser": false
+      },
+      "title": null,
+      "note": null,
+      "fieldMap": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_node_1786549434368_10",
+      "source": "node_1786549415100_6",
+      "target": "node_1786549432136_9",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1786711727613_4",
+      "source": "node_1786711697297_1",
+      "target": "node_1786549415100_6",
+      "sourceHandle": null,
+      "breakpoint": false
+    }
+  ],
+  "published": false,
+  "folderId": "fold_f9b5c1ac",
+  "startNodeId": null
+}

@@ -1,5 +1,5 @@
-export type FieldType = 'text' | 'textarea' | 'number' | 'select' | 'boolean' | 'fieldList'
-export type NodeCategory = 'trigger' | 'dataSource' | 'browser' | 'action' | 'logic'
+export type FieldType = 'text' | 'textarea' | 'number' | 'select' | 'boolean' | 'fieldList' | 'clickList'
+export type NodeCategory = 'trigger' | 'dataSource' | 'browser' | 'action' | 'logic' | 'function'
 
 export interface ParamFieldOption {
   value: string
@@ -20,6 +20,7 @@ export interface ParamFieldSpec {
   visibleWhen: { key: string; equals?: unknown; in?: unknown[] } | null
   optionsSource: { key: string; map: Record<string, ParamFieldOption[]> } | null
   autoGenerate: boolean
+  credentialType: string | null
 }
 
 export interface NodeTypeSpec {

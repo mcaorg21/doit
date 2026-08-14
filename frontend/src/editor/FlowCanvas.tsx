@@ -41,6 +41,8 @@ interface Props {
   onRunNodePreview: (nodeId: string) => Promise<unknown>
   onSaveFieldMap: (nodeId: string, fieldMap: string[]) => void
   nodeTypesByType: Map<string, NodeTypeSpec>
+  startNodeId: string | null
+  onSetStartNode: (nodeId: string) => void
 }
 
 function FlowCanvasInner(
@@ -59,6 +61,8 @@ function FlowCanvasInner(
     onRunNodePreview,
     onSaveFieldMap,
     nodeTypesByType,
+    startNodeId,
+    onSetStartNode,
   }: Props,
   ref: React.ForwardedRef<FlowCanvasHandle>,
 ) {
@@ -91,14 +95,16 @@ function FlowCanvasInner(
       generic: (props: NodeProps & { data: FlowNodeData }) => (
         <GenericNode
           {...props}
+          isStartNode={props.id === startNodeId}
           onDelete={onDeleteNode}
           onDuplicate={onDuplicateNode}
+          onSetStartNode={onSetStartNode}
           onRunPreview={onRunNodePreview}
           onSaveFieldMap={onSaveFieldMap}
         />
       ),
     }),
-    [onDeleteNode, onDuplicateNode, onRunNodePreview, onSaveFieldMap],
+    [onDeleteNode, onDuplicateNode, onSetStartNode, onRunNodePreview, onSaveFieldMap, startNodeId],
   )
 
   const handleDrop = useCallback(

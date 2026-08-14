@@ -26,6 +26,11 @@ export default function ProjectListPage() {
     <div>
       <div className="topbar">
         <h1>Auto-mation</h1>
+        <div className="topbar-right">
+          <Link to="/backup" className="btn btn-sm">
+            Backup
+          </Link>
+        </div>
       </div>
       <div className="container">
         <div className="page-header">

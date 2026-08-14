@@ -31,6 +31,13 @@ def _write_all(project_id: str, folders: list[Folder]) -> None:
     )
 
 
+def put_folders(project_id: str, folders: list[Folder]) -> None:
+    """Overwrites the whole manifest verbatim — used by restore
+    (app/services/backup_orchestrator.py) to reconstruct a project's folders exactly
+    as they were in the backup."""
+    _write_all(project_id, folders)
+
+
 def list_folders(project_id: str) -> list[Folder]:
     project_store.get_project(project_id)  # 404 if project missing
     return _read_all(project_id)

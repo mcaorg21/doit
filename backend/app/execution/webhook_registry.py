@@ -46,7 +46,7 @@ def sync_workflow(project_id: str, workflow: Workflow) -> None:
 
     from app.execution.triggers import find_root_node
 
-    root = find_root_node(workflow.nodes, workflow.edges)
+    root = find_root_node(workflow.nodes, workflow.edges, workflow.startNodeId)
     if root is None or root.type != "webhook_trigger":
         return
     try:
@@ -92,7 +92,7 @@ async def trigger(method: str, path: str) -> dict:
         raise HTTPException(status_code=404, detail=f"No published webhook at {method.upper()} /{path}")
 
     try:
-        script = generate_script(workflow.nodes, workflow.edges)
+        script = generate_script(workflow.nodes, workflow.edges, project_id, start_node_id=workflow.startNodeId)
     except CodegenError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

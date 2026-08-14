@@ -3,7 +3,7 @@
   "projectId": "proj_fd45658d",
   "name": "Primeira automacao",
   "createdAt": "2026-08-03T14:03:22.396283Z",
-  "updatedAt": "2026-08-05T21:39:09.809368Z",
+  "updatedAt": "2026-08-14T20:56:03.376178Z",
   "nodes": [
     {
       "id": "node_1785766086827_2",
@@ -151,8 +151,8 @@
       "id": "node_1785959784260_5",
       "type": "webhook_trigger",
       "position": {
-        "x": -1543.5978816428715,
-        "y": 117.16604965265705
+        "x": -1248.607217939906,
+        "y": -9.671123672977181
       },
       "params": {
         "method": "GET",
@@ -164,19 +164,19 @@
       "fieldMap": null
     },
     {
-      "id": "node_1785965943107_1",
-      "type": "open_browser",
+      "id": "node_1786716182373_3",
+      "type": "schedule_trigger",
       "position": {
-        "x": -1282.491256589654,
-        "y": -39.379275910468806
+        "x": -1538.8610572873088,
+        "y": 116.42317703439335
       },
       "params": {
-        "headless": false,
-        "browserChannel": "chrome",
-        "profileName": "Marcelo2",
-        "multiUser": false
+        "mode": "interval",
+        "intervalValue": 1,
+        "intervalUnit": "minutes",
+        "cronExpression": "* * * * *"
       },
-      "title": "abre_chrome",
+      "title": null,
       "note": null,
       "fieldMap": null
     }
@@ -232,20 +232,14 @@
       "breakpoint": false
     },
     {
-      "id": "e_node_1785959788339_6",
-      "source": "node_1785959784260_5",
+      "id": "e_node_1786716185518_4",
+      "source": "node_1786716182373_3",
       "target": "node_1785766086827_2",
-      "sourceHandle": null,
-      "breakpoint": false
-    },
-    {
-      "id": "e_node_1785965945792_2",
-      "source": "node_1785766086827_2",
-      "target": "node_1785965943107_1",
       "sourceHandle": null,
       "breakpoint": false
     }
   ],
-  "published": true,
-  "folderId": "fold_f9b5c1ac"
+  "published": false,
+  "folderId": "fold_f9b5c1ac",
+  "startNodeId": "node_1786716182373_3"
 }

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
 
-FieldType = Literal["text", "textarea", "number", "select", "boolean", "fieldList"]
-NodeCategory = Literal["trigger", "dataSource", "browser", "action", "logic"]
+FieldType = Literal["text", "textarea", "number", "select", "boolean", "fieldList", "clickList"]
+NodeCategory = Literal["trigger", "dataSource", "browser", "action", "logic", "function"]
 
 
 @dataclass
@@ -40,6 +40,11 @@ class ParamField:
     the moment the node is added (rather than a fixed `default`), and shown read-only
     with a "regenerate" button (e.g. Webhook's Secret) — every node instance gets its
     own value instead of a shared spec-level default."""
+    credentialType: str | None = None
+    """When set, this field stores a credential id and the frontend renders it as a
+    dropdown populated from the project's Credentials (see app/models/credential.py),
+    filtered to this type (e.g. "2captcha") — the node's own codegen resolves the id
+    to the credential's actual secret value via ctx.project_id at generation time."""
 
 
 @dataclass
@@ -92,6 +97,7 @@ class NodeSpec:
                     "visibleWhen": p.visibleWhen,
                     "optionsSource": p.optionsSource,
                     "autoGenerate": p.autoGenerate,
+                    "credentialType": p.credentialType,
                 }
                 for p in self.params
             ],

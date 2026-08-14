@@ -39,6 +39,13 @@ async def start_run(project_id: str, workflow_id: str, script: str) -> RunHandle
     )
     handle.process = process
     register_run(handle)
+    # Persisted immediately (not just once it finishes) so a run shows up in
+    # Executions the moment it starts, with status "running" — otherwise a run that
+    # never finishes (e.g. a scheduled/webhook-triggered run that hits a Pause node's
+    # breakpoint(), which nothing unattended can ever send "continue" to) stays
+    # invisible forever, since run_store.save_run() below was previously the only
+    # write, called only after the process actually exits.
+    run_store.save_run(project_id, record)
     asyncio.create_task(_stream_output(handle))
     return handle
 
@@ -122,6 +129,11 @@ async def _stream_output(handle: RunHandle) -> None:
         line = LogLine(ts=_now(), level="info", text=text)
         handle.record.logLines.append(line)
         await handle.queue.put(line)
+        # Keeps the persisted record's log up to date while still running — matters
+        # most for a run stuck at a Pause breakpoint (see the note in start_run): the
+        # Executions report should show what it actually did before hanging, not an
+        # empty log until (if ever) it finishes.
+        run_store.save_run(handle.project_id, handle.record)
 
     exit_code = await process.wait()
     handle.record.finishedAt = _now()

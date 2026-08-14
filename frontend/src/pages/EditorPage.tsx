@@ -19,6 +19,7 @@ import NodePalette from '../editor/NodePalette'
 import NodeConfigPanel from '../editor/NodeConfigPanel'
 import CodePreviewPanel from '../editor/CodePreviewPanel'
 import RunPanel from '../editor/RunPanel'
+import ExecutionsPanel from '../editor/ExecutionsPanel'
 import { toWFEdges, toWFNodes } from '../editor/convert'
 import { getUpstreamVariables, getUpstreamFieldMapOptions, type VariableSource } from '../editor/graph'
 import { genRandomToken } from '../editor/randomToken'
@@ -37,10 +38,11 @@ export default function EditorPage() {
 
   const [nodes, setNodes] = useState<Node<FlowNodeData>[]>([])
   const [edges, setEdges] = useState<Edge<FlowEdgeData>[]>([])
+  const [startNodeId, setStartNodeId] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [dirty, setDirty] = useState(false)
-  const [activeTab, setActiveTab] = useState<'code' | 'run'>('code')
+  const [activeTab, setActiveTab] = useState<'code' | 'run' | 'executions'>('code')
   const [loaded, setLoaded] = useState(false)
 
   type Snapshot = { nodes: Node<FlowNodeData>[]; edges: Edge<FlowEdgeData>[] }
@@ -118,6 +120,7 @@ export default function EditorPage() {
         }),
       )
       if (backfilled) markDirty()
+      setStartNodeId(workflow.startNodeId ?? null)
       setEdges(
         workflow.edges.map((e) => ({
           id: e.id,
@@ -133,7 +136,8 @@ export default function EditorPage() {
   }, [workflow, loaded, nodeTypesByType])
 
   const saveMutation = useMutation({
-    mutationFn: () => workflowsApi.save(projectId!, workflowId!, name, toWFNodes(nodes), toWFEdges(edges)),
+    mutationFn: () =>
+      workflowsApi.save(projectId!, workflowId!, name, toWFNodes(nodes), toWFEdges(edges), startNodeId),
     onSuccess: () => {
       setDirty(false)
       queryClient.invalidateQueries({ queryKey: ['workflows', projectId] })
@@ -174,7 +178,7 @@ export default function EditorPage() {
       saveMutation.mutate()
     }, 2000)
     return () => clearTimeout(timer)
-  }, [nodes, edges, name, dirty, loaded])
+  }, [nodes, edges, name, startNodeId, dirty, loaded])
 
   // Snapshots the current graph onto the undo stack *before* a mutation is applied.
   // Discrete actions (add/delete/connect) always get their own snapshot; continuous
@@ -380,9 +384,21 @@ export default function EditorPage() {
       setNodes((prev) => prev.filter((n) => n.id !== nodeId))
       setEdges((prev) => prev.filter((e) => e.source !== nodeId && e.target !== nodeId))
       setSelectedNodeId((current) => (current === nodeId ? null : current))
+      // A deleted Start Node would otherwise leave a dangling reference — harmless to
+      // codegen (it just falls back to erroring on ambiguity again like before this
+      // node existed), but clearing it here keeps the picked start node always valid.
+      setStartNodeId((current) => (current === nodeId ? null : current))
       markDirty()
     },
     [recordHistory, markDirty],
+  )
+
+  const handleSetStartNode = useCallback(
+    (nodeId: string) => {
+      setStartNodeId((current) => (current === nodeId ? null : nodeId))
+      markDirty()
+    },
+    [markDirty],
   )
 
   function handleDeleteNode() {
@@ -460,6 +476,7 @@ export default function EditorPage() {
       toWFEdges(edges),
       source.nodeId,
       source.variableName,
+      startNodeId,
     )
     return value
   }
@@ -481,10 +498,11 @@ export default function EditorPage() {
         toWFEdges(edgesRef.current),
         nodeId,
         variableName,
+        startNodeId,
       )
       return value
     },
-    [projectId, workflowId],
+    [projectId, workflowId, startNodeId],
   )
 
   const handleSaveFieldMap = useCallback(
@@ -496,7 +514,7 @@ export default function EditorPage() {
   )
 
   function handleExport() {
-    const payload = { name, nodes: toWFNodes(nodesRef.current), edges: toWFEdges(edgesRef.current) }
+    const payload = { name, nodes: toWFNodes(nodesRef.current), edges: toWFEdges(edgesRef.current), startNodeId }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -628,6 +646,8 @@ export default function EditorPage() {
           onRunNodePreview={handleRunNodePreview}
           onSaveFieldMap={handleSaveFieldMap}
           nodeTypesByType={nodeTypesByType}
+          startNodeId={startNodeId}
+          onSetStartNode={handleSetStartNode}
         />
 
         <div className="side-panel">
@@ -640,6 +660,7 @@ export default function EditorPage() {
             upstreamVariables={upstreamVariables}
             onPreviewVariable={handlePreviewVariable}
             upstreamFieldMapOptions={upstreamFieldMapOptions}
+            projectId={projectId!}
           />
         </div>
 
@@ -655,10 +676,22 @@ export default function EditorPage() {
             <button className={`panel-tab ${activeTab === 'run' ? 'active' : ''}`} onClick={() => setActiveTab('run')}>
               Run
             </button>
+            <button
+              className={`panel-tab ${activeTab === 'executions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('executions')}
+            >
+              Executions
+            </button>
           </div>
           <div className="panel-content">
             {activeTab === 'code' && projectId && workflowId && (
-              <CodePreviewPanel projectId={projectId} workflowId={workflowId} nodes={nodes} edges={edges} />
+              <CodePreviewPanel
+                projectId={projectId}
+                workflowId={workflowId}
+                nodes={nodes}
+                edges={edges}
+                startNodeId={startNodeId}
+              />
             )}
             {activeTab === 'run' && projectId && workflowId && (
               <RunPanel
@@ -666,8 +699,12 @@ export default function EditorPage() {
                 workflowId={workflowId}
                 nodes={nodes}
                 edges={edges}
+                startNodeId={startNodeId}
                 onNodeExecuting={handleNodeExecuting}
               />
+            )}
+            {activeTab === 'executions' && projectId && workflowId && (
+              <ExecutionsPanel projectId={projectId} workflowId={workflowId} />
             )}
           </div>
         </div>

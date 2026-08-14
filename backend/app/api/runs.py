@@ -19,7 +19,7 @@ router = APIRouter(tags=["runs"])
 @router.post("/api/projects/{project_id}/workflows/{workflow_id}/run")
 async def run_workflow(project_id: str, workflow_id: str, payload: WorkflowGraph):
     try:
-        script = generate_script(payload.nodes, payload.edges)
+        script = generate_script(payload.nodes, payload.edges, project_id, start_node_id=payload.startNodeId)
     except CodegenError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -55,8 +55,11 @@ async def stop_run_endpoint(run_id: str):
 
 
 @router.get("/api/projects/{project_id}/runs", response_model=list[RunRecord])
-def list_runs(project_id: str):
-    return run_store.list_runs(project_id)
+def list_runs(project_id: str, workflowId: str | None = None):
+    runs = run_store.list_runs(project_id)
+    if workflowId is not None:
+        runs = [r for r in runs if r.workflowId == workflowId]
+    return runs
 
 
 @router.get("/api/projects/{project_id}/runs/{run_id}", response_model=RunRecord)

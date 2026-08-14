@@ -38,6 +38,7 @@ export interface Workflow {
   edges: WFEdge[]
   published: boolean
   folderId: string | null
+  startNodeId?: string | null
 }
 
 export interface Folder {
@@ -45,6 +46,16 @@ export interface Folder {
   projectId: string
   name: string
   parentId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Credential {
+  id: string
+  projectId: string
+  name: string
+  type: string
+  value: string
   createdAt: string
   updatedAt: string
 }
@@ -66,4 +77,36 @@ export interface RunRecord {
   exitCode: number | null
   scriptPath: string
   logLines: RunLogLine[]
+}
+
+export interface BackupCounts {
+  projects: number
+  folders: number
+  workflows: number
+  credentials: number
+  runs: number
+}
+
+export interface BackupStatus {
+  configured: boolean
+  connectionString?: string | null
+  lastBackupAt?: string | null
+  lastBackupCounts?: BackupCounts | null
+  lastRestoreAt?: string | null
+}
+
+export interface BackupResult {
+  counts: BackupCounts
+  warnings: string[]
+  finishedAt: string
+}
+
+export interface RestorePreview {
+  counts: BackupCounts
+  lastUpdatedAt: Record<string, string | null>
+}
+
+export interface RestoreResult {
+  counts: BackupCounts
+  finishedAt: string
 }

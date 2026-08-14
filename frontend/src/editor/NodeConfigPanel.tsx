@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Node } from '@xyflow/react'
 import { fieldComponents } from './fields'
 import VariablePickerField from './fields/VariablePickerField'
+import CredentialPickerField from './fields/CredentialPickerField'
 import type { FlowNodeData } from './types'
 import type { FieldMapOption, VariableSource } from './graph'
 import type { NodeTypeSpec, ParamFieldSpec } from '../types/nodeType'
@@ -15,6 +16,7 @@ interface Props {
   upstreamVariables: VariableSource[]
   onPreviewVariable: (source: VariableSource) => Promise<unknown>
   upstreamFieldMapOptions: FieldMapOption[]
+  projectId: string
 }
 
 // The "selector" field's example depends on which locator strategy is selected in the
@@ -45,6 +47,7 @@ export default function NodeConfigPanel({
   upstreamVariables,
   onPreviewVariable,
   upstreamFieldMapOptions,
+  projectId,
 }: Props) {
   const [noteOpen, setNoteOpen] = useState(false)
 
@@ -126,6 +129,18 @@ export default function NodeConfigPanel({
               onChange={(value) => onChangeParam(paramSpec.key, value)}
               sources={upstreamVariables}
               onPreview={onPreviewVariable}
+            />
+          )
+        }
+
+        if (paramSpec.credentialType) {
+          return (
+            <CredentialPickerField
+              key={paramSpec.key}
+              spec={paramSpec}
+              value={node.data.params[paramSpec.key] ?? paramSpec.default}
+              onChange={(value) => onChangeParam(paramSpec.key, value)}
+              projectId={projectId}
             />
           )
         }

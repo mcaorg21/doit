@@ -9,8 +9,10 @@ import NodeIcon from './icons'
 
 interface Props extends NodeProps {
   data: FlowNodeData
+  isStartNode?: boolean
   onDelete: (nodeId: string) => void
   onDuplicate: (nodeId: string) => void
+  onSetStartNode?: (nodeId: string) => void
   onRunPreview?: (nodeId: string) => Promise<unknown>
   onSaveFieldMap?: (nodeId: string, fieldMap: string[]) => void
 }
@@ -19,7 +21,17 @@ const SQUARE_SIZE = 56
 
 type PreviewState = { loading: boolean; value?: unknown; error?: string }
 
-export default function GenericNode({ id, data, selected, onDelete, onDuplicate, onRunPreview, onSaveFieldMap }: Props) {
+export default function GenericNode({
+  id,
+  data,
+  selected,
+  isStartNode,
+  onDelete,
+  onDuplicate,
+  onSetStartNode,
+  onRunPreview,
+  onSaveFieldMap,
+}: Props) {
   const [preview, setPreview] = useState<PreviewState | null>(null)
   const [mappingSaved, setMappingSaved] = useState(false)
   const heading = data.title?.trim() || data.label
@@ -76,6 +88,31 @@ export default function GenericNode({ id, data, selected, onDelete, onDuplicate,
               </svg>
             </button>
           )}
+          {onSetStartNode && (
+            <button
+              className="node-toolbar-btn"
+              onClick={(e) => {
+                e.stopPropagation()
+                onSetStartNode(id)
+              }}
+              title={isStartNode ? 'Unset as Start Node' : 'Set as Start Node — used when the graph has more than one disconnected root'}
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill={isStartNode ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={isStartNode ? { color: 'var(--success)' } : undefined}
+              >
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                <line x1="4" y1="22" x2="4" y2="4" />
+              </svg>
+            </button>
+          )}
           <button
             className="node-toolbar-btn"
             onClick={(e) => {
@@ -105,6 +142,30 @@ export default function GenericNode({ id, data, selected, onDelete, onDuplicate,
             </svg>
           </button>
         </div>
+
+        {isStartNode && (
+          <span
+            title="Start Node"
+            style={{
+              position: 'absolute',
+              top: -6,
+              left: -6,
+              width: 15,
+              height: 15,
+              borderRadius: '50%',
+              background: 'var(--success)',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 0 2px var(--surface)',
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+            </svg>
+          </span>
+        )}
 
         <NodeIcon name={data.icon} size={26} />
 

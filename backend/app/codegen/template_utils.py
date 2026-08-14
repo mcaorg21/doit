@@ -37,6 +37,53 @@ def validate_safe_name(name: str, ctx: CodegenContext, field_label: str) -> str:
     return name
 
 
+def resolve_credential_value(ctx: CodegenContext, credential_key: str, field_label: str) -> str:
+    """Resolves a credentialId param (see ParamField.credentialType) to its actual
+    secret value, embedded as a Python string literal in the generated script — the
+    same "plaintext in the generated file" tradeoff as everything else this app bakes
+    into codegen (e.g. Webhook secrets), since the script already lives on the same
+    machine as the credential store."""
+    from fastapi import HTTPException
+
+    from app.storage import credential_store
+
+    credential_id = (ctx.params.get(credential_key) or "").strip()
+    if not credential_id:
+        raise CodegenError(f"Node '{ctx.node_label}': '{field_label}' is required — pick a credential")
+    try:
+        credential = credential_store.get_credential(ctx.project_id, credential_id)
+    except HTTPException as exc:
+        raise CodegenError(f"Node '{ctx.node_label}': '{field_label}' — {exc.detail}") from exc
+    return repr(credential.value)
+
+
+def resolve_credential_pair(
+    ctx: CodegenContext, credential_key: str, field_label: str, separator: str = ":"
+) -> tuple[str, str]:
+    """Like resolve_credential_value, but for a credential whose Value packs two
+    secrets into one string (e.g. "login:password") — used by nodes that need both
+    at once (e.g. Browser (2Captcha)'s scraping-browser login). Returns two Python
+    string literals, one per side of the split."""
+    from fastapi import HTTPException
+
+    from app.storage import credential_store
+
+    credential_id = (ctx.params.get(credential_key) or "").strip()
+    if not credential_id:
+        raise CodegenError(f"Node '{ctx.node_label}': '{field_label}' is required — pick a credential")
+    try:
+        credential = credential_store.get_credential(ctx.project_id, credential_id)
+    except HTTPException as exc:
+        raise CodegenError(f"Node '{ctx.node_label}': '{field_label}' — {exc.detail}") from exc
+
+    parts = credential.value.split(separator, 1)
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        raise CodegenError(
+            f"Node '{ctx.node_label}': credential '{credential.name}' isn't in 'login{separator}password' format"
+        )
+    return repr(parts[0]), repr(parts[1])
+
+
 def validate_json_array(raw: str, ctx: CodegenContext, field_label: str) -> str:
     """Validates a user-typed value that will be parsed as a JSON array at runtime —
     catches malformed JSON and non-array values at codegen time with a clear message

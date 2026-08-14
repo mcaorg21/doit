@@ -8,6 +8,7 @@ const CATEGORY_LABELS: Record<NodeCategory, string> = {
   browser: 'Browser',
   action: 'Actions',
   logic: 'Logic',
+  function: 'Functions',
 }
 
 interface Props {
@@ -29,7 +30,7 @@ export default function NodePalette({ onAddNode }: Props) {
 
   return (
     <div className="palette">
-      {(['trigger', 'dataSource', 'browser', 'action', 'logic'] as NodeCategory[]).map((category) => {
+      {(['trigger', 'dataSource', 'browser', 'action', 'logic', 'function'] as NodeCategory[]).map((category) => {
         const specs = byCategory.get(category)
         if (!specs || specs.length === 0) return null
         return (

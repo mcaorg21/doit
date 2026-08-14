@@ -80,11 +80,22 @@ def import_workflow(project_id: str, payload: WorkflowImport) -> Workflow:
         edges=payload.edges,
         published=False,
         folderId=payload.folderId,
+        startNodeId=payload.startNodeId,
     )
     workflows_dir(project_id).mkdir(parents=True, exist_ok=True)
     _workflow_file(project_id, workflow_id).write_text(workflow.model_dump_json(indent=2), encoding="utf-8")
     project_store.touch_project(project_id)
     return workflow
+
+
+def put_workflow(project_id: str, workflow: Workflow) -> None:
+    """Writes a workflow verbatim, preserving its id/timestamps as-is — used by
+    restore (app/services/backup_orchestrator.py). Still resyncs
+    scheduler/webhook registration so a restored published workflow with a
+    Schedule/Webhook trigger resumes firing immediately, same as save_workflow()."""
+    workflows_dir(project_id).mkdir(parents=True, exist_ok=True)
+    _workflow_file(project_id, workflow.id).write_text(workflow.model_dump_json(indent=2), encoding="utf-8")
+    _resync_triggers(project_id, workflow)
 
 
 def _resync_triggers(project_id: str, workflow: Workflow) -> None:
@@ -104,6 +115,7 @@ def save_workflow(project_id: str, workflow_id: str, payload: WorkflowSave) -> W
             "name": payload.name,
             "nodes": payload.nodes,
             "edges": payload.edges,
+            "startNodeId": payload.startNodeId,
             "updatedAt": now_utc(),
         }
     )

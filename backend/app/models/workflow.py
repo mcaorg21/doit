@@ -50,6 +50,11 @@ class Workflow(BaseModel):
     folderId: str | None = None
     """Which folder (see app/models/folder.py) this workflow is organized under
     within its project — null means the project's root level."""
+    startNodeId: str | None = None
+    """Which node to treat as the entry point when the graph has more than one node
+    with no incoming edges (e.g. a leftover disconnected trigger from earlier edits).
+    Only consulted by generate_script (app/codegen/engine.py) when there's genuine
+    ambiguity — a single-root graph ignores this field entirely."""
 
 
 class WorkflowCreate(BaseModel):
@@ -63,12 +68,14 @@ class WorkflowGraph(BaseModel):
     name: str | None = None
     nodes: list[WFNode] = Field(default_factory=list)
     edges: list[WFEdge] = Field(default_factory=list)
+    startNodeId: str | None = None
 
 
 class WorkflowSave(BaseModel):
     name: str
     nodes: list[WFNode] = Field(default_factory=list)
     edges: list[WFEdge] = Field(default_factory=list)
+    startNodeId: str | None = None
 
 
 class WorkflowImport(BaseModel):
@@ -79,6 +86,7 @@ class WorkflowImport(BaseModel):
     nodes: list[WFNode] = Field(default_factory=list)
     edges: list[WFEdge] = Field(default_factory=list)
     folderId: str | None = None
+    startNodeId: str | None = None
 
 
 class VariablePreviewRequest(BaseModel):
@@ -89,3 +97,4 @@ class VariablePreviewRequest(BaseModel):
     edges: list[WFEdge] = Field(default_factory=list)
     nodeId: str
     variableName: str
+    startNodeId: str | None = None

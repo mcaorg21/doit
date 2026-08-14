@@ -8,6 +8,7 @@ REPO_ROOT = BACKEND_DIR.parent
 DATA_DIR = REPO_ROOT / "data"
 PROJECTS_DIR = DATA_DIR / "projects"
 GENERATED_SCRIPTS_DIR = BACKEND_DIR / "generated_scripts"
+BACKUP_CONFIG_FILE = DATA_DIR / "backup_config.json"
 
 # Defaults to the interpreter running this backend (i.e. the venv with
 # playwright/requests installed), so generated scripts have the same packages

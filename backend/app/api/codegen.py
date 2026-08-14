@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/projects/{project_id}/workflows/{workflow_id}", 
 @router.post("/generate-code")
 def generate_code(project_id: str, workflow_id: str, payload: WorkflowGraph):
     try:
-        code = generate_script(payload.nodes, payload.edges)
+        code = generate_script(payload.nodes, payload.edges, project_id, start_node_id=payload.startNodeId)
     except CodegenError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"code": code}
@@ -22,7 +22,9 @@ def generate_code(project_id: str, workflow_id: str, payload: WorkflowGraph):
 @router.post("/preview-variable")
 async def preview_variable(project_id: str, workflow_id: str, payload: VariablePreviewRequest):
     try:
-        script = generate_script(payload.nodes, payload.edges, payload.nodeId, payload.variableName)
+        script = generate_script(
+            payload.nodes, payload.edges, project_id, payload.nodeId, payload.variableName, payload.startNodeId
+        )
     except CodegenError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

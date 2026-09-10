@@ -12,7 +12,7 @@ import {
   type NodeChange,
 } from '@xyflow/react'
 import { workflowsApi } from '../api/workflows'
-import { launchApi } from '../api/launch'
+import { launchApi, type CliProvider } from '../api/launch'
 import { ApiError } from '../api/client'
 import { nodeTypesApi } from '../api/nodeTypes'
 import FlowCanvas, { type FlowCanvasHandle } from '../editor/FlowCanvas'
@@ -605,20 +605,21 @@ export default function EditorPage() {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [launchMenuOpen])
 
-  async function handleLaunchTerminal() {
+  async function handleLaunchTerminal(provider: CliProvider) {
     setLaunchMenuOpen(false)
+    const title = provider === 'codex' ? 'Terminal (Codex)' : 'Terminal (Claude Code)'
     try {
-      const result = await launchApi.terminal(projectId, workflowId)
+      const result = await launchApi.terminal(provider, projectId, workflowId)
       if (result.notify) {
         setLaunchResult({
-          title: 'Terminal',
+          title,
           detail: result.detail ?? (result.launched ? 'Terminal aberto.' : 'Falha ao abrir terminal.'),
           ok: result.launched,
         })
       }
     } catch (err) {
       setLaunchResult({
-        title: 'Terminal',
+        title,
         detail: err instanceof ApiError || err instanceof Error ? err.message : 'Failed to open terminal',
         ok: false,
       })
@@ -731,7 +732,7 @@ export default function EditorPage() {
             <button
               className="icon-btn"
               onClick={() => setLaunchMenuOpen((v) => !v)}
-              title="Continuar este workflow no Claude (Terminal ou Desktop)"
+              title="Continuar este workflow no Claude ou no Codex"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="#D97757">
                 <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" />
@@ -742,7 +743,8 @@ export default function EditorPage() {
             </button>
             {launchMenuOpen && (
               <div className="launch-menu">
-                <button className="launch-menu-item" onClick={handleLaunchTerminal}>
+                <div className="launch-menu-label">Claude</div>
+                <button className="launch-menu-item" onClick={() => handleLaunchTerminal('claude')}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="4 17 10 11 4 5" />
                     <line x1="12" y1="19" x2="20" y2="19" />
@@ -754,6 +756,15 @@ export default function EditorPage() {
                     <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
                   </svg>
                   Abrir no Claude Desktop
+                </button>
+                <div className="launch-menu-divider" />
+                <div className="launch-menu-label">Codex</div>
+                <button className="launch-menu-item" onClick={() => handleLaunchTerminal('codex')}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="4 17 10 11 4 5" />
+                    <line x1="12" y1="19" x2="20" y2="19" />
+                  </svg>
+                  Abrir no Terminal
                 </button>
               </div>
             )}

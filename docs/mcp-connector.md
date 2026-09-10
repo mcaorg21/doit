@@ -1,6 +1,8 @@
-# Conector MCP — construir automações via Claude Desktop/Code
+# Conector MCP — construir automações via Claude ou Codex
 
-Este app expõe um servidor MCP em `http://127.0.0.1:8001/mcp` (mesmo processo do backend, sobe junto com `npm run server:dev` / `npm run dev`). Ele permite pedir uma automação em linguagem natural direto no Claude Desktop ou no Claude Code, e o próprio Claude constrói o fluxo aqui dentro — usando só os nodes que este app já suporta, nunca inventando um tipo de node novo. Para sequências simples (navegar, preencher, clicar...), o Claude executa cada passo de verdade num navegador visível antes de gravar o node, então dá pra acompanhar a automação sendo construída (e testada) ao vivo, com o editor aberto no mesmo workflow.
+Este app expõe um servidor MCP em `http://127.0.0.1:8001/mcp` (mesmo processo do backend, sobe junto com `npm run server:dev` / `npm run dev`). Ele permite pedir uma automação em linguagem natural direto no Claude (Desktop ou Code) ou no Codex CLI, e o próprio agente constrói o fluxo aqui dentro — usando só os nodes que este app já suporta, nunca inventando um tipo de node novo. Para sequências simples (navegar, preencher, clicar...), ele executa cada passo de verdade num navegador visível antes de gravar o node, então dá pra acompanhar a automação sendo construída (e testada) ao vivo, com o editor aberto no mesmo workflow.
+
+MCP é um protocolo aberto — este servidor não tem nada específico de um provedor só, então qualquer cliente MCP funciona (documentado aqui: Claude e Codex, que são os dois já testados).
 
 Ferramentas, arquitetura e limites de design estão documentados em `backend/app/mcp/server.py` e `backend/app/mcp/live_sessions.py`.
 
@@ -22,16 +24,26 @@ Depois disso, qualquer sessão do Claude Code nesta máquina já enxerga as ferr
 
 O Desktop também suporta servidores MCP remotos via HTTP, mas o caminho exato (tela de Configurações → Conectores, ou editar `claude_desktop_config.json` diretamente) muda de versão pra versão — vale conferir a documentação atual do Claude Desktop na hora de configurar, em vez de seguir um passo a passo fixo aqui. O dado que você vai precisar em qualquer caminho é sempre o mesmo: a URL `http://127.0.0.1:8001/mcp`.
 
+### Codex CLI
+
+```bash
+codex mcp add automation --url http://127.0.0.1:8001/mcp
+```
+
+`codex mcp list` (ou `codex mcp list --json`) confirma que ficou registrado. Sintaxe verificada contra a versão instalada (`codex mcp add --help`) — se um dia mudar, é só rodar esse `--help` de novo.
+
 ### Atalho no editor
 
-O topbar do editor (`EditorPage.tsx`) tem dois botões — ícone de terminal e ícone de balão de chat — que chamam `POST /api/launch/terminal` e `POST /api/launch/claude-desktop` (`backend/app/api/launch.py`):
+O topbar do editor (`EditorPage.tsx`) tem um botão (o símbolo do Claude, em laranja) que abre um menuzinho com as opções que chamam `POST /api/launch/terminal` e `POST /api/launch/claude-desktop` (`backend/app/api/launch.py`):
 
-- **Terminal**: abre uma janela de terminal nova, já dentro da pasta do repo, registra o servidor MCP `automation` automaticamente se ainda não estiver registrado (`claude mcp add ...`, checado via `claude mcp list` antes de tentar de novo) e já inicia uma sessão do Claude Code com um prompt inicial dizendo qual workflow continuar editando (`project_id`/`workflow_id` do editor aberto).
+- **Terminal (Claude Code)** / **Terminal (Codex)**: abre uma janela de terminal nova, já dentro da pasta do repo, registra o servidor MCP `automation` automaticamente pro CLI escolhido se ainda não estiver registrado (checado via `claude mcp list` / `codex mcp list --json` antes de tentar de novo) e já inicia uma sessão (`claude "..."` ou `codex "..."`) com um prompt inicial dizendo qual workflow continuar editando (`project_id`/`workflow_id` do editor aberto).
 - **Claude Desktop**: só funciona se a variável de ambiente `AUTOMATION_CLAUDE_DESKTOP_CMD` estiver configurada com o comando/caminho que abre o Claude Desktop nesta máquina (ex: o caminho completo do `Claude.exe`) — não existe um caminho de instalação padrão confiável pra chutar, então sem essa variável o botão só explica isso em vez de tentar adivinhar.
 
-**Importante — isso só faz sentido rodando localmente.** Esses dois endpoints abrem um processo na máquina onde o *backend* está rodando, não na máquina de quem clicou o botão. Hoje isso é a mesma coisa (você roda o backend na sua própria máquina), mas quando este app for pra uma máquina compartilhada da empresa (ver início deste documento), esse botão abriria um terminal *no servidor*, não no notebook de quem clicou — e como o resto da API não tem autenticação, qualquer pessoa na rede poderia acionar esses endpoints pra rodar comando no servidor. Isso foi uma escolha consciente pra manter a conveniência agora; precisa ser revisto (autenticação, ou remover o atalho) antes da mudança pra máquina compartilhada.
+O resultado só aparece como um modal quando tem algo relevante pra avisar (erro, ou aviso tipo "MCP não registrado") — um clique que funciona normal não interrompe nada.
 
-## O que o Claude pode fazer
+**Importante — isso só faz sentido rodando localmente.** Esses endpoints abrem um processo na máquina onde o *backend* está rodando, não na máquina de quem clicou o botão. Hoje isso é a mesma coisa (você roda o backend na sua própria máquina), mas quando este app for pra uma máquina compartilhada da empresa (ver início deste documento), esse botão abriria um terminal *no servidor*, não no notebook de quem clicou — e como o resto da API não tem autenticação, qualquer pessoa na rede poderia acionar esses endpoints pra rodar comando no servidor. Isso foi uma escolha consciente pra manter a conveniência agora; precisa ser revisto (autenticação, ou remover o atalho) antes da mudança pra máquina compartilhada.
+
+## O que dá pra fazer (Claude ou Codex — as ferramentas são as mesmas)
 
 **Autoria** (sempre disponível — só edita o JSON do fluxo, não executa nada):
 `get_node_catalog`, `list_projects`, `list_folders`, `list_workflows`, `get_workflow`, `create_workflow`, `add_node`, `connect_nodes`, `update_node`, `delete_node`, `validate_workflow`.
@@ -41,11 +53,11 @@ O topbar do editor (`EditorPage.tsx`) tem dois botões — ícone de terminal e 
 
 Passos que precisam de laço/condicional (`loop`, `if`) ou de credencial (`browser_2captcha`) continuam sendo criados no fluxo, só que sem execução ao vivo naquele momento — e qualquer node que precisaria de uma credencial que o Claude não tem como escolher vira automaticamente um placeholder (`unknown`) com uma nota explicando o motivo, pra você configurar manualmente no editor depois.
 
-**Fora do escopo, de propósito**: o Claude nunca cria/edita credenciais (só o placeholder acima), nunca roda um workflow já pronto (isso continua sendo o botão Run do editor, uma ação manual), e não existe ferramenta pra criar projeto/pasta — se não existir um projeto adequado, o Claude vai te pedir pra criar um pela UI primeiro.
+**Fora do escopo, de propósito**: nenhuma ferramenta cria/edita credenciais (só o placeholder acima), nenhuma roda um workflow já pronto (isso continua sendo o botão Run do editor, uma ação manual), e não existe ferramenta pra criar projeto/pasta — se não existir um projeto adequado, o agente vai te pedir pra criar um pela UI primeiro.
 
 ## Exemplo
 
-Prompt pro Claude (Desktop ou Code, depois de conectado):
+Prompt pro Claude ou Codex (depois de conectado):
 
 > "No projeto DIAS_COSTA_AUTOMACAO, cria uma automação nova chamada 'Login Portal' que abre https://portal-exemplo.com.br, preenche o campo de usuário com 'demo' e clica em Entrar."
 

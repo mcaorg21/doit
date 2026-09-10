@@ -1,5 +1,7 @@
 import { api } from './client'
 
+export type CliProvider = 'claude' | 'codex'
+
 interface LaunchResult {
   launched: boolean
   detail?: string | null
@@ -7,7 +9,7 @@ interface LaunchResult {
 }
 
 export const launchApi = {
-  terminal: (projectId?: string, workflowId?: string) =>
-    api.post<LaunchResult>('/api/launch/terminal', { projectId, workflowId }),
+  terminal: (provider: CliProvider, projectId?: string, workflowId?: string) =>
+    api.post<LaunchResult>('/api/launch/terminal', { provider, projectId, workflowId }),
   claudeDesktop: () => api.post<LaunchResult>('/api/launch/claude-desktop', {}),
 }

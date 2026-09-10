@@ -13,6 +13,8 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
+import uuid
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
@@ -155,6 +157,25 @@ def _initial_prompt(project_id: str | None, workflow_id: str | None) -> str | No
 _PROVIDER_LABELS: dict[CliProvider, str] = {"claude": "Claude Code", "codex": "Codex"}
 
 
+def _write_launch_script(provider: CliProvider, prompt: str | None) -> str:
+    """Writes a one-off .bat to the temp dir that cd's into the repo and starts the
+    CLI — see the comment in launch_terminal for why a real file (not a re-parsed
+    shell string) is what makes embedding the prompt text safe. Left behind in TEMP
+    after use, same as GENERATED_SCRIPTS_DIR's run scripts elsewhere in this app —
+    small and harmless, not worth cleaning up."""
+    cli_cmd = f'{provider} "{prompt}"' if prompt else provider
+    lines = [
+        "@echo off",
+        f"title {_PROVIDER_LABELS[provider]} - auto-mation",
+        f'cd /d "{REPO_ROOT}"',
+        cli_cmd,
+    ]
+    script_path = os.path.join(tempfile.gettempdir(), f"automation_launch_{uuid.uuid4().hex[:8]}.bat")
+    with open(script_path, "w", encoding="utf-8") as f:
+        f.write("\r\n".join(lines) + "\r\n")
+    return script_path
+
+
 @router.post("/terminal", response_model=LaunchResult)
 def launch_terminal(payload: LaunchTerminalRequest):
     project_id = _validate_id(payload.projectId, "projectId")
@@ -164,19 +185,23 @@ def launch_terminal(payload: LaunchTerminalRequest):
     mcp_ok, mcp_detail = _ensure_mcp_registered(provider)
 
     prompt = _initial_prompt(project_id, workflow_id)
-    cli_cmd = f'{provider} "{prompt}"' if prompt else provider
-    # `title ... & <cmd>` (no `start`, no nested `cmd /k` layer) — `cmd /c start
-    # "title" cmd /k "..."` looks reasonable but is a known Windows minefield: `start`
-    # treats the first quoted argument as a window title only under specific
-    # conditions, and gets confused once a second layer of quotes (the ones around
-    # the initial prompt) enters the mix — confirmed broken in practice (landed in
-    # the wrong cwd and never ran the CLI at all). `cwd=` on Popen replaces the
-    # `cd /d` entirely, and CREATE_NEW_CONSOLE is what actually pops a new window
-    # (this process has no console of its own to inherit, e.g. when npm/uvicorn
-    # itself wasn't started from an interactive terminal).
-    full_cmd = f"title {_PROVIDER_LABELS[provider]} - auto-mation & {cli_cmd}"
     try:
-        subprocess.Popen(["cmd", "/k", full_cmd], cwd=str(REPO_ROOT), creationflags=subprocess.CREATE_NEW_CONSOLE)
+        script_path = _write_launch_script(provider, prompt)
+        # os.startfile (ShellExecute) opens the .bat the same way double-clicking it
+        # would — a fresh console window, cmd.exe as the interpreter (required for
+        # .bat/.cmd; they aren't directly executable via CreateProcess), and the
+        # window stays open for as long as the last line (claude/codex itself, a
+        # long-running interactive program) keeps running. This replaced an earlier
+        # `cmd /k "title ... & claude \"...\""` approach that looked reasonable but
+        # broke in practice: Python's list2cmdline quotes a Popen argv list using
+        # normal C-runtime rules, but cmd.exe's own re-parsing of a /k or /c command
+        # line does NOT follow those same rules, so the prompt's embedded quotes got
+        # corrupted crossing that boundary (confirmed — it split the sentence on
+        # whitespace instead of treating it as one argument). Writing a real .bat
+        # FILE sidesteps this entirely: the prompt text only ever exists as plain
+        # file content I write myself, never as something re-parsed through a shell
+        # command-line twice.
+        os.startfile(script_path)  # type: ignore[attr-defined]
     except OSError as exc:
         return LaunchResult(launched=False, detail=f"Couldn't open a terminal: {exc}", notify=True)
 

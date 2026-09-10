@@ -3,7 +3,7 @@
   "projectId": "proj_fd45658d",
   "name": "Primeira automacao",
   "createdAt": "2026-08-03T14:03:22.396283Z",
-  "updatedAt": "2026-09-10T14:13:53.871204Z",
+  "updatedAt": "2026-09-10T15:34:38.060952Z",
   "nodes": [
     {
       "id": "node_1785766086827_2",
@@ -213,6 +213,13 @@
       "source": "node_1785766086827_2",
       "target": "node_1785766096849_3",
       "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_6c5f0fdf",
+      "source": "node_1785879529953_3",
+      "target": "node_1785880658785_5",
+      "sourceHandle": "false",
       "breakpoint": false
     }
   ],

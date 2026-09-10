@@ -745,24 +745,33 @@ export default function EditorPage() {
               <div className="launch-menu">
                 <div className="launch-menu-label">Claude</div>
                 <button className="launch-menu-item" onClick={() => handleLaunchTerminal('claude')}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="4 17 10 11 4 5" />
-                    <line x1="12" y1="19" x2="20" y2="19" />
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#D97757">
+                    <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" />
+                    <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(45 12 12)" />
+                    <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(90 12 12)" />
+                    <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(135 12 12)" />
                   </svg>
                   Abrir no Terminal
                 </button>
                 <button className="launch-menu-item" onClick={handleLaunchClaudeDesktop}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#D97757">
+                    <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" />
+                    <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(45 12 12)" />
+                    <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(90 12 12)" />
+                    <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(135 12 12)" />
                   </svg>
                   Abrir no Claude Desktop
                 </button>
                 <div className="launch-menu-divider" />
                 <div className="launch-menu-label">Codex</div>
                 <button className="launch-menu-item" onClick={() => handleLaunchTerminal('codex')}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="4 17 10 11 4 5" />
-                    <line x1="12" y1="19" x2="20" y2="19" />
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10A37F" strokeWidth="1.6">
+                    <circle cx="18" cy="12" r="3.4" />
+                    <circle cx="15" cy="17.2" r="3.4" />
+                    <circle cx="9" cy="17.2" r="3.4" />
+                    <circle cx="6" cy="12" r="3.4" />
+                    <circle cx="9" cy="6.8" r="3.4" />
+                    <circle cx="15" cy="6.8" r="3.4" />
                   </svg>
                   Abrir no Terminal
                 </button>

@@ -17,6 +17,10 @@ frontend/dist-ssr/
 # Run history is transient execution logs, not something to version
 data/projects/*/runs/
 
+# Save Files/Get File/Upload File nodes' working directory — files downloaded/
+# generated at run time, not source (see backend/app/config.py::temp_files_dir)
+data/projects/*/temp_files/
+
 # Secrets — credentials/backup connection strings are stored in plain JSON by
 # design (see the code comments on Credential.value/BackupConfig.connectionString),
 # so they must never be committed

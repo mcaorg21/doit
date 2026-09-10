@@ -8,7 +8,16 @@ _BODY_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _DEFAULT_TIMEOUT = 30
 
 
+def _response_type(ctx: CodegenContext) -> str:
+    return ctx.params.get("responseType") or "json"
+
+
 def _auto_loop(ctx: CodegenContext) -> bool:
+    if _response_type(ctx) == "base64":
+        # A base64-encoded response body is one blob, not a list — nothing to loop
+        # over, regardless of what the (hidden, in this mode) Loop automatically
+        # toggle happens to be set to.
+        return False
     value = ctx.params.get("autoLoop")
     return True if value is None else bool(value)
 
@@ -73,13 +82,31 @@ def codegen_http_request(ctx: CodegenContext) -> str:
     method = str(params.get("method", "GET")).upper()
     if method not in _METHODS:
         method = "GET"
-    result_path = params.get("resultPath") or ""
-    auto_loop = _auto_loop(ctx)
 
     call_kwargs = [
         kwarg for kwarg in (_headers_kwarg(ctx), _body_kwarg(ctx, method), _timeout_kwarg(ctx)) if kwarg
     ]
     kwargs_str = "".join(f", {kwarg}" for kwarg in call_kwargs)
+
+    if _response_type(ctx) == "base64":
+        # Raw response body (a file download — PDF, image, whatever), never parsed as
+        # JSON — base64-encoded so it round-trips as a plain string, same as anything
+        # else a template can reference (see Save Files, which expects exactly this:
+        # a base64 string, never raw bytes, so it never has to guess which one it got).
+        # A separate param key from `resultVar` (rather than reusing it) because
+        # ParamField.visibleWhen only supports one sibling condition — resultVar's is
+        # already "autoLoop is off", which doesn't combine with "responseType is
+        # base64" (autoLoop is itself hidden/irrelevant in base64 mode).
+        var_name = validate_identifier(params.get("base64Var"), ctx, "Result Variable")
+        lines = [
+            f"_resp = requests.{method.lower()}({url_expr}{kwargs_str})",
+            f"{var_name} = base64.b64encode(_resp.content).decode('ascii')",
+            f'print(f"[{ctx.node_label}] fetched {{len(_resp.content)}} byte(s), base64-encoded")',
+        ]
+        return "\n".join(lines)
+
+    result_path = params.get("resultPath") or ""
+    auto_loop = _auto_loop(ctx)
 
     lines = [f"_raw = requests.{method.lower()}({url_expr}{kwargs_str}).json()"]
 
@@ -119,6 +146,16 @@ register(
                 options=[{"value": m, "label": m} for m in _METHODS],
             ),
             ParamField(
+                key="responseType",
+                label="Response",
+                type="select",
+                default="json",
+                options=[
+                    {"value": "json", "label": "JSON"},
+                    {"value": "base64", "label": "File (downloads the raw body, base64-encoded)"},
+                ],
+            ),
+            ParamField(
                 key="timeoutSeconds",
                 label="Timeout (seconds, 0 = no timeout)",
                 type="number",
@@ -153,15 +190,30 @@ register(
                 label="Result Path (optional)",
                 type="text",
                 placeholder="results.items",
+                visibleWhen={"key": "responseType", "equals": "json"},
             ),
-            ParamField(key="autoLoop", label="Loop automatically over results", type="boolean", default=True),
+            ParamField(
+                key="autoLoop",
+                label="Loop automatically over results",
+                type="boolean",
+                default=True,
+                visibleWhen={"key": "responseType", "equals": "json"},
+            ),
             ParamField(
                 key="resultVar",
                 label="Result Variable",
                 type="text",
                 placeholder="leads",
                 producesVariable=True,
-                visibleWhen={"key": "autoLoop", "equals": False},
+                visibleWhen=[{"key": "autoLoop", "equals": False}, {"key": "responseType", "equals": "json"}],
+            ),
+            ParamField(
+                key="base64Var",
+                label="Result Variable",
+                type="text",
+                placeholder="file_b64",
+                producesVariable=True,
+                visibleWhen={"key": "responseType", "equals": "base64"},
             ),
         ],
         codegen=codegen_http_request,

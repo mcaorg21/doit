@@ -39,7 +39,9 @@ def _preview_timeout(nodes: list[WFNode], node_id: str) -> float:
 @router.post("/generate-code")
 def generate_code(project_id: str, workflow_id: str, payload: WorkflowGraph):
     try:
-        code = generate_script(payload.nodes, payload.edges, project_id, start_node_id=payload.startNodeId)
+        code = generate_script(
+            payload.nodes, payload.edges, project_id, start_node_id=payload.startNodeId, workflow_id=workflow_id
+        )
     except CodegenError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"code": code}
@@ -49,7 +51,13 @@ def generate_code(project_id: str, workflow_id: str, payload: WorkflowGraph):
 async def preview_variable(project_id: str, workflow_id: str, payload: VariablePreviewRequest):
     try:
         script = generate_script(
-            payload.nodes, payload.edges, project_id, payload.nodeId, payload.variableName, payload.startNodeId
+            payload.nodes,
+            payload.edges,
+            project_id,
+            payload.nodeId,
+            payload.variableName,
+            payload.startNodeId,
+            workflow_id=workflow_id,
         )
     except CodegenError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

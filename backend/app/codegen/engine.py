@@ -2,7 +2,9 @@ from app.codegen.context import CodegenContext, CodegenError
 from app.models.workflow import WFEdge, WFNode
 from app.nodes.registry import NODE_REGISTRY
 
-HEADER = '''import json
+HEADER = '''import base64
+import json
+import os
 import re
 import requests
 from datetime import datetime
@@ -168,6 +170,7 @@ def generate_script(
     preview_node_id: str | None = None,
     preview_var: str | None = None,
     start_node_id: str | None = None,
+    workflow_id: str = "",
 ) -> str:
     """Single source of truth for the live code preview, the executed script, and the
     variable-preview feature (run the chain up to a node, dump one variable, stop).
@@ -235,6 +238,7 @@ def generate_script(
             params=node.params,
             in_loop=in_loop,
             project_id=project_id,
+            workflow_id=workflow_id,
             browser_var=browser_var,
             target_var=target_var,
             has_breakpoints=has_breakpoints,

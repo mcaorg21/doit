@@ -133,7 +133,9 @@ async def _run_workflow_job(project_id: str, workflow_id: str) -> None:
         return
 
     try:
-        script = generate_script(workflow.nodes, workflow.edges, project_id, start_node_id=workflow.startNodeId)
+        script = generate_script(
+            workflow.nodes, workflow.edges, project_id, start_node_id=workflow.startNodeId, workflow_id=workflow_id
+        )
     except CodegenError as exc:
         print(f"[scheduler] workflow '{workflow.name}' ({workflow_id}) failed to generate: {exc}")
         return

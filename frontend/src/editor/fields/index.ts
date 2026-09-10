@@ -7,6 +7,7 @@ import BooleanField from './BooleanField'
 import FieldListField from './FieldListField'
 import ClickListField from './ClickListField'
 import KeyValueListField from './KeyValueListField'
+import FileListField from './FileListField'
 
 export const fieldComponents: Record<FieldType, ComponentType<FieldProps>> = {
   text: TextField,
@@ -17,4 +18,5 @@ export const fieldComponents: Record<FieldType, ComponentType<FieldProps>> = {
   fieldList: FieldListField,
   clickList: ClickListField,
   keyValueList: KeyValueListField,
+  fileList: FileListField,
 }

@@ -306,7 +306,9 @@ def validate_workflow(project_id: str, workflow_id: str) -> ValidateWorkflowResu
     "incomplete" mid-build). Never persists anything."""
     workflow = _get_workflow(project_id, workflow_id)
     try:
-        generate_script(workflow.nodes, workflow.edges, project_id, start_node_id=workflow.startNodeId)
+        generate_script(
+            workflow.nodes, workflow.edges, project_id, start_node_id=workflow.startNodeId, workflow_id=workflow_id
+        )
     except CodegenError as exc:
         return ValidateWorkflowResult(ok=False, error=str(exc))
     return ValidateWorkflowResult(ok=True)

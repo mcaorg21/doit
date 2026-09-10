@@ -46,7 +46,7 @@ export default function EditorPage() {
   const [dirty, setDirty] = useState(false)
   const [activeTab, setActiveTab] = useState<'code' | 'run' | 'executions'>('code')
   const [loaded, setLoaded] = useState(false)
-  const [pendingDeleteNodeId, setPendingDeleteNodeId] = useState<string | null>(null)
+  const [pendingDeleteNodeIds, setPendingDeleteNodeIds] = useState<string[]>([])
 
   type Snapshot = { nodes: Node<FlowNodeData>[]; edges: Edge<FlowEdgeData>[] }
   const nodesRef = useRef(nodes)
@@ -61,6 +61,10 @@ export default function EditorPage() {
   const flowCanvasRef = useRef<FlowCanvasHandle>(null)
   const selectedNodeIdRef = useRef(selectedNodeId)
   const clipboardRef = useRef<Node<FlowNodeData> | null>(null)
+  // The node a Shift+click range is measured from — set on any plain/Ctrl click,
+  // left alone on a Shift+click so repeated Shift+clicks keep extending from the
+  // same starting point (matches how Explorer/Sheets range-select behaves).
+  const selectionAnchorRef = useRef<string | null>(null)
 
   useEffect(() => {
     nodesRef.current = nodes
@@ -275,10 +279,10 @@ export default function EditorPage() {
       }
 
       if (key === 'delete' || key === 'backspace') {
-        const id = selectedNodeIdRef.current
-        if (!id) return
+        const selectedIds = nodesRef.current.filter((n) => n.selected).map((n) => n.id)
+        if (selectedIds.length === 0) return
         e.preventDefault()
-        requestDeleteNode(id)
+        requestDeleteNode(selectedIds)
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -381,20 +385,59 @@ export default function EditorPage() {
     markDirty()
   }
 
-  const handleDeleteNodeById = useCallback(
-    (nodeId: string) => {
+  // Handles both a single delete (icon/config-panel/one node selected) and a bulk
+  // delete (multi-select via Ctrl/Shift + Delete) as ONE undo step either way — a
+  // loop calling a single-node deleter here would push one history snapshot per
+  // node, all from the same pre-delete state (recordHistory snapshots nodesRef/
+  // edgesRef, which only update via the effect after render, so they wouldn't have
+  // advanced between synchronous loop iterations), cluttering undo with duplicates.
+  const handleDeleteNodesByIds = useCallback(
+    (nodeIds: string[]) => {
+      if (nodeIds.length === 0) return
+      const idSet = new Set(nodeIds)
       recordHistory(true)
-      setNodes((prev) => prev.filter((n) => n.id !== nodeId))
-      setEdges((prev) => prev.filter((e) => e.source !== nodeId && e.target !== nodeId))
-      setSelectedNodeId((current) => (current === nodeId ? null : current))
+      setNodes((prev) => prev.filter((n) => !idSet.has(n.id)))
+      setEdges((prev) => prev.filter((e) => !idSet.has(e.source) && !idSet.has(e.target)))
+      setSelectedNodeId((current) => (current && idSet.has(current) ? null : current))
       // A deleted Start Node would otherwise leave a dangling reference — harmless to
       // codegen (it just falls back to erroring on ambiguity again like before this
       // node existed), but clearing it here keeps the picked start node always valid.
-      setStartNodeId((current) => (current === nodeId ? null : current))
+      setStartNodeId((current) => (current && idSet.has(current) ? null : current))
       markDirty()
     },
     [recordHistory, markDirty],
   )
+
+  // Ctrl/Cmd+click toggling one node in/out of the selection is React Flow's own
+  // default behavior (already applied to `nodes[].selected` before this fires) — left
+  // alone here. Shift+click is custom: React Flow has no built-in "range select"
+  // between two clicked nodes, so this adds one — ordered by x position (graphs in
+  // this app read left-to-right, including everything MCP-built workflows already
+  // lay out that way) rather than anything graph-topology-based, since that's simple
+  // and predictable for the free-form canvas.
+  const handleSelectNode = useCallback((nodeId: string | null, event?: React.MouseEvent) => {
+    setSelectedNodeId(nodeId)
+    if (nodeId === null) {
+      selectionAnchorRef.current = null
+      return
+    }
+    if (event?.shiftKey && selectionAnchorRef.current) {
+      const anchorId = selectionAnchorRef.current
+      const orderedByX = [...nodesRef.current].sort((a, b) => a.position.x - b.position.x)
+      const anchorIndex = orderedByX.findIndex((n) => n.id === anchorId)
+      const targetIndex = orderedByX.findIndex((n) => n.id === nodeId)
+      if (anchorIndex !== -1 && targetIndex !== -1) {
+        const [start, end] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex]
+        const rangeIds = new Set(orderedByX.slice(start, end + 1).map((n) => n.id))
+        setNodes((prev) => prev.map((n) => (rangeIds.has(n.id) ? { ...n, selected: true } : n)))
+      }
+      // Anchor stays put so a further Shift+click keeps extending the same range.
+      return
+    }
+    // Plain click or Ctrl+click: this node becomes the new anchor for a future
+    // Shift+click range.
+    selectionAnchorRef.current = nodeId
+  }, [])
 
   const handleSetStartNode = useCallback(
     (nodeId: string) => {
@@ -404,19 +447,20 @@ export default function EditorPage() {
     [markDirty],
   )
 
-  function requestDeleteNode(nodeId: string) {
-    setPendingDeleteNodeId(nodeId)
+  function requestDeleteNode(nodeIds: string[]) {
+    if (nodeIds.length === 0) return
+    setPendingDeleteNodeIds(nodeIds)
   }
 
   function handleDeleteNode() {
     if (!selectedNodeId) return
-    requestDeleteNode(selectedNodeId)
+    requestDeleteNode([selectedNodeId])
   }
 
   function confirmDeleteNode() {
-    if (!pendingDeleteNodeId) return
-    handleDeleteNodeById(pendingDeleteNodeId)
-    setPendingDeleteNodeId(null)
+    if (pendingDeleteNodeIds.length === 0) return
+    handleDeleteNodesByIds(pendingDeleteNodeIds)
+    setPendingDeleteNodeIds([])
   }
 
   const handleDuplicateNode = useCallback(
@@ -734,11 +778,14 @@ export default function EditorPage() {
               onClick={() => setLaunchMenuOpen((v) => !v)}
               title="Continuar este workflow no Claude ou no Codex"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="#D97757">
-                <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" />
-                <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(45 12 12)" />
-                <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(90 12 12)" />
-                <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(135 12 12)" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="url(#aiSparkleGradient)">
+                <defs>
+                  <linearGradient id="aiSparkleGradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stopColor="#8B5CF6" />
+                    <stop offset="1" stopColor="#EC4899" />
+                  </linearGradient>
+                </defs>
+                <path d="M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z" />
               </svg>
             </button>
             {launchMenuOpen && (
@@ -821,11 +868,11 @@ export default function EditorPage() {
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onConnect={handleConnect}
-          onSelectNode={setSelectedNodeId}
+          onSelectNode={handleSelectNode}
           onAddNode={handleAddNode}
           onToggleBreakpoint={handleToggleBreakpoint}
           onDeleteEdge={handleDeleteEdge}
-          onDeleteNode={requestDeleteNode}
+          onDeleteNode={(nodeId) => requestDeleteNode([nodeId])}
           onDuplicateNode={handleDuplicateNode}
           onRunNodePreview={handleRunNodePreview}
           onSaveFieldMap={handleSaveFieldMap}
@@ -894,19 +941,30 @@ export default function EditorPage() {
         </div>
       </div>
 
-      {pendingDeleteNodeId && (
-        <div className="modal-overlay" onClick={() => setPendingDeleteNodeId(null)}>
+      {pendingDeleteNodeIds.length > 0 && (
+        <div className="modal-overlay" onClick={() => setPendingDeleteNodeIds([])}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete node</h3>
+            <h3>{pendingDeleteNodeIds.length === 1 ? 'Delete node' : `Delete ${pendingDeleteNodeIds.length} nodes`}</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-              Delete "
-              {nodes.find((n) => n.id === pendingDeleteNodeId)?.data.title?.trim() ||
-                nodes.find((n) => n.id === pendingDeleteNodeId)?.data.label ||
-                'this node'}
-              "? Its connections to other nodes will be removed too.
+              {pendingDeleteNodeIds.length === 1 ? (
+                <>
+                  Delete "
+                  {nodes.find((n) => n.id === pendingDeleteNodeIds[0])?.data.title?.trim() ||
+                    nodes.find((n) => n.id === pendingDeleteNodeIds[0])?.data.label ||
+                    'this node'}
+                  "? Its connections to other nodes will be removed too.
+                </>
+              ) : (
+                <>
+                  Delete these {pendingDeleteNodeIds.length} nodes ({pendingDeleteNodeIds
+                    .map((id) => nodes.find((n) => n.id === id)?.data.title?.trim() || nodes.find((n) => n.id === id)?.data.label || id)
+                    .join(', ')}
+                  )? Their connections to other nodes will be removed too.
+                </>
+              )}
             </p>
             <div className="modal-actions">
-              <button className="btn" onClick={() => setPendingDeleteNodeId(null)}>
+              <button className="btn" onClick={() => setPendingDeleteNodeIds([])}>
                 Cancel
               </button>
               <button className="btn btn-danger" onClick={confirmDeleteNode}>

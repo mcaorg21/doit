@@ -11,6 +11,13 @@ class CodegenContext:
     """The workflow's project id — lets a node's codegen resolve a credentialId param
     to its actual secret value (see app/storage/credential_store.py) at codegen time,
     since credentials are stored per-project."""
+    workflow_id: str = ""
+    """The workflow's own id — lets a node's codegen compute a path under this
+    workflow's own data/projects/<project_id>/temp_files/<workflow_id>/ folder (see
+    app/config.py::temp_files_dir), e.g. Save Files/Get File/Upload File. Empty for
+    the one caller that runs before a workflow has been saved (the LLM-import
+    reconstruction's validate-only generate_script call) — harmless there since the
+    resulting path is never actually written to at that point."""
     browser_var: str | None = None
     """Name of the currently-open browser/context variable ("browser" or "context"),
     set by Open Browser and cleared by Close Browser — lets Close Browser know which

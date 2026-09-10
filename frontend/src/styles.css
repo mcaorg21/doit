@@ -231,6 +231,19 @@
   margin: 4px 0;
 }
 
+.control-button-active {
+  background: var(--accent-bg) !important;
+  color: var(--accent) !important;
+}
+
+/* React Flow only swaps the pane cursor for its own transient drag states
+   (.draggable -> grab, .dragging -> grabbing) — selection mode being ON at rest
+   isn't one of those, so it has to be forced here regardless of which of React
+   Flow's own cursor classes is present. */
+.canvas-select-mode .react-flow__pane {
+  cursor: default !important;
+}
+
 .list {
   display: flex;
   flex-direction: column;

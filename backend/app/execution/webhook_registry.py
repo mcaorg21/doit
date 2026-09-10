@@ -92,7 +92,9 @@ async def trigger(method: str, path: str) -> dict:
         raise HTTPException(status_code=404, detail=f"No published webhook at {method.upper()} /{path}")
 
     try:
-        script = generate_script(workflow.nodes, workflow.edges, project_id, start_node_id=workflow.startNodeId)
+        script = generate_script(
+            workflow.nodes, workflow.edges, project_id, start_node_id=workflow.startNodeId, workflow_id=workflow_id
+        )
     except CodegenError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
 
-FieldType = Literal["text", "textarea", "number", "select", "boolean", "fieldList", "clickList", "keyValueList"]
+FieldType = Literal[
+    "text", "textarea", "number", "select", "boolean", "fieldList", "clickList", "keyValueList", "fileList"
+]
 NodeCategory = Literal["trigger", "dataSource", "browser", "action", "logic", "function"]
 
 
@@ -24,12 +26,15 @@ class ParamField:
     """True when this field should be filled in by picking from an upstream node's
     producesVariable field (e.g. Loop's "arrayVar") rather than typed freely — the
     frontend renders a picker with a live preview instead of a plain text input."""
-    visibleWhen: dict[str, Any] | None = None
+    visibleWhen: dict[str, Any] | list[dict[str, Any]] | None = None
     """{"key": <sibling param key>, "equals": <value>} or {"key": ..., "in": [<values>]} —
     the frontend only shows this field when the sibling param currently equals that
     value / is one of those values (e.g. Result Variable only makes sense when "Loop
     automatically" is off; the IF node's "Value 2" only makes sense for operators that
-    take a second operand)."""
+    take a second operand). Can also be a LIST of such conditions, all of which must
+    hold (AND) — e.g. HTTP Request's JSON-mode Result Variable needs both "autoLoop is
+    off" AND "responseType is json", since a single condition can't express that and
+    the two toggles are otherwise independent."""
     optionsSource: dict[str, Any] | None = None
     """{"key": <sibling param key>, "map": {<sibling value>: [{"value":.., "label":..}, ...]}} —
     when set, this field's dropdown options are looked up from `map` using the

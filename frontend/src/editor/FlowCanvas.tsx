@@ -1,6 +1,7 @@
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react'
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import {
   Background,
+  ControlButton,
   Controls,
   ReactFlow,
   ReactFlowProvider,
@@ -32,7 +33,7 @@ interface Props {
   onNodesChange: (changes: NodeChange<Node<FlowNodeData>>[]) => void
   onEdgesChange: (changes: EdgeChange[]) => void
   onConnect: (connection: Connection) => void
-  onSelectNode: (nodeId: string | null) => void
+  onSelectNode: (nodeId: string | null, event?: React.MouseEvent) => void
   onAddNode: (spec: NodeTypeSpec, position: { x: number; y: number }) => void
   onToggleBreakpoint: (edgeId: string) => void
   onDeleteEdge: (edgeId: string) => void
@@ -68,6 +69,12 @@ function FlowCanvasInner(
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const { screenToFlowPosition } = useReactFlow()
+  // Default is "hand" mode (dragging empty canvas pans it, like every other screen
+  // in this app). Toggling this to "select" mode swaps that: dragging the canvas
+  // now draws a rectangle that multi-selects whatever nodes it touches, and Delete
+  // removes all of them at once — the complement to Ctrl/Shift+click for picking up
+  // several nodes without needing to click each one individually.
+  const [selectMode, setSelectMode] = useState(false)
 
   useImperativeHandle(
     ref,
@@ -120,7 +127,12 @@ function FlowCanvasInner(
   )
 
   return (
-    <div className="canvas-wrap" ref={wrapperRef} onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
+    <div
+      className={`canvas-wrap${selectMode ? ' canvas-select-mode' : ''}`}
+      ref={wrapperRef}
+      onDrop={handleDrop}
+      onDragOver={(e) => e.preventDefault()}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -129,12 +141,28 @@ function FlowCanvasInner(
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onNodeClick={(_, node) => onSelectNode(node.id)}
+        onNodeClick={(event, node) => onSelectNode(node.id, event)}
         onPaneClick={() => onSelectNode(null)}
+        panOnDrag={!selectMode}
+        selectionOnDrag={selectMode}
         fitView
       >
         <Background />
-        <Controls />
+        <Controls>
+          <ControlButton
+            className={selectMode ? 'control-button-active' : undefined}
+            onClick={() => setSelectMode((v) => !v)}
+            title={
+              selectMode
+                ? 'Modo de seleção (arraste pra marcar vários nodes) — clique pra voltar a arrastar o canvas'
+                : 'Modo de navegação (arraste move o canvas) — clique pra arrastar e marcar vários nodes de uma vez'
+            }
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+            </svg>
+          </ControlButton>
+        </Controls>
       </ReactFlow>
     </div>
   )

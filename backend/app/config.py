@@ -30,3 +30,11 @@ def workflows_dir(project_id: str) -> Path:
 
 def runs_dir(project_id: str) -> Path:
     return project_dir(project_id) / "runs"
+
+
+def temp_files_dir(project_id: str, workflow_id: str) -> Path:
+    """Where Save Files/Get File/Upload File nodes read and write — computed at
+    codegen time (this function runs in the backend process) and baked into the
+    generated script as an absolute path literal, since the script itself doesn't
+    import app.config (it's a standalone process, see app/execution/runner.py)."""
+    return project_dir(project_id) / "temp_files" / workflow_id

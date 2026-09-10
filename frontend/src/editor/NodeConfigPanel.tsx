@@ -5,7 +5,7 @@ import VariablePickerField from './fields/VariablePickerField'
 import CredentialPickerField from './fields/CredentialPickerField'
 import type { FlowNodeData } from './types'
 import type { FieldMapOption, VariableSource } from './graph'
-import type { NodeTypeSpec, ParamFieldSpec } from '../types/nodeType'
+import type { NodeTypeSpec, ParamFieldSpec, VisibleWhenCondition } from '../types/nodeType'
 
 interface Props {
   node: Node<FlowNodeData> | null
@@ -30,12 +30,17 @@ const SELECTOR_TYPE_PLACEHOLDERS: Record<string, string> = {
   full_xpath: '/html/body/div[1]/form/input[2]',
 }
 
+function conditionMet(condition: VisibleWhenCondition, allParams: ParamFieldSpec[], values: Record<string, unknown>) {
+  const dep = allParams.find((p) => p.key === condition.key)
+  const value = values[condition.key] ?? dep?.default
+  if (condition.in) return condition.in.includes(value)
+  return value === condition.equals
+}
+
 function isFieldVisible(paramSpec: ParamFieldSpec, allParams: ParamFieldSpec[], values: Record<string, unknown>) {
   if (!paramSpec.visibleWhen) return true
-  const dep = allParams.find((p) => p.key === paramSpec.visibleWhen!.key)
-  const value = values[paramSpec.visibleWhen.key] ?? dep?.default
-  if (paramSpec.visibleWhen.in) return paramSpec.visibleWhen.in.includes(value)
-  return value === paramSpec.visibleWhen.equals
+  const conditions = Array.isArray(paramSpec.visibleWhen) ? paramSpec.visibleWhen : [paramSpec.visibleWhen]
+  return conditions.every((c) => conditionMet(c, allParams, values))
 }
 
 export default function NodeConfigPanel({

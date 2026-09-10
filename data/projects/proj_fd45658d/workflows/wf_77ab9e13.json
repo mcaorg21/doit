@@ -1,0 +1,140 @@
+{
+  "id": "wf_77ab9e13",
+  "projectId": "proj_fd45658d",
+  "name": "Teste de objetos CPJ",
+  "createdAt": "2026-08-28T20:13:17.747115Z",
+  "updatedAt": "2026-08-28T20:49:14.712366Z",
+  "nodes": [
+    {
+      "id": "node_1787948001444_1",
+      "type": "http_request",
+      "position": {
+        "x": 446.7882080078125,
+        "y": 406.138916015625
+      },
+      "params": {
+        "url": "https://n8n.diascosta.adv.br/webhook/db3d7a3f-6cb9-4903-9afc-a98e87c96e37-sql-auto-matic",
+        "method": "POST",
+        "body": "{\n  \"query\": \"SELECT t.id_tramitacao, t.id_processo, cp.numero_processo, t.evento, te.descricao AS evento_descricao, t.id_tramitacao_situacao, ts.descricao AS tramitacao_situacao_descricao, cp.grupo_trabalho AS codigo_grupo_trabalho, tgt.descricao AS grupo_trabalho_descricao, t.data_hora_lan, t.ag_data_hora, t.texto, t.id_pessoa_solicitante, t.id_pessoa_solicitada, t.id_pessoa_atribuida, t.tipo, t.id_tramitacao_motivo, t.prazo_data_inicio, t.prazo_tipo_contagem, t.cumprido_em, t.cumprido_por, t.justificativa, t.update_data_hora, t.update_usuario FROM cad_processo cp STRAIGHT_JOIN tramitacao t ON t.id_processo = cp.pj AND t.id_tramitacao_situacao = 0 AND t.evento IN ('PDE', 'FTP', 'TRC', 'FBA', 'FCF') AND t.data_hora_lan >= NOW() - INTERVAL 30 DAY LEFT JOIN tab_grupo_trabalho tgt ON tgt.codigo = cp.grupo_trabalho LEFT JOIN tab_evento te ON te.sigla = t.evento LEFT JOIN tramitacao_situacao ts ON ts.id_tramitacao_situacao = t.id_tramitacao_situacao WHERE cp.grupo_trabalho = 2 LIMIT 1000\"\n}",
+        "resultPath": null,
+        "autoLoop": true,
+        "resultVar": null,
+        "bodyMode": "fields",
+        "bodyFields": [
+          {
+            "key": "query",
+            "value": "SELECT t.id_tramitacao, t.id_processo, cp.numero_processo, t.evento, te.descricao AS evento_descricao, t.id_tramitacao_situacao, ts.descricao AS tramitacao_situacao_descricao, cp.grupo_trabalho AS codigo_grupo_trabalho, tgt.descricao AS grupo_trabalho_descricao, t.data_hora_lan, t.ag_data_hora, t.texto, t.id_pessoa_solicitante, t.id_pessoa_solicitada, t.id_pessoa_atribuida, t.tipo, t.id_tramitacao_motivo, t.prazo_data_inicio, t.prazo_tipo_contagem, t.cumprido_em, t.cumprido_por, t.justificativa, t.update_data_hora, t.update_usuario FROM cad_processo cp STRAIGHT_JOIN tramitacao t ON t.id_processo = cp.pj AND t.id_tramitacao_situacao = 0 AND t.evento IN ('PDE', 'FTP', 'TRC', 'FBA', 'FCF') AND t.data_hora_lan >= NOW() - INTERVAL 30 DAY LEFT JOIN tab_grupo_trabalho tgt ON tgt.codigo = cp.grupo_trabalho LEFT JOIN tab_evento te ON te.sigla = t.evento LEFT JOIN tramitacao_situacao ts ON ts.id_tramitacao_situacao = t.id_tramitacao_situacao WHERE cp.grupo_trabalho = 2 LIMIT 1000"
+          }
+        ],
+        "headers": [
+          {
+            "key": "x-api-key",
+            "value": "a6bc9a30c44d6d29630dab1a85680facf411cc7c"
+          }
+        ],
+        "timeoutSeconds": 300
+      },
+      "title": "CPJ",
+      "note": null,
+      "fieldMap": [
+        "id_tramitacao",
+        "id_processo",
+        "numero_processo",
+        "evento",
+        "evento_descricao",
+        "id_tramitacao_situacao",
+        "tramitacao_situacao_descricao",
+        "codigo_grupo_trabalho",
+        "grupo_trabalho_descricao",
+        "data_hora_lan",
+        "ag_data_hora",
+        "texto",
+        "id_pessoa_solicitante",
+        "id_pessoa_solicitada",
+        "id_pessoa_atribuida",
+        "tipo",
+        "id_tramitacao_motivo",
+        "prazo_data_inicio",
+        "prazo_tipo_contagem",
+        "cumprido_em",
+        "cumprido_por",
+        "justificativa",
+        "update_data_hora",
+        "update_usuario"
+      ]
+    },
+    {
+      "id": "node_1787948112445_2",
+      "type": "open_browser",
+      "position": {
+        "x": 578.1823120117188,
+        "y": 404.7083740234375
+      },
+      "params": {
+        "headless": false,
+        "browserChannel": "chrome",
+        "profileName": null,
+        "multiUser": false
+      },
+      "title": "Abrir Form",
+      "note": null,
+      "fieldMap": null
+    },
+    {
+      "id": "node_1787950005712_1",
+      "type": "goto",
+      "position": {
+        "x": 703.2127075195312,
+        "y": 404.65977478027344
+      },
+      "params": {
+        "url": "https://fill.dev/form/registration-email"
+      },
+      "title": "teste form",
+      "note": null,
+      "fieldMap": null
+    },
+    {
+      "id": "node_1787950028116_4",
+      "type": "fill",
+      "position": {
+        "x": 822.7127075195312,
+        "y": 406.15977478027344
+      },
+      "params": {
+        "selector": null,
+        "selectorType": "css",
+        "value": null
+      },
+      "title": null,
+      "note": null,
+      "fieldMap": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_node_1787948115075_3",
+      "source": "node_1787948001444_1",
+      "target": "node_1787948112445_2",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1787950011368_2",
+      "source": "node_1787948112445_2",
+      "target": "node_1787950005712_1",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1787950030642_5",
+      "source": "node_1787950005712_1",
+      "target": "node_1787950028116_4",
+      "sourceHandle": null,
+      "breakpoint": true
+    }
+  ],
+  "published": false,
+  "folderId": null,
+  "startNodeId": "node_1787948001444_1"
+}

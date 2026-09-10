@@ -6,6 +6,7 @@ import SelectField from './SelectField'
 import BooleanField from './BooleanField'
 import FieldListField from './FieldListField'
 import ClickListField from './ClickListField'
+import KeyValueListField from './KeyValueListField'
 
 export const fieldComponents: Record<FieldType, ComponentType<FieldProps>> = {
   text: TextField,
@@ -15,4 +16,5 @@ export const fieldComponents: Record<FieldType, ComponentType<FieldProps>> = {
   boolean: BooleanField,
   fieldList: FieldListField,
   clickList: ClickListField,
+  keyValueList: KeyValueListField,
 }

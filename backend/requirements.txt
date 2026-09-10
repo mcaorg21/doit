@@ -7,3 +7,4 @@ python-multipart>=0.0.12
 apscheduler>=3.10,<4
 2captcha-python>=1.2
 psycopg[binary]>=3.2
+mcp<2

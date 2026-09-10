@@ -9,6 +9,7 @@ backend/generated_scripts/
 backend/profiles/
 
 # Node
+/node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
@@ -21,6 +22,7 @@ data/projects/*/runs/
 # so they must never be committed
 data/projects/*/credentials.json
 data/backup_config.json
+data/projects/*/backup_config.json
 
 # Stray Chrome profile dir created at repo root by a cwd bug in an earlier version
 # of `npm run server:dev` (fixed below) — real profile data lives in

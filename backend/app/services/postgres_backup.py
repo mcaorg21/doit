@@ -224,84 +224,104 @@ def upsert_runs(conn: psycopg.Connection, rows: list[dict]) -> None:
     )
 
 
-def _fetch_all(conn: psycopg.Connection, sql: str) -> list[dict]:
+def _fetch_all(conn: psycopg.Connection, sql: str, params: tuple = ()) -> list[dict]:
     try:
         with conn.cursor() as cur:
-            cur.execute(sql)
+            cur.execute(sql, params)
             return cur.fetchall()
     except psycopg.Error as exc:
         raise BackupError(f"Couldn't read from Postgres: {exc}") from exc
 
 
-def fetch_all_projects(conn: psycopg.Connection) -> list[dict]:
-    return _fetch_all(
+def fetch_project(conn: psycopg.Connection, project_id: str) -> dict | None:
+    """A single project's own row — used by restore to reconstruct project.json
+    (name/timestamps), scoped to just the project being restored, not every project
+    that happens to share this Postgres connection."""
+    rows = _fetch_all(
         conn,
         f"""SELECT id, name, created_at AS "createdAt", updated_at AS "updatedAt"
-            FROM {TABLE_PREFIX}projects""",
+            FROM {TABLE_PREFIX}projects WHERE id = %s""",
+        (project_id,),
     )
+    return rows[0] if rows else None
 
 
-def fetch_all_folders(conn: psycopg.Connection) -> list[dict]:
+def fetch_all_folders(conn: psycopg.Connection, project_id: str) -> list[dict]:
     return _fetch_all(
         conn,
         f"""SELECT id, project_id AS "projectId", name, parent_id AS "parentId",
                    created_at AS "createdAt", updated_at AS "updatedAt"
-            FROM {TABLE_PREFIX}folders""",
+            FROM {TABLE_PREFIX}folders WHERE project_id = %s""",
+        (project_id,),
     )
 
 
-def fetch_all_workflows(conn: psycopg.Connection) -> list[dict]:
+def fetch_all_workflows(conn: psycopg.Connection, project_id: str) -> list[dict]:
     return _fetch_all(
         conn,
         f"""SELECT id, project_id AS "projectId", name,
                    created_at AS "createdAt", updated_at AS "updatedAt",
                    published, folder_id AS "folderId", start_node_id AS "startNodeId", nodes, edges
-            FROM {TABLE_PREFIX}workflows""",
+            FROM {TABLE_PREFIX}workflows WHERE project_id = %s""",
+        (project_id,),
     )
 
 
-def fetch_all_credentials(conn: psycopg.Connection) -> list[dict]:
+def fetch_all_credentials(conn: psycopg.Connection, project_id: str) -> list[dict]:
     return _fetch_all(
         conn,
         f"""SELECT id, project_id AS "projectId", name, type, value,
                    created_at AS "createdAt", updated_at AS "updatedAt"
-            FROM {TABLE_PREFIX}credentials""",
+            FROM {TABLE_PREFIX}credentials WHERE project_id = %s""",
+        (project_id,),
     )
 
 
-def fetch_all_runs(conn: psycopg.Connection) -> list[dict]:
+def fetch_all_runs(conn: psycopg.Connection, workflow_ids: list[str]) -> list[dict]:
+    """Runs have no project_id column of their own (see schema) — scoped to a
+    project via its workflow ids instead, which the caller already has from
+    fetch_all_workflows."""
+    if not workflow_ids:
+        return []
     return _fetch_all(
         conn,
         f"""SELECT id, workflow_id AS "workflowId", started_at AS "startedAt",
                    finished_at AS "finishedAt", status, exit_code AS "exitCode",
                    script_path AS "scriptPath", log_lines AS "logLines"
-            FROM {TABLE_PREFIX}runs""",
+            FROM {TABLE_PREFIX}runs WHERE workflow_id = ANY(%s)""",
+        (workflow_ids,),
     )
 
 
-def count_rows(conn: psycopg.Connection) -> BackupCounts:
-    def _count(table: str) -> int:
-        row = _fetch_all(conn, f"SELECT count(*) AS n FROM {TABLE_PREFIX}{table}")
+def count_rows(conn: psycopg.Connection, project_id: str) -> BackupCounts:
+    def _count(sql: str) -> int:
+        row = _fetch_all(conn, sql, (project_id,))
         return row[0]["n"] if row else 0
 
     return BackupCounts(
-        projects=_count("projects"),
-        folders=_count("folders"),
-        workflows=_count("workflows"),
-        credentials=_count("credentials"),
-        runs=_count("runs"),
+        projects=_count(f"SELECT count(*) AS n FROM {TABLE_PREFIX}projects WHERE id = %s"),
+        folders=_count(f"SELECT count(*) AS n FROM {TABLE_PREFIX}folders WHERE project_id = %s"),
+        workflows=_count(f"SELECT count(*) AS n FROM {TABLE_PREFIX}workflows WHERE project_id = %s"),
+        credentials=_count(f"SELECT count(*) AS n FROM {TABLE_PREFIX}credentials WHERE project_id = %s"),
+        runs=_count(
+            f"""SELECT count(*) AS n FROM {TABLE_PREFIX}runs
+                WHERE workflow_id IN (SELECT id FROM {TABLE_PREFIX}workflows WHERE project_id = %s)"""
+        ),
     )
 
 
-def last_updated_at(conn: psycopg.Connection) -> dict[str, datetime | None]:
-    def _max(table: str, column: str) -> datetime | None:
-        row = _fetch_all(conn, f"SELECT max({column}) AS m FROM {TABLE_PREFIX}{table}")
+def last_updated_at(conn: psycopg.Connection, project_id: str) -> dict[str, datetime | None]:
+    def _max(sql: str) -> datetime | None:
+        row = _fetch_all(conn, sql, (project_id,))
         return row[0]["m"] if row else None
 
     return {
-        "projects": _max("projects", "updated_at"),
-        "folders": _max("folders", "updated_at"),
-        "workflows": _max("workflows", "updated_at"),
-        "credentials": _max("credentials", "updated_at"),
-        "runs": _max("runs", "started_at"),
+        "projects": _max(f"SELECT max(updated_at) AS m FROM {TABLE_PREFIX}projects WHERE id = %s"),
+        "folders": _max(f"SELECT max(updated_at) AS m FROM {TABLE_PREFIX}folders WHERE project_id = %s"),
+        "workflows": _max(f"SELECT max(updated_at) AS m FROM {TABLE_PREFIX}workflows WHERE project_id = %s"),
+        "credentials": _max(f"SELECT max(updated_at) AS m FROM {TABLE_PREFIX}credentials WHERE project_id = %s"),
+        "runs": _max(
+            f"""SELECT max(started_at) AS m FROM {TABLE_PREFIX}runs
+                WHERE workflow_id IN (SELECT id FROM {TABLE_PREFIX}workflows WHERE project_id = %s)"""
+        ),
     }

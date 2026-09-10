@@ -1,12 +1,17 @@
 """Orchestration for backup/restore — owns everything local-file-related (walking
-data/projects/, writing it back), delegating all actual Postgres work to
+data/projects/<id>/, writing it back), delegating all actual Postgres work to
 app/services/postgres_backup.py. Direct analogue of
 app/services/workflow_reconstructor.py's split from app/services/llm_providers.py.
+
+Scoped per project (see app/storage/backup_config_store.py) — each call operates on
+exactly one project's local files and exactly one project's rows in the shared
+automation_* tables (via project_id, or workflow_id for runs, which have no
+project_id column of their own).
 """
 
 import shutil
 
-from app.config import PROJECTS_DIR
+from app.config import project_dir
 from app.models.backup import BackupCounts, BackupResult, RestorePreview, RestoreResult
 from app.models.credential import Credential
 from app.models.folder import Folder
@@ -18,10 +23,10 @@ from app.services.postgres_backup import BackupError
 from app.storage import backup_config_store, credential_store, folder_store, project_store, run_store, workflow_store
 
 
-def _require_config():
-    config = backup_config_store.get_config()
+def _require_config(project_id: str):
+    config = backup_config_store.get_config(project_id)
     if config is None:
-        raise BackupError("No Postgres connection configured yet — save one first")
+        raise BackupError("No Postgres connection configured yet for this project — save one first")
     return config
 
 
@@ -80,119 +85,93 @@ def _run_row(r: RunRecord) -> dict:
     }
 
 
-def run_backup() -> BackupResult:
-    config = _require_config()
-    warnings: list[str] = []
+def run_backup(project_id: str) -> BackupResult:
+    config = _require_config(project_id)
+    project = project_store.get_project(project_id)  # 404 if missing
 
-    project_rows: list[dict] = []
-    folder_rows: list[dict] = []
-    workflow_rows: list[dict] = []
-    credential_rows: list[dict] = []
-    run_rows: list[dict] = []
-
-    # list_projects() already silently skips any data/projects/* child directory
-    # missing project.json (see project_store.py) — the one known orphaned directory
-    # on this machine is invisible here exactly as it's invisible everywhere else in
-    # the app, no extra directory-walking needed.
-    for project in project_store.list_projects():
-        try:
-            project_rows.append(_project_row(project))
-            folder_rows.extend(_folder_row(f) for f in folder_store.list_folders(project.id))
-            workflow_rows.extend(_workflow_row(w) for w in workflow_store.list_workflows(project.id))
-            credential_rows.extend(_credential_row(c) for c in credential_store.list_credentials(project.id))
-            run_rows.extend(_run_row(r) for r in run_store.list_runs(project.id))
-        except Exception as exc:  # noqa: BLE001 — one bad project shouldn't abort the whole backup
-            warnings.append(f"Project '{project.id}' ({project.name}): skipped — {exc}")
+    project_row = _project_row(project)
+    folder_rows = [_folder_row(f) for f in folder_store.list_folders(project_id)]
+    workflow_rows = [_workflow_row(w) for w in workflow_store.list_workflows(project_id)]
+    credential_rows = [_credential_row(c) for c in credential_store.list_credentials(project_id)]
+    run_rows = [_run_row(r) for r in run_store.list_runs(project_id)]
 
     with postgres_backup.connect(config.connectionString) as conn:
         postgres_backup.ensure_schema(conn)
         with conn.transaction():
-            postgres_backup.upsert_projects(conn, project_rows)
+            postgres_backup.upsert_projects(conn, [project_row])
             postgres_backup.upsert_folders(conn, folder_rows)
             postgres_backup.upsert_workflows(conn, workflow_rows)
             postgres_backup.upsert_credentials(conn, credential_rows)
             postgres_backup.upsert_runs(conn, run_rows)
 
     counts = BackupCounts(
-        projects=len(project_rows),
+        projects=1,
         folders=len(folder_rows),
         workflows=len(workflow_rows),
         credentials=len(credential_rows),
         runs=len(run_rows),
     )
-    backup_config_store.record_backup(counts)
-    return BackupResult(counts=counts, warnings=warnings, finishedAt=now_utc())
+    backup_config_store.record_backup(project_id, counts)
+    return BackupResult(counts=counts, warnings=[], finishedAt=now_utc())
 
 
-def preview_remote() -> RestorePreview:
-    config = _require_config()
+def preview_remote(project_id: str) -> RestorePreview:
+    config = _require_config(project_id)
     with postgres_backup.connect(config.connectionString) as conn:
-        counts = postgres_backup.count_rows(conn)
-        last_updated = postgres_backup.last_updated_at(conn)
+        counts = postgres_backup.count_rows(conn, project_id)
+        last_updated = postgres_backup.last_updated_at(conn, project_id)
     return RestorePreview(counts=counts, lastUpdatedAt=last_updated)
 
 
-def run_restore() -> RestoreResult:
-    config = _require_config()
+def run_restore(project_id: str) -> RestoreResult:
+    config = _require_config(project_id)
 
     # Fetch everything before touching anything local — if any fetch fails, no local
     # data has been wiped yet.
     with postgres_backup.connect(config.connectionString) as conn:
-        project_rows = postgres_backup.fetch_all_projects(conn)
-        folder_rows = postgres_backup.fetch_all_folders(conn)
-        workflow_rows = postgres_backup.fetch_all_workflows(conn)
-        credential_rows = postgres_backup.fetch_all_credentials(conn)
-        run_rows = postgres_backup.fetch_all_runs(conn)
+        project_row = postgres_backup.fetch_project(conn, project_id)
+        if project_row is None:
+            raise BackupError("No backup found in Postgres for this project yet")
+        folder_rows = postgres_backup.fetch_all_folders(conn, project_id)
+        workflow_rows = postgres_backup.fetch_all_workflows(conn, project_id)
+        credential_rows = postgres_backup.fetch_all_credentials(conn, project_id)
+        run_rows = postgres_backup.fetch_all_runs(conn, [w["id"] for w in workflow_rows])
 
-    projects = [Project.model_validate(r) for r in project_rows]
+    project = Project.model_validate(project_row)
     folders = [Folder.model_validate(r) for r in folder_rows]
     workflows = [Workflow.model_validate(r) for r in workflow_rows]
     credentials = [Credential.model_validate(r) for r in credential_rows]
     runs = [RunRecord.model_validate(r) for r in run_rows]
 
-    workflow_to_project = {w.id: w.projectId for w in workflows}
+    # Restore is a full replace of this project's directory, not a merge — matches
+    # the scenario this feature exists for (local files got deleted, pull them back).
+    # The backup config itself isn't part of what's backed up (it's local-only
+    # connection info, see backup_config_store.py) — preserved verbatim across the
+    # wipe instead of being lost with the rest of the directory.
+    pdir = project_dir(project_id)
+    config_path = pdir / "backup_config.json"
+    saved_config_bytes = config_path.read_bytes() if config_path.exists() else None
 
-    folders_by_project: dict[str, list[Folder]] = {}
-    for f in folders:
-        folders_by_project.setdefault(f.projectId, []).append(f)
+    if pdir.exists():
+        shutil.rmtree(pdir)
 
-    workflows_by_project: dict[str, list[Workflow]] = {}
-    for w in workflows:
-        workflows_by_project.setdefault(w.projectId, []).append(w)
+    project_store.put_project(project)
+    folder_store.put_folders(project_id, folders)
+    for workflow in workflows:
+        workflow_store.put_workflow(project_id, workflow)
+    credential_store.put_credentials(project_id, credentials)
+    for run in runs:
+        run_store.save_run(project_id, run)
 
-    credentials_by_project: dict[str, list[Credential]] = {}
-    for c in credentials:
-        credentials_by_project.setdefault(c.projectId, []).append(c)
-
-    runs_by_project: dict[str, list[RunRecord]] = {}
-    for r in runs:
-        project_id = workflow_to_project.get(r.workflowId)
-        if project_id is not None:
-            runs_by_project.setdefault(project_id, []).append(r)
-        # Runs whose workflow no longer exists can't be placed under any project
-        # directory — dropped, same as the app already tolerating orphaned data.
-
-    # Restore is a full replace, not a merge — matches the scenario this feature
-    # exists for (local files got deleted, pull everything back).
-    if PROJECTS_DIR.exists():
-        shutil.rmtree(PROJECTS_DIR)
-    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
-
-    for project in projects:
-        project_store.put_project(project)
-        folder_store.put_folders(project.id, folders_by_project.get(project.id, []))
-        for workflow in workflows_by_project.get(project.id, []):
-            workflow_store.put_workflow(project.id, workflow)
-        credential_store.put_credentials(project.id, credentials_by_project.get(project.id, []))
-        for run in runs_by_project.get(project.id, []):
-            run_store.save_run(project.id, run)
+    if saved_config_bytes is not None:
+        config_path.write_bytes(saved_config_bytes)
 
     counts = BackupCounts(
-        projects=len(projects),
+        projects=1,
         folders=len(folders),
         workflows=len(workflows),
         credentials=len(credentials),
         runs=len(runs),
     )
-    backup_config_store.record_restore()
+    backup_config_store.record_restore(project_id)
     return RestoreResult(counts=counts, finishedAt=now_utc())

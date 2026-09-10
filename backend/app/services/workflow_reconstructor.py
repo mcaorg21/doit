@@ -22,8 +22,8 @@ from app.storage.ids import gen_id
 
 CREDENTIAL_TYPE_TO_PROVIDER = {"openai": "openai", "anthropic": "anthropic"}
 
-_LAYOUT_STEP_X = 180
-_LAYOUT_Y = 200
+LAYOUT_STEP_X = 180
+LAYOUT_Y = 200
 
 _FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?```\s*$", re.DOTALL)
 
@@ -106,7 +106,7 @@ def reconstruct_workflow(project_id: str, python_code: str, credential_id: str) 
             f"'openai' or 'anthropic' to use it for AI import"
         )
 
-    catalog = _build_node_catalog()
+    catalog = build_node_catalog()
     try:
         raw_text = call_llm(
             provider,
@@ -119,7 +119,7 @@ def reconstruct_workflow(project_id: str, python_code: str, credential_id: str) 
         raise ReconstructionError(f"AI request failed: {exc}") from exc
 
     data = _parse_json_response(raw_text)
-    nodes, edges, warnings = _build_and_validate_graph(data, catalog)
+    nodes, edges, warnings = build_and_validate_graph(data, catalog)
 
     if not nodes:
         raise ReconstructionError("The AI didn't produce any nodes for this script")
@@ -146,10 +146,38 @@ def reconstruct_workflow(project_id: str, python_code: str, credential_id: str) 
     )
 
 
-def _build_node_catalog() -> list[dict]:
+def build_node_catalog() -> list[dict]:
     # Exactly what GET /api/node-types serves — the LLM's vocabulary of what it's
     # allowed to emit, read straight from the registry (not over HTTP).
     return [spec.to_public_dict() for spec in NODE_REGISTRY.values()]
+
+
+STRUCTURAL_RULES = (
+    "Structural rules (violating these makes the workflow unusable):\n"
+    "- Exactly one root node (a node with no incoming edge) — every other node "
+    "must be reachable from it.\n"
+    "- At most one incoming edge per node — branches never merge back together.\n"
+    "- Only a node of type \"if\" may have two outgoing edges, and they must set "
+    "`sourceHandle` to exactly \"true\" and \"false\" respectively. Every other "
+    "node has at most one outgoing edge.\n"
+    "- No cycles.\n"
+    "- Use the real node types that open a block for anything that actually opens "
+    "a nested scope in the source — `open_browser` for launching the browser, "
+    "`loop` for iterating a list, `if` for a conditional, `http_request` (with "
+    "autoLoop) for looping over an API result — their nested body becomes the "
+    "downstream node chain via edges, never inlined as one big snippet.\n"
+    "- Reserve \"unknown\" strictly for self-contained, straight-line code with "
+    "no loop/if/with of its own — the builder has no way to know an `unknown` "
+    "fragment needs children nested inside it.\n"
+    "- For an `unknown` node, put the ORIGINAL source lines verbatim in "
+    "`params.code`, and a short phrase in `params.sourceHint` explaining why it "
+    "didn't map to anything.\n"
+    "- For any field whose schema entry has a non-null `credentialType` (e.g. an "
+    "API-key picker), leave it empty/null and add a `note` telling the user to "
+    "pick a credential — you cannot know which project credential to reference.\n"
+    "- Only emit `params` keys that exist in that node type's schema above.\n"
+    "- Do not include a `position` field at all — it's computed separately.\n"
+)
 
 
 def _build_system_prompt(catalog: list[dict]) -> str:
@@ -161,30 +189,7 @@ def _build_system_prompt(catalog: list[dict]) -> str:
         "anything that doesn't fit — see rules below). Each entry's `params` "
         "describes the exact keys you may set for that node type:\n\n"
         f"{json.dumps(catalog, indent=2)}\n\n"
-        "Structural rules (violating these makes the workflow unusable):\n"
-        "- Exactly one root node (a node with no incoming edge) — every other node "
-        "must be reachable from it.\n"
-        "- At most one incoming edge per node — branches never merge back together.\n"
-        "- Only a node of type \"if\" may have two outgoing edges, and they must set "
-        "`sourceHandle` to exactly \"true\" and \"false\" respectively. Every other "
-        "node has at most one outgoing edge.\n"
-        "- No cycles.\n"
-        "- Use the real node types that open a block for anything that actually opens "
-        "a nested scope in the source — `open_browser` for launching the browser, "
-        "`loop` for iterating a list, `if` for a conditional, `http_request` (with "
-        "autoLoop) for looping over an API result — their nested body becomes the "
-        "downstream node chain via edges, never inlined as one big snippet.\n"
-        "- Reserve \"unknown\" strictly for self-contained, straight-line code with "
-        "no loop/if/with of its own — the builder has no way to know an `unknown` "
-        "fragment needs children nested inside it.\n"
-        "- For an `unknown` node, put the ORIGINAL source lines verbatim in "
-        "`params.code`, and a short phrase in `params.sourceHint` explaining why it "
-        "didn't map to anything.\n"
-        "- For any field whose schema entry has a non-null `credentialType` (e.g. an "
-        "API-key picker), leave it empty/null and add a `note` telling the user to "
-        "pick a credential — you cannot know which project credential to reference.\n"
-        "- Only emit `params` keys that exist in that node type's schema above.\n"
-        "- Do not include a `position` field at all — it's computed separately.\n\n"
+        f"{STRUCTURAL_RULES}\n"
         "Output format — respond with ONLY a JSON object shaped exactly like this "
         "example (no prose, no markdown fences):\n\n"
         f"{json.dumps(_EXAMPLE_OUTPUT, indent=2)}"
@@ -224,7 +229,7 @@ def _stringify_unmapped(attempted_type: str, params: dict) -> str:
     )
 
 
-def _build_and_validate_graph(data: dict, catalog: list[dict]) -> tuple[list[WFNode], list[WFEdge], list[str]]:
+def build_and_validate_graph(data: dict, catalog: list[dict]) -> tuple[list[WFNode], list[WFEdge], list[str]]:
     schema_by_type = {spec["type"]: spec for spec in catalog}
     warnings: list[str] = []
 
@@ -320,4 +325,32 @@ def _apply_layout(nodes: list[WFNode]) -> None:
     # Ignores whatever (if anything) the AI said about position — never trusted to
     # produce sane pixel coordinates. Mirrors the canvas's existing horizontal flow.
     for i, node in enumerate(nodes):
-        node.position = Position(x=_LAYOUT_STEP_X * i, y=_LAYOUT_Y)
+        node.position = Position(x=LAYOUT_STEP_X * i, y=LAYOUT_Y)
+
+
+def downgrade_node_if_missing_credential(node: WFNode, catalog: list[dict]) -> str | None:
+    """MCP-only safety net (not used by reconstruct_workflow): an external MCP client
+    has no list_credentials tool and no way to know a real credential id, so any
+    credentialType-tagged param it fills in (or leaves null, per STRUCTURAL_RULES)
+    can never resolve — generate_script's resolve_credential_value would raise
+    CodegenError on it (required=True on both two_captcha and browser_2captcha's
+    credentialId field; see app/codegen/template_utils.py:40-57). Downgrades the node
+    to the same "unknown" placeholder mechanism used for unmapped types instead of
+    letting that happen. Mutates `node` in place. Returns a warning string, or None
+    if the node didn't need a credential."""
+    spec = {s["type"]: s for s in catalog}.get(node.type)
+    if spec is None:
+        return None
+    cred_fields = [p for p in spec["params"] if p.get("credentialType")]
+    if not cred_fields:
+        return None
+    original_type, original_params = node.type, dict(node.params)
+    node.type = "unknown"
+    node.params = {
+        "code": _stringify_unmapped(original_type, original_params),
+        "sourceHint": (
+            f"Needs a '{cred_fields[0]['credentialType']}' credential — pick one in the "
+            f"editor, then replace this placeholder with a real '{original_type}' node"
+        ),
+    }
+    return f"Needs a credential — downgraded from '{original_type}' to a placeholder"

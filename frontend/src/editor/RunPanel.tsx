@@ -90,25 +90,62 @@ const INSPECTOR_JS =
   "document.documentElement.appendChild(box);" +
   "var hi=null;" +
   "var curLines=[];" +
+  // Frozen = the box stopped following the cursor after a click, and switched from a
+  // read-only pointer-events:none overlay to a normal, selectable one — so the user can
+  // click-drag to highlight just the one line they want (e.g. only the CSS Selector)
+  // and Ctrl+C it themselves, instead of always copying the whole block via "press C".
+  // While frozen, hover updates are ignored so the box doesn't jump out from under a
+  // selection in progress.
+  "var frozen=false;" +
   "function sel(el){if(el.id)return '#'+el.id;if(el.className&&typeof el.className==='string'&&el.className.trim())return '.'+el.className.trim().split(' ').filter(Boolean).join('.');return el.tagName.toLowerCase();}" +
   "function idx(el){var i=1,s=el.previousElementSibling;while(s){if(s.tagName===el.tagName)i++;s=s.previousElementSibling;}return i;}" +
   "function fullXPath(el){var path='',cur=el;while(cur&&cur.nodeType===1){path='/'+cur.tagName.toLowerCase()+'['+idx(cur)+']'+path;cur=cur.parentElement;}return path;}" +
   "function smartXPath(el){if(el.id)return '//*[@id=\"'+el.id+'\"]';var segs=[],cur=el;while(cur&&cur.nodeType===1&&!cur.id){segs.unshift(cur.tagName.toLowerCase()+'['+idx(cur)+']');cur=cur.parentElement;}if(cur&&cur.id)return '//*[@id=\"'+cur.id+'\"]/'+segs.join('/');return fullXPath(el);}" +
-  "function onMouseOver(e){" +
-  "var el=e.target;if(isUi(el))return;" +
-  "if(hi)hi.style.outline='';el.style.outline='2px solid #ff2d55';hi=el;" +
+  "function computeLines(el){" +
   "var r=el.getBoundingClientRect();" +
   "var txt=(el.innerText||el.value||'').trim().slice(0,80);" +
   "var attrs=Array.prototype.slice.call(el.attributes).map(function(a){return a.name+'='+a.value;}).slice(0,6).join(', ');" +
-  "curLines=['<'+el.tagName.toLowerCase()+'>','CSS Selector: '+sel(el),'XPath: '+smartXPath(el),'Full XPath: '+fullXPath(el),'id: '+(el.id||'-'),'name: '+(el.getAttribute('name')||'-'),'class: '+(el.className||'-'),'size: '+Math.round(r.width)+'x'+Math.round(r.height),'attrs: '+(attrs||'-'),'text: '+(txt||'-')];" +
+  "return ['<'+el.tagName.toLowerCase()+'>','CSS Selector: '+sel(el),'XPath: '+smartXPath(el),'Full XPath: '+fullXPath(el),'id: '+(el.id||'-'),'name: '+(el.getAttribute('name')||'-'),'class: '+(el.className||'-'),'size: '+Math.round(r.width)+'x'+Math.round(r.height),'attrs: '+(attrs||'-'),'text: '+(txt||'-')];" +
+  "}" +
+  "function unfreeze(){frozen=false;box.style.display='none';if(hi){hi.style.outline='';hi=null;}}" +
+  "function renderBox(lines,x,y,isFrozen){" +
   "box.innerHTML='';" +
-  "curLines.concat(['(press C to copy)']).forEach(function(l){var d=document.createElement('div');d.textContent=l;box.appendChild(d);});" +
-  "box.style.left=Math.max(0,Math.min(e.clientX+16,window.innerWidth-380))+'px';" +
-  "box.style.top=Math.max(0,Math.min(e.clientY+16,window.innerHeight-140))+'px';" +
+  "if(isFrozen){" +
+  "var closeBtn=markUi(document.createElement('div'));closeBtn.textContent='x';closeBtn.title='Unfreeze (Esc)';closeBtn.style.cssText='position:absolute;top:4px;right:6px;cursor:pointer;font:bold 12px sans-serif;opacity:.85;';" +
+  "closeBtn.addEventListener('click',function(){unfreeze();});" +
+  "box.appendChild(closeBtn);" +
+  "var hint=document.createElement('div');hint.textContent='Frozen - select any line to copy it, or click x / press Esc';hint.style.cssText='font-weight:bold;margin-bottom:4px;margin-right:16px;color:#7fdc7f;';" +
+  "box.appendChild(hint);" +
+  "}" +
+  "lines.concat(isFrozen?[]:['(click to freeze and select, or press C to copy)']).forEach(function(l){var d=document.createElement('div');d.textContent=l;box.appendChild(d);});" +
+  "box.style.left=Math.max(0,Math.min(x+16,window.innerWidth-380))+'px';" +
+  "box.style.top=Math.max(0,Math.min(y+16,window.innerHeight-160))+'px';" +
+  "box.style.pointerEvents=isFrozen?'auto':'none';" +
+  "box.style.userSelect=isFrozen?'text':'none';" +
+  "box.style.border=isFrozen?'1px solid #0f0':'none';" +
   "box.style.display='block';" +
   "}" +
-  "function onMouseOut(e){if(isUi(e.target))return;box.style.display='none';if(hi){hi.style.outline='';hi=null;}}" +
+  "function onMouseOver(e){" +
+  "var el=e.target;if(isUi(el)||frozen)return;" +
+  "if(hi)hi.style.outline='';el.style.outline='2px solid #ff2d55';hi=el;" +
+  "curLines=computeLines(el);" +
+  "renderBox(curLines,e.clientX,e.clientY,false);" +
+  "}" +
+  "function onMouseOut(e){if(isUi(e.target)||frozen)return;box.style.display='none';if(hi){hi.style.outline='';hi=null;}}" +
+  // Deliberately not stopping propagation or calling preventDefault here — a real click
+  // dispatched later by the resumed script (Playwright's own .click()) will also reach
+  // this listener, but since nothing here blocks the event, that click still does
+  // exactly what the script needs; the only side effect is this overlay freezing on
+  // whatever it landed on, which is harmless.
+  "function onClick(e){" +
+  "var el=e.target;if(isUi(el))return;" +
+  "if(hi)hi.style.outline='';el.style.outline='2px solid #0af';hi=el;" +
+  "curLines=computeLines(el);" +
+  "frozen=true;" +
+  "renderBox(curLines,e.clientX,e.clientY,true);" +
+  "}" +
   "function onKeyDown(e){" +
+  "if(e.key==='Escape'&&frozen){unfreeze();return;}" +
   "if(!hi||curLines.length===0)return;" +
   "var active=document.activeElement;var tag=(active&&active.tagName||'').toLowerCase();" +
   "if(tag==='input'||tag==='textarea'||(active&&active.isContentEditable))return;" +
@@ -118,10 +155,12 @@ const INSPECTOR_JS =
   "}" +
   "document.addEventListener('mouseover',onMouseOver,true);" +
   "document.addEventListener('mouseout',onMouseOut,true);" +
+  "document.addEventListener('click',onClick,true);" +
   "document.addEventListener('keydown',onKeyDown,true);" +
   "window.__amInspectorCleanup=function(){" +
   "document.removeEventListener('mouseover',onMouseOver,true);" +
   "document.removeEventListener('mouseout',onMouseOut,true);" +
+  "document.removeEventListener('click',onClick,true);" +
   "document.removeEventListener('keydown',onKeyDown,true);" +
   "if(box.parentNode)box.parentNode.removeChild(box);" +
   "};" +
@@ -130,7 +169,7 @@ const INSPECTOR_JS =
   // hover and see nothing", which is exactly the ambiguity that's hard to debug. Shown
   // on every activation (not just the first), so clicking "Inspector" again always
   // gives you a fresh, visible confirmation that it's live.
-  "flash('Element inspector active - hover an element, press C to copy its data');" +
+  "flash('Element inspector active - hover to preview, click to freeze and select text');" +
   "})();"
 
 // Quick-start snippets for the pdb command line, one per action-style node type — picking
@@ -517,11 +556,13 @@ export default function RunPanel({ projectId, workflowId, nodes, edges, startNod
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
               Passe o mouse sobre qualquer elemento na janela do Chrome para ver seus detalhes (CSS Selector,
-              XPath, Full XPath, id, name, class, tamanho, atributos, texto). Pressione <strong>C</strong>{' '}
-              enquanto o mouse estiver em cima do elemento para copiar esses dados — depois clique em
-              "Clipboard" aqui em cima para ver o que foi copiado (dá pra pressionar C em vários elementos
-              seguidos para comparar, o botão sempre mostra o conteúdo mais recente). Continua ativo mesmo se
-              a página navegar.
+              XPath, Full XPath, id, name, class, tamanho, atributos, texto). <strong>Clique</strong> no elemento
+              para congelar a caixinha no lugar — ela vira selecionável, então dá pra arrastar o mouse e copiar
+              (Ctrl+C) só a linha que você quer, em vez do bloco inteiro. Clique no "x" ou aperte{' '}
+              <strong>Esc</strong> pra descongelar e voltar a passar o mouse livremente. Prefere copiar tudo de
+              uma vez? Pressione <strong>C</strong> (funciona tanto passando o mouse quanto com a caixinha
+              congelada) e depois clique em "Clipboard" aqui em cima para ver o que foi copiado. Continua ativo
+              mesmo se a página navegar.
             </p>
             <div className="modal-actions">
               <button className="btn btn-primary" onClick={() => setInspectorActive(false)}>

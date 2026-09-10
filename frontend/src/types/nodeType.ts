@@ -1,4 +1,4 @@
-export type FieldType = 'text' | 'textarea' | 'number' | 'select' | 'boolean' | 'fieldList' | 'clickList'
+export type FieldType = 'text' | 'textarea' | 'number' | 'select' | 'boolean' | 'fieldList' | 'clickList' | 'keyValueList'
 export type NodeCategory = 'trigger' | 'dataSource' | 'browser' | 'action' | 'logic' | 'function'
 
 export interface ParamFieldOption {

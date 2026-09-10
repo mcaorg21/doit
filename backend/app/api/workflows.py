@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from app.execution import triggers
+from app.execution import triggers, workflow_events
 from app.models.workflow import Workflow, WorkflowCreate, WorkflowImport, WorkflowSave
 from app.storage import workflow_store
 
@@ -10,6 +10,27 @@ class WorkflowMove(BaseModel):
     folderId: str | None = None
 
 router = APIRouter(prefix="/api/projects/{project_id}/workflows", tags=["workflows"])
+
+# Separate, unprefixed router: the MCP server's live-build tools (app/mcp/server.py)
+# publish node/edge mutations here so any open editor tab redraws without a manual
+# refresh. Can't live on `router` above (it's prefixed with .../workflows), needs a
+# flat /ws/workflows/{id} path matching the /ws/runs/{id} convention (app/api/runs.py)
+# that the frontend dev-server proxy (frontend/vite.config.ts) already expects.
+ws_router = APIRouter(tags=["workflow-events"])
+
+
+@ws_router.websocket("/ws/workflows/{workflow_id}")
+async def workflow_event_stream(websocket: WebSocket, workflow_id: str):
+    await websocket.accept()
+    queue = workflow_events.subscribe(workflow_id)
+    try:
+        while True:
+            event = await queue.get()
+            await websocket.send_json(event)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        workflow_events.unsubscribe(workflow_id, queue)
 
 
 @router.get("", response_model=list[Workflow])

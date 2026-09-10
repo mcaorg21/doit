@@ -134,6 +134,7 @@
   border-radius: 6px;
   padding: 8px 14px;
   font-size: 14px;
+  text-decoration: none;
 }
 
 .btn:hover {
@@ -177,6 +178,42 @@
 
 .icon-btn-danger:hover {
   color: var(--danger);
+}
+
+.launch-menu-wrap {
+  position: relative;
+}
+
+.launch-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  min-width: 190px;
+  z-index: 20;
+  overflow: hidden;
+}
+
+.launch-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.launch-menu-item:hover {
+  background: var(--border);
 }
 
 .list {
@@ -302,7 +339,8 @@
   gap: 6px;
 }
 
-.field-list-row-pair select {
+.field-list-row-pair select,
+.field-list-row-pair input {
   flex: 1;
   min-width: 0;
 }

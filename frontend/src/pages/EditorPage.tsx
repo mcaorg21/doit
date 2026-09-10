@@ -12,6 +12,7 @@ import {
   type NodeChange,
 } from '@xyflow/react'
 import { workflowsApi } from '../api/workflows'
+import { launchApi } from '../api/launch'
 import { ApiError } from '../api/client'
 import { nodeTypesApi } from '../api/nodeTypes'
 import FlowCanvas, { type FlowCanvasHandle } from '../editor/FlowCanvas'
@@ -20,11 +21,12 @@ import NodeConfigPanel from '../editor/NodeConfigPanel'
 import CodePreviewPanel from '../editor/CodePreviewPanel'
 import RunPanel from '../editor/RunPanel'
 import ExecutionsPanel from '../editor/ExecutionsPanel'
-import { toWFEdges, toWFNodes } from '../editor/convert'
+import { toWFEdges, toWFNodes, wfEdgeToFlowEdge, wfNodeToFlowNode } from '../editor/convert'
 import { getUpstreamVariables, getUpstreamFieldMapOptions, type VariableSource } from '../editor/graph'
 import { genRandomToken } from '../editor/randomToken'
 import type { FlowEdgeData, FlowNodeData } from '../editor/types'
 import type { NodeTypeSpec } from '../types/nodeType'
+import type { WFEdge as WFEdgeModel, WFNode as WFNodeModel } from '../types/workflow'
 
 let nodeIdCounter = 0
 function nextNodeId() {
@@ -44,6 +46,7 @@ export default function EditorPage() {
   const [dirty, setDirty] = useState(false)
   const [activeTab, setActiveTab] = useState<'code' | 'run' | 'executions'>('code')
   const [loaded, setLoaded] = useState(false)
+  const [pendingDeleteNodeId, setPendingDeleteNodeId] = useState<string | null>(null)
 
   type Snapshot = { nodes: Node<FlowNodeData>[]; edges: Edge<FlowEdgeData>[] }
   const nodesRef = useRef(nodes)
@@ -275,12 +278,12 @@ export default function EditorPage() {
         const id = selectedNodeIdRef.current
         if (!id) return
         e.preventDefault()
-        handleDeleteNodeById(id)
+        requestDeleteNode(id)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-    // handleDeleteNodeById isn't declared yet at this point in the component body (it's
+    // requestDeleteNode isn't declared yet at this point in the component body (it's
     // defined further down), so it can't go in this array — referencing it from inside
     // the closure is still safe since it's only actually called later, well after the
     // whole component function (and that declaration) has run, and its identity is
@@ -401,9 +404,19 @@ export default function EditorPage() {
     [markDirty],
   )
 
+  function requestDeleteNode(nodeId: string) {
+    setPendingDeleteNodeId(nodeId)
+  }
+
   function handleDeleteNode() {
     if (!selectedNodeId) return
-    handleDeleteNodeById(selectedNodeId)
+    requestDeleteNode(selectedNodeId)
+  }
+
+  function confirmDeleteNode() {
+    if (!pendingDeleteNodeId) return
+    handleDeleteNodeById(pendingDeleteNodeId)
+    setPendingDeleteNodeId(null)
   }
 
   const handleDuplicateNode = useCallback(
@@ -454,6 +467,70 @@ export default function EditorPage() {
       }),
     )
   }
+
+  // Applies a node/edge mutation that the MCP server (see backend/app/mcp/server.py)
+  // already persisted, received live over /ws/workflows/{id} — these deliberately do
+  // NOT call markDirty()/recordHistory(): the change is already saved on the server,
+  // so re-arming autosave here would at best redundantly PUT back content that
+  // already matches it, and at worst race a still-in-flight remote edit if the
+  // debounced save fires from a snapshot that missed a very recent event. Ctrl+Z
+  // doesn't cover these edits for the same reason (no local history entry).
+  const applyRemoteNodeAdded = useCallback(
+    (wfNode: WFNodeModel) => {
+      setNodes((prev) => (prev.some((n) => n.id === wfNode.id) ? prev : [...prev, wfNodeToFlowNode(wfNode, nodeTypesByType)]))
+    },
+    [nodeTypesByType],
+  )
+
+  const applyRemoteNodeUpdated = useCallback(
+    (wfNode: WFNodeModel) => {
+      setNodes((prev) => prev.map((n) => (n.id === wfNode.id ? wfNodeToFlowNode(wfNode, nodeTypesByType) : n)))
+    },
+    [nodeTypesByType],
+  )
+
+  const applyRemoteNodeRemoved = useCallback((nodeId: string) => {
+    setNodes((prev) => prev.filter((n) => n.id !== nodeId))
+    setEdges((prev) => prev.filter((e) => e.source !== nodeId && e.target !== nodeId))
+  }, [])
+
+  const applyRemoteEdgeAdded = useCallback((wfEdge: WFEdgeModel) => {
+    setEdges((prev) => (prev.some((e) => e.id === wfEdge.id) ? prev : [...prev, wfEdgeToFlowEdge(wfEdge)]))
+  }, [])
+
+  const applyRemoteEdgeRemoved = useCallback((edgeId: string) => {
+    setEdges((prev) => prev.filter((e) => e.id !== edgeId))
+  }, [])
+
+  // Live-build sync: while an MCP client (Claude Desktop/Code) drives
+  // start_live_session/add_node/demo_node/etc. against this workflow, this reflects
+  // each mutation on the canvas as it happens instead of requiring a manual refresh.
+  useEffect(() => {
+    if (!workflowId || !loaded) return
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/workflows/${workflowId}`)
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data)
+      switch (msg.type) {
+        case 'node_added':
+          applyRemoteNodeAdded(msg.node)
+          break
+        case 'node_updated':
+          applyRemoteNodeUpdated(msg.node)
+          break
+        case 'node_removed':
+          applyRemoteNodeRemoved(msg.nodeId)
+          break
+        case 'edge_added':
+          applyRemoteEdgeAdded(msg.edge)
+          break
+        case 'edge_removed':
+          applyRemoteEdgeRemoved(msg.edgeId)
+          break
+      }
+    }
+    return () => ws.close()
+  }, [workflowId, loaded, applyRemoteNodeAdded, applyRemoteNodeUpdated, applyRemoteNodeRemoved, applyRemoteEdgeAdded, applyRemoteEdgeRemoved])
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null
   const selectedSpec = selectedNode ? nodeTypesByType.get(selectedNode.data.nodeType) : undefined
@@ -512,6 +589,61 @@ export default function EditorPage() {
     },
     [markDirty],
   )
+
+  const [launchResult, setLaunchResult] = useState<{ title: string; detail: string; ok: boolean } | null>(null)
+  const [launchMenuOpen, setLaunchMenuOpen] = useState(false)
+  const launchMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!launchMenuOpen) return
+    function onClickOutside(e: MouseEvent) {
+      if (launchMenuRef.current && !launchMenuRef.current.contains(e.target as globalThis.Node)) {
+        setLaunchMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [launchMenuOpen])
+
+  async function handleLaunchTerminal() {
+    setLaunchMenuOpen(false)
+    try {
+      const result = await launchApi.terminal(projectId, workflowId)
+      if (result.notify) {
+        setLaunchResult({
+          title: 'Terminal',
+          detail: result.detail ?? (result.launched ? 'Terminal aberto.' : 'Falha ao abrir terminal.'),
+          ok: result.launched,
+        })
+      }
+    } catch (err) {
+      setLaunchResult({
+        title: 'Terminal',
+        detail: err instanceof ApiError || err instanceof Error ? err.message : 'Failed to open terminal',
+        ok: false,
+      })
+    }
+  }
+
+  async function handleLaunchClaudeDesktop() {
+    setLaunchMenuOpen(false)
+    try {
+      const result = await launchApi.claudeDesktop()
+      if (result.notify) {
+        setLaunchResult({
+          title: 'Claude Desktop',
+          detail: result.detail ?? (result.launched ? 'Claude Desktop aberto.' : 'Falha ao abrir Claude Desktop.'),
+          ok: result.launched,
+        })
+      }
+    } catch (err) {
+      setLaunchResult({
+        title: 'Claude Desktop',
+        detail: err instanceof ApiError || err instanceof Error ? err.message : 'Failed to open Claude Desktop',
+        ok: false,
+      })
+    }
+  }
 
   function handleExport() {
     const payload = { name, nodes: toWFNodes(nodesRef.current), edges: toWFEdges(edgesRef.current), startNodeId }
@@ -595,6 +727,38 @@ export default function EditorPage() {
             </button>
           </div>
 
+          <div className="launch-menu-wrap" ref={launchMenuRef}>
+            <button
+              className="icon-btn"
+              onClick={() => setLaunchMenuOpen((v) => !v)}
+              title="Continuar este workflow no Claude (Terminal ou Desktop)"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#D97757">
+                <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" />
+                <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(45 12 12)" />
+                <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(90 12 12)" />
+                <rect x="10.6" y="2" width="2.8" height="20" rx="1.4" transform="rotate(135 12 12)" />
+              </svg>
+            </button>
+            {launchMenuOpen && (
+              <div className="launch-menu">
+                <button className="launch-menu-item" onClick={handleLaunchTerminal}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="4 17 10 11 4 5" />
+                    <line x1="12" y1="19" x2="20" y2="19" />
+                  </svg>
+                  Abrir no Terminal
+                </button>
+                <button className="launch-menu-item" onClick={handleLaunchClaudeDesktop}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                  </svg>
+                  Abrir no Claude Desktop
+                </button>
+              </div>
+            )}
+          </div>
+
           <button className="icon-btn" onClick={handleExport} title="Export workflow as JSON">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -641,7 +805,7 @@ export default function EditorPage() {
           onAddNode={handleAddNode}
           onToggleBreakpoint={handleToggleBreakpoint}
           onDeleteEdge={handleDeleteEdge}
-          onDeleteNode={handleDeleteNodeById}
+          onDeleteNode={requestDeleteNode}
           onDuplicateNode={handleDuplicateNode}
           onRunNodePreview={handleRunNodePreview}
           onSaveFieldMap={handleSaveFieldMap}
@@ -709,6 +873,45 @@ export default function EditorPage() {
           </div>
         </div>
       </div>
+
+      {pendingDeleteNodeId && (
+        <div className="modal-overlay" onClick={() => setPendingDeleteNodeId(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Delete node</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+              Delete "
+              {nodes.find((n) => n.id === pendingDeleteNodeId)?.data.title?.trim() ||
+                nodes.find((n) => n.id === pendingDeleteNodeId)?.data.label ||
+                'this node'}
+              "? Its connections to other nodes will be removed too.
+            </p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setPendingDeleteNodeId(null)}>
+                Cancel
+              </button>
+              <button className="btn btn-danger" onClick={confirmDeleteNode}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {launchResult && (
+        <div className="modal-overlay" onClick={() => setLaunchResult(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{launchResult.title}</h3>
+            <p style={{ color: launchResult.ok ? 'var(--text-muted)' : 'var(--danger)', fontSize: 13, whiteSpace: 'pre-wrap' }}>
+              {launchResult.detail}
+            </p>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={() => setLaunchResult(null)}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

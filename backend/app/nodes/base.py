@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
 
-FieldType = Literal["text", "textarea", "number", "select", "boolean", "fieldList", "clickList"]
+FieldType = Literal["text", "textarea", "number", "select", "boolean", "fieldList", "clickList", "keyValueList"]
 NodeCategory = Literal["trigger", "dataSource", "browser", "action", "logic", "function"]
 
 

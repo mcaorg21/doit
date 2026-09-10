@@ -260,6 +260,9 @@ export default function WorkflowListPage() {
             <Link to={`/projects/${projectId}/executions`} className="btn btn-sm">
               Executions
             </Link>
+            <Link to={`/projects/${projectId}/backup`} className="btn btn-sm">
+              Backup
+            </Link>
             <button className="btn btn-sm" onClick={() => setShowCredentials(true)}>
               Credentials
             </button>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { backupApi } from '../api/backup'
+import { projectsApi } from '../api/projects'
 import { ApiError } from '../api/client'
 import type { BackupCounts, RestorePreview } from '../types/workflow'
 
@@ -10,10 +11,17 @@ function formatCounts(counts: BackupCounts) {
 }
 
 export default function BackupPage() {
+  const { projectId } = useParams<{ projectId: string }>()
   const queryClient = useQueryClient()
+  const { data: project } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: () => projectsApi.get(projectId!),
+    enabled: !!projectId,
+  })
   const { data: status, isLoading } = useQuery({
-    queryKey: ['backup-status'],
-    queryFn: backupApi.getStatus,
+    queryKey: ['backup-status', projectId],
+    queryFn: () => backupApi.getStatus(projectId!),
+    enabled: !!projectId,
   })
 
   const [connectionString, setConnectionString] = useState('')
@@ -27,9 +35,9 @@ export default function BackupPage() {
   }, [status?.connectionString])
 
   const saveMutation = useMutation({
-    mutationFn: (value: string) => backupApi.saveConfig(value),
+    mutationFn: (value: string) => backupApi.saveConfig(projectId!, value),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['backup-status'] })
+      queryClient.invalidateQueries({ queryKey: ['backup-status', projectId] })
       setError(null)
     },
     onError: (err: unknown) => {
@@ -38,9 +46,9 @@ export default function BackupPage() {
   })
 
   const backupMutation = useMutation({
-    mutationFn: backupApi.runBackup,
+    mutationFn: () => backupApi.runBackup(projectId!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['backup-status'] })
+      queryClient.invalidateQueries({ queryKey: ['backup-status', projectId] })
       setError(null)
     },
     onError: (err: unknown) => {
@@ -49,7 +57,7 @@ export default function BackupPage() {
   })
 
   const previewMutation = useMutation({
-    mutationFn: backupApi.preview,
+    mutationFn: () => backupApi.preview(projectId!),
     onSuccess: (data) => {
       setRestorePreview(data)
       setError(null)
@@ -60,9 +68,9 @@ export default function BackupPage() {
   })
 
   const restoreMutation = useMutation({
-    mutationFn: backupApi.restore,
+    mutationFn: () => backupApi.restore(projectId!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['backup-status'] })
+      queryClient.invalidateQueries({ queryKey: ['backup-status', projectId] })
       setRestorePreview(null)
       setError(null)
     },
@@ -72,9 +80,9 @@ export default function BackupPage() {
   })
 
   const removeMutation = useMutation({
-    mutationFn: backupApi.removeConfig,
+    mutationFn: () => backupApi.removeConfig(projectId!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['backup-status'] })
+      queryClient.invalidateQueries({ queryKey: ['backup-status', projectId] })
       setConnectionString('')
       setShowRemoveConfirm(false)
     },
@@ -85,8 +93,8 @@ export default function BackupPage() {
   return (
     <div>
       <div className="topbar">
-        <Link to="/" style={{ color: 'inherit', textDecoration: 'none' }}>
-          <h1>Auto-mation</h1>
+        <Link to={`/projects/${projectId}`} className="breadcrumb">
+          ← {project?.name ?? 'Projeto'}
         </Link>
       </div>
       <div className="container">
@@ -94,9 +102,9 @@ export default function BackupPage() {
           <h2>Backup</h2>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: -8, marginBottom: 20 }}>
-          Uma conexão Postgres global para o app inteiro — usada só como cópia de segurança contra a perda dos
-          arquivos locais em <code>data/</code>. Nada é enviado automaticamente; o backup só roda quando você aperta
-          o botão.
+          Uma conexão Postgres exclusiva deste projeto — usada só como cópia de segurança contra a perda dos
+          arquivos locais em <code>data/projects/{projectId}</code>. Nada é enviado automaticamente; o backup só
+          roda quando você aperta o botão.
         </p>
 
         {isLoading && <p>Loading...</p>}
@@ -236,8 +244,8 @@ export default function BackupPage() {
               O Postgres tem: {formatCounts(restorePreview.counts)}.
             </p>
             <p style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>
-              Isso vai APAGAR todos os dados locais atuais (data/projects/) e substituir pelo conteúdo do Postgres.
-              Não pode ser desfeito.
+              Isso vai APAGAR os dados locais atuais deste projeto e substituir pelo conteúdo do Postgres. Não pode
+              ser desfeito.
             </p>
             <div className="modal-actions">
               <button className="btn" onClick={() => setRestorePreview(null)}>

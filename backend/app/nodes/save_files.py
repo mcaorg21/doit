@@ -14,10 +14,16 @@ def codegen_save_files(ctx: CodegenContext) -> str:
 
     # Absolute path baked in at codegen time (the backend process, which has
     # app.config available) — the generated script runs standalone and never
-    # imports app.config itself, see app/execution/runner.py.
-    temp_dir_literal = repr(str(temp_files_dir(ctx.project_id, ctx.workflow_id)))
+    # imports app.config itself, see app/execution/runner.py. Joined with
+    # _PROCESS_ID (HEADER) at runtime, not baked in here — that id doesn't exist
+    # until the script actually starts, one per execution, see HEADER's own comment.
+    workflow_dir_literal = repr(str(temp_files_dir(ctx.project_id, ctx.workflow_id)))
 
-    lines = [f"_temp_dir = {temp_dir_literal}", "os.makedirs(_temp_dir, exist_ok=True)", "_saved_files = []"]
+    lines = [
+        f"_temp_dir = os.path.join({workflow_dir_literal}, _PROCESS_ID)",
+        "os.makedirs(_temp_dir, exist_ok=True)",
+        "_saved_files = []",
+    ]
 
     for i, row in enumerate(rows):
         if not isinstance(row, dict):
@@ -88,9 +94,11 @@ register(
         category="action",
         description=(
             "Decodes one or more base64 values (typically an HTTP Request node's \"File\" response) and "
-            "writes them to data/projects/<project>/temp_files/<this workflow>/<filename>. Can optionally "
-            "merge everything saved into one final file (zip or PDF) in the same folder. Use Get File "
-            "anywhere else in the flow to retrieve what was saved here by filename."
+            "writes them to data/projects/<project>/temp_files/<this workflow>/<this run>/<filename> — each "
+            "execution gets its own isolated subfolder, so two runs firing at the same time never mix up "
+            "each other's files. Can optionally merge everything saved into one final file (zip or PDF) in "
+            "the same folder. Use Get File anywhere else in the SAME run to retrieve what was saved here by "
+            "filename."
         ),
         icon="save",
         params=[

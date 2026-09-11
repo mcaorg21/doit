@@ -1,11 +1,49 @@
 {
   "id": "wf_7b38c6f0",
   "projectId": "proj_fd45658d",
-  "name": "Teste Claude MCP",
+  "name": "Teste MCP - Extracao PAN Relatorio",
   "createdAt": "2026-09-10T14:35:03.608695Z",
-  "updatedAt": "2026-09-10T18:14:15.291945Z",
-  "nodes": [],
-  "edges": [],
+  "updatedAt": "2026-09-11T12:51:48.845692Z",
+  "nodes": [
+    {
+      "id": "node_0f20f201",
+      "type": "open_browser",
+      "position": {
+        "x": 0.0,
+        "y": 200.0
+      },
+      "params": {
+        "headless": false,
+        "browserChannel": "chrome"
+      },
+      "title": null,
+      "note": null,
+      "fieldMap": null
+    },
+    {
+      "id": "node_cc2fcee1",
+      "type": "goto",
+      "position": {
+        "x": 180.0,
+        "y": 200.0
+      },
+      "params": {
+        "url": "https://bancopan.elaw.com.br"
+      },
+      "title": "Acessar Panjud",
+      "note": null,
+      "fieldMap": null
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_5e20c2f4",
+      "source": "node_0f20f201",
+      "target": "node_cc2fcee1",
+      "sourceHandle": null,
+      "breakpoint": false
+    }
+  ],
   "published": false,
   "folderId": "fold_f9b5c1ac",
   "startNodeId": null

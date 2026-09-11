@@ -9,3 +9,5 @@ apscheduler>=3.10,<4
 psycopg[binary]>=3.2
 mcp<2
 pypdf>=4.0
+pyotp>=2.9
+pytest>=8.0  # dev/test only — no existing test suite before this, see backend/tests/

@@ -26,6 +26,8 @@ import {
   LuSave,
   LuFolderOpen,
   LuUpload,
+  LuShieldCheck,
+  LuDownload,
 } from 'react-icons/lu'
 
 // One specific, deliberately-picked icon per node type — Lucide for general/functional
@@ -56,6 +58,8 @@ const ICONS: Record<string, IconType> = {
   save: LuSave, // Save Files
   'folder-open': LuFolderOpen, // Get File
   upload: LuUpload, // Upload File
+  'shield-check': LuShieldCheck, // 2FA Code (TOTP)
+  download: LuDownload, // Download File
 }
 
 // LuSplit's glyph reads top-to-bottom (a path forking upward) — the canvas flows

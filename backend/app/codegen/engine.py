@@ -7,8 +7,18 @@ import json
 import os
 import re
 import requests
+import uuid
 from datetime import datetime
 from playwright.sync_api import sync_playwright
+
+# One id per script execution (process), generated fresh every run — Save Files/Get
+# File/Download File all key their temp_files subfolder on this, so two runs of the
+# SAME workflow firing at the same time (e.g. a webhook triggered twice in a row, or
+# several manual runs at once) never read/write each other's files. Not tied to the
+# Run history's own run id (that's only assigned after this script is already
+# spawned) — this is simpler and needs no extra plumbing, at the cost of not being
+# cross-referenceable with the Executions report by name.
+_PROCESS_ID = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
 
 
 def _dig(obj, path):
@@ -88,6 +98,34 @@ def _dt_compare(a, b, op):
     if op == "equal":
         return da == db
     return da != db
+
+
+def _safe_download_filename(name):
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("download filename is empty")
+    normalized = name.replace("\\\\", "/")
+    if normalized.startswith("/") or (len(normalized) > 1 and normalized[1] == ":"):
+        raise ValueError(f"filename must not be an absolute path: {name!r}")
+    if any(part == ".." for part in normalized.split("/")):
+        raise ValueError(f"filename must not contain '..': {name!r}")
+    base = os.path.basename(normalized)
+    if not base or base in (".", ".."):
+        raise ValueError(f"filename resolves to nothing safe to use: {name!r}")
+    return base
+
+
+def _unique_download_path(directory, filename, overwrite):
+    path = os.path.join(directory, filename)
+    if overwrite or not os.path.exists(path):
+        return path
+    stem, ext = os.path.splitext(filename)
+    i = 1
+    while True:
+        candidate = os.path.join(directory, f"{stem} ({i}){ext}")
+        if not os.path.exists(candidate):
+            return candidate
+        i += 1
 '''
 
 

@@ -77,7 +77,11 @@ _MCP_NOTES = [
     "step in the editor. start_live_session/demo_node execute a step for real only "
     "while you're actively building it, one step at a time.",
     "loop, if, and browser_2captcha nodes can't be demonstrated live (they open a "
-    "nested block) — author them with add_node/connect_nodes instead of demo_node.",
+    "nested block) — author them with add_node/connect_nodes instead of demo_node. "
+    "Save Files and Get File can't either, same reason (their fragments contain "
+    "indented blocks even though they don't open one at the graph level). "
+    "download_file CAN be demonstrated live — it clicks a real element, waits for "
+    "the real download, and only records the node once the file is actually saved.",
 ]
 
 
@@ -358,13 +362,18 @@ async def demo_node(
     note: str | None = None,
 ) -> DemoNodeResult:
     """Runs one step FOR REAL against the live session's browser (goto/fill/click/
-    hover/select_option/wait/get_text/element_present/http_request-without-autoLoop
-    only — loop/if/browser_2captcha aren't demoable, use add_node instead). Only
-    records the node and connects it after the session's last node if the step
-    actually succeeds; on failure nothing is persisted and capturedOutput has what
-    went wrong — adjust params and call demo_node again (that's how you self-correct;
-    there's no retry limit enforced here, use your own judgment about when to stop
-    and ask the human instead)."""
+    hover/select_option/wait/get_text/element_present/http_request-without-autoLoop/
+    download_file only — loop/if/browser_2captcha aren't demoable, use add_node
+    instead; Save Files/Get File aren't demoable either, same reason — use add_node
+    for those too). For download_file specifically: the node is only recorded once
+    the download actually finishes and the file is saved successfully — a timeout or
+    a click that never triggers a download fails the step like any other, nothing is
+    persisted, and capturedOutput reports the saved filename/path only, never
+    cookies/tokens/headers. Only records the node and connects it after the
+    session's last node if the step actually succeeds; on failure nothing is
+    persisted and capturedOutput has what went wrong — adjust params and call
+    demo_node again (that's how you self-correct; there's no retry limit enforced
+    here, use your own judgment about when to stop and ask the human instead)."""
     session = live_sessions.get_session(workflow_id)
     if session is None:
         raise ValueError("No live session for this workflow — call start_live_session first, or use add_node to author without demoing")

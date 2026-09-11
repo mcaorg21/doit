@@ -12,18 +12,22 @@ def codegen_get_file(ctx: CodegenContext) -> str:
     var = validate_identifier(ctx.params.get("resultVar"), ctx, "Result Variable")
 
     # Deliberately NOT tied to graph position (no edge to a specific Save Files node
-    # required) — every node in a workflow shares the same temp_files/<workflow_id>/
-    # folder, addressed by filename alone, so this can sit anywhere in the flow. See
-    # the plan doc's design note: template refs only resolve to live Python variables
-    # in scope, which doesn't work for "reference a file a non-adjacent node wrote" —
-    # a deterministic on-disk path recomputed from project_id/workflow_id (both known
-    # at codegen time) sidesteps that entirely.
-    temp_dir_literal = repr(str(temp_files_dir(ctx.project_id, ctx.workflow_id)))
+    # required) — every node in a workflow run shares the same temp_files/<workflow_id>/
+    # <_PROCESS_ID>/ folder (see HEADER — one _PROCESS_ID per script execution, so
+    # concurrent runs of the same workflow never collide), addressed by filename
+    # alone, so this can sit anywhere in the flow. See the plan doc's design note:
+    # template refs only resolve to live Python variables in scope, which doesn't
+    # work for "reference a file a non-adjacent node wrote" — a deterministic on-disk
+    # path recomputed from project_id/workflow_id (both known at codegen time)
+    # sidesteps that entirely; _PROCESS_ID itself is a live variable (only exists at
+    # runtime), not something recomputed here, so this only ever finds files from
+    # nodes earlier in this SAME run, never a past or concurrent one.
+    workflow_dir_literal = repr(str(temp_files_dir(ctx.project_id, ctx.workflow_id)))
     filename_expr = render_template_expr(filename_raw, ctx)
 
     lines = [
         f"_filename = {filename_expr}",
-        f"{var} = os.path.join({temp_dir_literal}, _filename)",
+        f"{var} = os.path.join({workflow_dir_literal}, _PROCESS_ID, _filename)",
         f"if not os.path.exists({var}):",
         f"    raise FileNotFoundError('Get File: no file at ' + {var} + ' — make sure a Save Files node already "
         f"ran and wrote this filename earlier in this same run')",

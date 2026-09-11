@@ -77,6 +77,15 @@ class NodeSpec:
     target_var_after: Callable[[Any], str] | None = None
     """If set, replaces CodegenContext.target_var for downstream nodes (e.g. Switch
     Frame sets it to "frame", Open Browser resets it to "page")."""
+    demo_codegen: Callable[[Any], str] | None = None
+    """Optional alternate codegen used ONLY by the MCP live-demo path
+    (app/mcp/live_sessions.py::run_demo_step), for a node whose normal `codegen`
+    fragment needs an indented block (e.g. Download File's `with page.expect_download
+    ...`) that can't be sent to a paused pdb prompt one line at a time. When set, its
+    output MUST be flat (no line may start with whitespace) — live-demo trusts it
+    without re-checking. When unset, run_demo_step falls back to the normal `codegen`
+    output and rejects the node for live demo if THAT turns out to be indented,
+    rather than risk sending broken code to the live session."""
 
     def to_public_dict(self) -> dict:
         """Serializable form for the frontend — excludes the server-only codegen callables."""

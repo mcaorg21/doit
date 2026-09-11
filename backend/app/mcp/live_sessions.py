@@ -167,7 +167,30 @@ async def run_demo_step(
     if opens:
         raise LiveSessionError(f"'{node_type}' opens a nested block with these params — not demoable live, use add_node instead")
 
-    fragment = spec.codegen(ctx)
+    if spec.demo_codegen is not None:
+        # A node-provided alternate fragment guaranteed flat by construction (e.g.
+        # Download File uses expect_download().__enter__()/__exit__() instead of a
+        # `with` block) — trusted without re-checking.
+        fragment = spec.demo_codegen(ctx)
+    else:
+        fragment = spec.codegen(ctx)
+        indented = [line for line in fragment.splitlines() if line[:1] in (" ", "\t")]
+        if indented:
+            # Caught here rather than letting it reach pdb: a `with`/`if`/`for` header
+            # sent as its own single line, with its body arriving as a SEPARATE line
+            # right after, is a syntax error to pdb's one-line-at-a-time REPL — this
+            # would otherwise silently corrupt the live session instead of failing
+            # cleanly. Found by testing Download File's own with-block variant against
+            # this exact failure mode; applies retroactively to any node whose normal
+            # codegen happens to contain an indented block with no demo_codegen
+            # override (e.g. Save Files' `with open(...) as f:`, Get File's `if not
+            # os.path.exists(...):`) — those still work completely normally through
+            # add_node/the real Run button, this only affects demo_node.
+            raise LiveSessionError(
+                f"'{node_type}' generates an indented code block ({indented[0].strip()!r}) that can't be sent "
+                f"to the live session one line at a time — use add_node instead"
+            )
+
     lines = [line for line in fragment.splitlines() if line.strip()]
     ok, captured = await _execute_and_detect(session.handle, lines, timeout=STEP_TIMEOUT_SECONDS)
     return ok, captured, ctx

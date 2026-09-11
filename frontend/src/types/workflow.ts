@@ -3,6 +3,7 @@ export interface Project {
   name: string
   createdAt: string
   updatedAt: string
+  workflowCount?: number
 }
 
 export interface Position {

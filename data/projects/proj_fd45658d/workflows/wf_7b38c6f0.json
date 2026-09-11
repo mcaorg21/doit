@@ -3,14 +3,14 @@
   "projectId": "proj_fd45658d",
   "name": "Teste - Extracao PAN Relatorio",
   "createdAt": "2026-09-10T14:35:03.608695Z",
-  "updatedAt": "2026-09-11T19:07:32.965688Z",
+  "updatedAt": "2026-09-11T20:55:47.103479Z",
   "nodes": [
     {
       "id": "node_25d8baa9",
       "type": "open_browser",
       "position": {
-        "x": 0.0,
-        "y": 200.0
+        "x": 270.0,
+        "y": 80.0
       },
       "params": {
         "headless": false,
@@ -24,8 +24,8 @@
       "id": "node_00df1450",
       "type": "goto",
       "position": {
-        "x": 180.0,
-        "y": 200.0
+        "x": 460.0,
+        "y": 80.0
       },
       "params": {
         "url": "https://bancopan.elaw.com.br"
@@ -38,8 +38,8 @@
       "id": "node_42c6b39c",
       "type": "element_present",
       "position": {
-        "x": 360.0,
-        "y": 200.0
+        "x": 650.0,
+        "y": 80.0
       },
       "params": {
         "selector": "input[type='email']",
@@ -48,6 +48,104 @@
       },
       "title": "Aguardar tela de login Microsoft",
       "note": null,
+      "fieldMap": null
+    },
+    {
+      "id": "node_b491f5d1",
+      "type": "schedule_trigger",
+      "position": {
+        "x": 80.0,
+        "y": 80.0
+      },
+      "params": {
+        "mode": "cron",
+        "cronExpression": "30 7 * * *"
+      },
+      "title": "Executar diariamente às 07:30",
+      "note": "Agendamento diário conforme as notas da rotina; confirmar no app se o scheduler usa America/Sao_Paulo.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_1789154296529_2",
+      "type": "microsoft_login",
+      "position": {
+        "x": 840.0,
+        "y": 80.0
+      },
+      "params": {
+        "url": "https://bancopan.elaw.com.br",
+        "credentialId": "cred_990b1380",
+        "usernameSelector": "input[type='email']",
+        "usernameSelectorType": "css",
+        "usernameSubmitSelector": "input[type='submit']",
+        "usernameSubmitSelectorType": "css",
+        "passwordSelector": "input[type='password']",
+        "passwordSelectorType": "css",
+        "passwordSubmitSelector": "input[type='submit']",
+        "passwordSubmitSelectorType": "css",
+        "staySignedInSelector": "#idBtn_Back",
+        "staySignedInSelectorType": "css",
+        "confirmSelector": "(//*[normalize-space()='Contencioso'])[1]",
+        "confirmSelectorType": "xpath",
+        "stepTimeout": 30,
+        "confirmTimeout": 90,
+        "cookiesFilename": "pan-microsoft-cookies.json",
+        "resultVar": "loginMicrosoft"
+      },
+      "title": "Autenticar no Microsoft",
+      "note": "Usa a credencial de login do projeto e confirma o acesso pelo primeiro item visível Contencioso.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_bbfc0ceb",
+      "type": "click",
+      "position": {
+        "x": 1030.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Contencioso'])[1]",
+        "selectorType": "xpath"
+      },
+      "title": "Abrir menu Contencioso",
+      "note": "Clica no primeiro item visível Contencioso após o login.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_87cbc51e",
+      "type": "click",
+      "position": {
+        "x": 1220.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Pesquisar'])[1]",
+        "selectorType": "xpath"
+      },
+      "title": "Abrir pesquisa de processos",
+      "note": "No menu Contencioso, abre a opção Pesquisar para configurar os filtros do relatório.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_8c49c39d",
+      "type": "html_list_select",
+      "position": {
+        "x": 1410.0,
+        "y": 80.0
+      },
+      "params": {
+        "triggerSelector": "(//*[normalize-space()='Status'])[1]/following::*[@role='combobox' or self::button or contains(@class,'select')][1]",
+        "triggerSelectorType": "xpath",
+        "mode": "single",
+        "optionText": "Removido",
+        "matchType": "exact",
+        "bypassOnFailure": false,
+        "resultVar": "statusProcessoSelecionado",
+        "listContainerSelector": "(//*[normalize-space()='Removido'])[1]/parent::*",
+        "listContainerSelectorType": "xpath"
+      },
+      "title": "Selecionar status Removido",
+      "note": "Abre o menu HTML do primeiro Status e restringe a opção ao contêiner pai da primeira ocorrência de Removido; a última ocorrência é uma cópia oculta que expirou no teste.",
       "fieldMap": null
     }
   ],
@@ -63,6 +161,41 @@
       "id": "edge_910c7400",
       "source": "node_00df1450",
       "target": "node_42c6b39c",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_0faa1da5",
+      "source": "node_b491f5d1",
+      "target": "node_25d8baa9",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1789154298971_3",
+      "source": "node_42c6b39c",
+      "target": "node_1789154296529_2",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_7640c891",
+      "source": "node_1789154296529_2",
+      "target": "node_bbfc0ceb",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_633a6404",
+      "source": "node_bbfc0ceb",
+      "target": "node_87cbc51e",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_8e7dec2a",
+      "source": "node_87cbc51e",
+      "target": "node_8c49c39d",
       "sourceHandle": null,
       "breakpoint": false
     }

@@ -8,6 +8,7 @@ export type FieldType =
   | 'clickList'
   | 'keyValueList'
   | 'fileList'
+  | 'textList'
 export type NodeCategory = 'trigger' | 'dataSource' | 'browser' | 'action' | 'logic' | 'function'
 
 export interface ParamFieldOption {

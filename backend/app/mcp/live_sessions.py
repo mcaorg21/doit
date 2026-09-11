@@ -136,7 +136,7 @@ def is_demoable(node_type: str) -> tuple[bool, str | None]:
     open_browser is the session bootstrap rather than a per-step demo."""
     if node_type == "open_browser":
         return False, "open_browser is the live session's bootstrap step — it's created by start_live_session, not demo_node"
-    if node_type == "login":
+    if node_type in {"login", "microsoft_login"}:
         # Distinct from the generic indentation check below: login ALWAYS needs a
         # real credential (username+password), which no MCP client can ever supply
         # (no credential-listing tool) — codegen would raise a CodegenError about the

@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 
 from app.config import PROJECTS_DIR, project_dir, workflows_dir, runs_dir
-from app.models.project import Project, ProjectCreate, ProjectUpdate, now_utc
+from app.models.project import Project, ProjectCreate, ProjectSummary, ProjectUpdate, now_utc
 from app.storage.ids import gen_id
 
 
@@ -19,6 +19,22 @@ def list_projects() -> list[Project]:
             projects.append(Project.model_validate_json(pfile.read_text(encoding="utf-8")))
     projects.sort(key=lambda p: p.updatedAt, reverse=True)
     return projects
+
+
+def _workflow_count(project_id: str) -> int:
+    wdir = workflows_dir(project_id)
+    if not wdir.exists():
+        return 0
+    return sum(1 for f in wdir.iterdir() if f.suffix == ".json")
+
+
+def list_projects_with_counts() -> list[ProjectSummary]:
+    """list_projects(), plus each project's workflowCount — used by the projects
+    list page to offer a one-click delete only for projects with zero workflows."""
+    return [
+        ProjectSummary(**p.model_dump(), workflowCount=_workflow_count(p.id))
+        for p in list_projects()
+    ]
 
 
 def get_project(project_id: str) -> Project:

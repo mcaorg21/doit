@@ -1,14 +1,14 @@
 from fastapi import APIRouter
 
-from app.models.project import Project, ProjectCreate, ProjectUpdate
+from app.models.project import Project, ProjectCreate, ProjectSummary, ProjectUpdate
 from app.storage import project_store
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 
-@router.get("", response_model=list[Project])
+@router.get("", response_model=list[ProjectSummary])
 def list_projects():
-    return project_store.list_projects()
+    return project_store.list_projects_with_counts()
 
 
 @router.post("", response_model=Project)

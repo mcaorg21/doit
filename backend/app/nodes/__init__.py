@@ -16,6 +16,7 @@ from app.nodes import (  # noqa: F401,E402
     hover,
     multi_input,
     multi_click,
+    html_list_select,
     wait,
     element_present,
     get_text,
@@ -30,5 +31,6 @@ from app.nodes import (  # noqa: F401,E402
     save_cookies,
     load_cookies,
     login,
+    microsoft_login,
     unknown,
 )

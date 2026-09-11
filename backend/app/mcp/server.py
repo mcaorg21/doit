@@ -35,6 +35,7 @@ from app.models.mcp import (
     FinishLiveSessionResult,
     LiveSessionResult,
     NodeCatalogResponse,
+    PauseForHumanResult,
     RunWorkflowResult,
     ValidateWorkflowResult,
     WorkflowSummary,
@@ -77,7 +78,15 @@ mcp = FastMCP(
         "backend's own source, which you can't do through this MCP server) before "
         "falling back to type=\"unknown\" with a clear params.code/sourceHint as a "
         "last resort. Either way, tell the human it needs attention rather than "
-        "silently chaining more steps on top of an 'unknown' placeholder. To check "
+        "silently chaining more steps on top of an 'unknown' placeholder. Stuck "
+        "mid-build inside a LIVE SESSION specifically (demo_node keeps failing on "
+        "the same step, a custom widget you can't identify from the DOM) — call "
+        "pause_for_human instead of giving up quietly or closing the session: it "
+        "records a Pause node right where you stopped and leaves the live browser "
+        "open and paused exactly as it is, so the human can inspect the real page "
+        "themselves (it's visibly open on their screen unless headless=True) "
+        "instead of guessing blind. Never call finish_live_session just because "
+        "you're stuck. To check "
         "an existing workflow still works — after editing it, or as a maintenance "
         "pass — call run_workflow: it runs the whole thing for real and tells you "
         "exactly which node broke, if any. Working on an EXISTING workflow (editing "
@@ -99,7 +108,7 @@ _MCP_NOTES = [
     "the human has declined or a new node isn't worth it for a one-off step.",
     "credentialId-type fields (see credentialType on a param in the catalog) cannot "
     "be filled by you — there is no credential-listing tool. If a step genuinely "
-    "needs one of these node types (two_captcha, browser_2captcha, login, totp), "
+    "needs one of these node types (two_captcha, browser_2captcha, login, microsoft_login, totp), "
     "add_node will automatically turn it into an 'unknown' placeholder with a note "
     "instead of failing; check needsHumanAttention on the result rather than trying "
     "to work around it yourself. login specifically also can't be demoed live at all "
@@ -116,7 +125,7 @@ _MCP_NOTES = [
     "those, run it manually from the editor instead.",
     "loop, if, and browser_2captcha nodes can't be demonstrated live (they open a "
     "nested block) — author them with add_node/connect_nodes instead of demo_node. "
-    "Save Files, Get File, Load Cookies, and Login can't either, same reason (their "
+    "Save Files, Get File, Load Cookies, Login, and Microsoft Login can't either, same reason (their "
     "fragments contain indented blocks even though they don't open one at the graph "
     "level) — Login is rejected explicitly for the credential reason above too. "
     "download_file and save_cookies CAN be demonstrated live — download_file "
@@ -590,9 +599,66 @@ async def demo_node(
 
 
 @mcp.tool()
+async def pause_for_human(project_id: str, workflow_id: str, reason: str) -> PauseForHumanResult:
+    """Call this the moment you're genuinely stuck mid-build and can't figure out the
+    next step yourself — e.g. demo_node keeps failing on the same selector after a
+    few honest attempts, or the page uses some custom widget (a combobox that isn't
+    a real <select>, a canvas-drawn control, ...) you can't identify from the DOM
+    alone. Records a Pause node (its note set to `reason`) right after the last
+    successful step, so the saved workflow shows exactly where a human needs to
+    step in — same as a human manually adding a breakpoint, and picked up by the
+    same red-while-paused highlighting in the editor. Does NOT touch the live
+    browser at all: it's already sitting right at this exact point (paused, and
+    visibly open on the human's screen unless this session was started with
+    headless=True) — that's the point of calling this instead of giving up
+    silently. After calling this, tell the human clearly what you're stuck on and
+    what you need from them (e.g. "open DevTools on the still-open browser window
+    and send me the selector for X"), and do NOT call finish_live_session — leave
+    the session open until they've helped you past this point or tell you to stop."""
+    session = live_sessions.get_session(workflow_id)
+    if session is None:
+        raise ValueError(
+            "No live session for this workflow — there's no live browser to leave open. If you're stuck while "
+            "authoring with add_node (no live session), use type=\"unknown\" instead, per the usual rule."
+        )
+
+    workflow = _get_workflow(project_id, workflow_id)
+    new_node = WFNode(
+        id=gen_id("node"),
+        type="pause",
+        position=Position(x=LAYOUT_STEP_X * len(workflow.nodes), y=LAYOUT_Y),
+        note=reason,
+    )
+    workflow.nodes.append(new_node)
+
+    new_edge: WFEdge | None = None
+    if session.last_node_id is not None:
+        new_edge = WFEdge(id=gen_id("edge"), source=session.last_node_id, target=new_node.id)
+        workflow.edges.append(new_edge)
+
+    _save(project_id, workflow_id, workflow)
+    workflow_events.publish(workflow_id, {"type": "node_added", "node": new_node.model_dump(mode="json")})
+    if new_edge is not None:
+        workflow_events.publish(workflow_id, {"type": "edge_added", "edge": new_edge.model_dump(mode="json")})
+
+    session.last_node_id = new_node.id
+
+    return PauseForHumanResult(
+        node=new_node,
+        edge=new_edge,
+        message=(
+            "Pause node recorded. The live browser is untouched — still open and paused exactly where you left "
+            "it. Tell the human what you're stuck on now; don't call finish_live_session until they've resolved it."
+        ),
+    )
+
+
+@mcp.tool()
 async def finish_live_session(project_id: str, workflow_id: str) -> FinishLiveSessionResult:
     """Closes the live session's browser (best-effort graceful close, then force-
     stops the process either way) and frees it up for a new start_live_session
-    call."""
+    call. Do NOT call this just because you're stuck — use pause_for_human instead,
+    which leaves the browser open for the human to inspect. Only call this once the
+    workflow is actually done, or the human explicitly says to stop/close it."""
     stopped = await live_sessions.finish_session(workflow_id)
     return FinishLiveSessionResult(workflowId=workflow_id, stopped=stopped)

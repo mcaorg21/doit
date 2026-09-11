@@ -83,6 +83,16 @@ class FinishLiveSessionResult(BaseModel):
     stopped: bool
 
 
+class PauseForHumanResult(BaseModel):
+    node: WFNode
+    """The Pause node just recorded, right after the live session's last successful
+    step — its `note` holds the reason text passed to pause_for_human."""
+    edge: WFEdge | None
+    """Connects the previous step to this Pause node, or None if this was the
+    session's very first step (nothing to connect from)."""
+    message: str
+
+
 class RunWorkflowResult(BaseModel):
     ok: bool
     """True only when the run finished with exit code 0 — the same bar a real

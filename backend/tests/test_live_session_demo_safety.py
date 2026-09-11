@@ -45,17 +45,24 @@ def test_download_file_is_demoable_via_its_flat_demo_codegen():
     )
 
 
-@pytest.mark.parametrize("node_type", ["save_files", "get_file"])
+@pytest.mark.parametrize("node_type", ["save_files", "get_file", "load_cookies"])
 def test_nodes_with_indented_fragments_and_no_demo_codegen_are_rejected(node_type):
-    """save_files (`with open(...) as f:`) and get_file (`if not os.path.exists...:`)
-    both have real indented blocks in their normal codegen and no demo_codegen
-    override — confirms the retroactive safety net actually catches them, instead of
-    silently sending broken multi-line code to a live pdb session."""
+    """save_files (`with open(...) as f:`), get_file (`if not os.path.exists...:`),
+    and load_cookies (`if os.path.exists...: / else:`) all have real indented blocks
+    in their normal codegen and no demo_codegen override — confirms the retroactive
+    safety net actually catches them, instead of silently sending broken multi-line
+    code to a live pdb session. (login is the same story — see test_login.py's own
+    demo-safety test, which needs a real credential fixture to even reach the check.)"""
     spec = live_sessions.NODE_REGISTRY[node_type]
     assert spec.demo_codegen is None, f"{node_type} unexpectedly has a demo_codegen now — update this test"
 
     session = _fake_session()
-    params = {"files": [{"filename": "x.txt", "value": "aGVsbG8="}]} if node_type == "save_files" else {"filename": "x.txt", "resultVar": "r"}
+    if node_type == "save_files":
+        params = {"files": [{"filename": "x.txt", "value": "aGVsbG8="}]}
+    elif node_type == "load_cookies":
+        params = {"filename": "x.json"}
+    else:
+        params = {"filename": "x.txt", "resultVar": "r"}
     with pytest.raises(LiveSessionError, match="indented code block"):
         asyncio.run(run_demo_step(session, node_type, params, "Test"))
 
@@ -71,6 +78,8 @@ def test_upload_file_and_totp_remain_demoable_no_override_needed():
         # before that resolution — CodegenError (missing credential) surfacing instead
         # of LiveSessionError (indentation) is exactly what proves the check passed.
         ("totp", {"credentialId": "", "resultVar": "code"}),
+        # save_cookies is flat too (no with/if block) — same deal, no override needed.
+        ("save_cookies", {"filename": "x.json"}),
     ]:
         with pytest.raises(Exception) as exc_info:
             asyncio.run(run_demo_step(session, node_type, params, "Test"))

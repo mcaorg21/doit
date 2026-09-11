@@ -38,3 +38,11 @@ def temp_files_dir(project_id: str, workflow_id: str) -> Path:
     generated script as an absolute path literal, since the script itself doesn't
     import app.config (it's a standalone process, see app/execution/runner.py)."""
     return project_dir(project_id) / "temp_files" / workflow_id
+
+
+def cookies_dir(project_id: str, workflow_id: str) -> Path:
+    """Where Save Cookies/Load Cookies nodes read and write — deliberately NOT nested
+    under a per-run _PROCESS_ID folder like temp_files_dir above: cookies are meant to
+    persist ACROSS runs (log in once, skip the login flow on every run after), the
+    opposite goal of temp_files' per-execution isolation."""
+    return project_dir(project_id) / "cookies" / workflow_id

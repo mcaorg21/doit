@@ -25,6 +25,7 @@ export interface FlowCanvasHandle {
    * used to drop click-to-add nodes where the user is actually looking instead of a
    * viewport-independent grid that can land far outside the current pan/zoom. */
   getViewportCenterPosition: () => { x: number; y: number }
+  fitView: () => void
 }
 
 interface Props {
@@ -44,6 +45,7 @@ interface Props {
   nodeTypesByType: Map<string, NodeTypeSpec>
   startNodeId: string | null
   onSetStartNode: (nodeId: string) => void
+  onArrangeNodes: () => void
 }
 
 function FlowCanvasInner(
@@ -64,11 +66,12 @@ function FlowCanvasInner(
     nodeTypesByType,
     startNodeId,
     onSetStartNode,
+    onArrangeNodes,
   }: Props,
   ref: React.ForwardedRef<FlowCanvasHandle>,
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, fitView } = useReactFlow()
   // Default is "hand" mode (dragging empty canvas pans it, like every other screen
   // in this app). Toggling this to "select" mode swaps that: dragging the canvas
   // now draws a rectangle that multi-selects whatever nodes it touches, and Delete
@@ -84,8 +87,9 @@ function FlowCanvasInner(
         if (!rect) return { x: 0, y: 0 }
         return screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
       },
+      fitView: () => fitView({ padding: 0.2, duration: 300 }),
     }),
-    [screenToFlowPosition],
+    [screenToFlowPosition, fitView],
   )
 
   const edgeTypeComponents = useMemo(
@@ -160,6 +164,14 @@ function FlowCanvasInner(
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+            </svg>
+          </ControlButton>
+          <ControlButton onClick={onArrangeNodes} title="Reorganizar nós em sequência">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="8" width="5" height="8" rx="1" />
+              <rect x="10" y="8" width="5" height="8" rx="1" />
+              <rect x="18" y="8" width="4" height="8" rx="1" />
+              <path d="M7 12h3M15 12h3" />
             </svg>
           </ControlButton>
         </Controls>

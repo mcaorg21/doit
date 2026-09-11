@@ -21,6 +21,11 @@ data/projects/*/runs/
 # generated at run time, not source (see backend/app/config.py::temp_files_dir)
 data/projects/*/temp_files/
 
+# Save Cookies/Load Cookies nodes' storage — session cookies are sensitive
+# (equivalent to a login credential) and never something to version
+# (see backend/app/config.py::cookies_dir)
+data/projects/*/cookies/
+
 # Secrets — credentials/backup connection strings are stored in plain JSON by
 # design (see the code comments on Credential.value/BackupConfig.connectionString),
 # so they must never be committed

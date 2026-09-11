@@ -19,11 +19,8 @@ def codegen_wait(ctx: CodegenContext) -> str:
         # into pdb) so a timed-out wait just moves on to the next node instead of
         # stopping the run — that's the whole point of giving it a timeout at all.
         return (
-            "try:\n"
-            f"    {ctx.target_var}.locator({selector}).wait_for(timeout={timeout_ms})\n"
-            f'    print(f"[{ctx.node_label}] element appeared: " + {selector})\n'
-            "except Exception:\n"
-            f'    print(f"[{ctx.node_label}] timed out after {timeout_s}s waiting for element, continuing: " + {selector})'
+            f"{ctx.target_var}.locator({selector}).wait_for(timeout={timeout_ms})\n"
+            f'print(f"[{ctx.node_label}] element appeared: " + {selector})'
         )
 
     try:

@@ -303,11 +303,13 @@ def generate_script(
         should_wrap = not opens_for_wrap and node.type != "pause" and preview_node_id is None
         if should_wrap:
             error_prefix = repr(f"Tratar erro no node {ctx.node_label}: ")
+            error_marker = repr(f"__NODE_ERROR__{node.id}")
             try_body = _indent_fragment(fragment, 1)
             wrapped = (
                 "try:\n"
                 f"{try_body}\n"
                 "except Exception as _e:\n"
+                f"    print({error_marker})\n"
                 f"    print({error_prefix} + str(_e))\n"
                 "    breakpoint()"
             )
@@ -342,6 +344,7 @@ def generate_script(
 
             if true_edge:
                 if true_edge.breakpoint:
+                    lines.append(_indent_fragment(f'print("__NODE_PAUSED__{node.id}")', body_indent))
                     lines.append(_indent_fragment("breakpoint()", body_indent))
                 lines += render(true_edge.target, body_indent, next_in_loop, next_browser_var, next_target_var, next_path)
             else:
@@ -350,6 +353,7 @@ def generate_script(
             if false_edge:
                 lines.append(_indent_fragment("else:", indent))
                 if false_edge.breakpoint:
+                    lines.append(_indent_fragment(f'print("__NODE_PAUSED__{node.id}")', body_indent))
                     lines.append(_indent_fragment("breakpoint()", body_indent))
                 lines += render(false_edge.target, body_indent, next_in_loop, next_browser_var, next_target_var, next_path)
 
@@ -359,6 +363,11 @@ def generate_script(
         if next_edges:
             edge = next_edges[0]
             if edge.breakpoint:
+                # __NODE_PAUSED__ marks the node whose output edge this breakpoint sits
+                # on (the one that just ran) — that's the node the user actually sees
+                # paused on the canvas, matching how a Pause *node* marks itself (see
+                # app/nodes/pause.py) rather than the not-yet-started target.
+                lines.append(_indent_fragment(f'print("__NODE_PAUSED__{node.id}")', body_indent))
                 lines.append(_indent_fragment("breakpoint()", body_indent))
             lines += render(edge.target, body_indent, next_in_loop, next_browser_var, next_target_var, next_path)
 

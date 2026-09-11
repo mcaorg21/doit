@@ -9,7 +9,7 @@ interface Props {
   onClose: () => void
 }
 
-const TYPE_PRESETS = ['2captcha', '2captcha_browser', 'openai', 'anthropic']
+const TYPE_PRESETS = ['2captcha', '2captcha_browser', 'openai', 'anthropic', 'totp', 'login']
 const CUSTOM_TYPE = '__custom__'
 
 // Most credential types are just "paste the API key" into one Value field — these
@@ -17,7 +17,7 @@ const CUSTOM_TYPE = '__custom__'
 // making the user type a "login:password" string into a single field by hand. The
 // two pieces are still packed into one "login:password" string for storage (the
 // Credential model only has one Value field), just assembled here, not by the user.
-const PAIR_TYPES = new Set(['2captcha_browser'])
+const PAIR_TYPES = new Set(['2captcha_browser', 'login'])
 
 export default function CredentialsManager({ projectId, onClose }: Props) {
   const queryClient = useQueryClient()

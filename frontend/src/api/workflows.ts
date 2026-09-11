@@ -33,6 +33,10 @@ export const workflowsApi = {
     api.post<Workflow>(`/api/projects/${projectId}/workflows/${workflowId}/publish`),
   unpublish: (projectId: string, workflowId: string) =>
     api.post<Workflow>(`/api/projects/${projectId}/workflows/${workflowId}/unpublish`),
+  getNotes: (projectId: string, workflowId: string) =>
+    api.get<{ notes: string }>(`/api/projects/${projectId}/workflows/${workflowId}/notes`),
+  setNotes: (projectId: string, workflowId: string, notes: string) =>
+    api.put<{ notes: string }>(`/api/projects/${projectId}/workflows/${workflowId}/notes`, { notes }),
   generateCode: (
     projectId: string,
     workflowId: string,

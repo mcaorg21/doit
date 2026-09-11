@@ -7,6 +7,8 @@ export interface FlowNodeData {
   title?: string
   note?: string
   isExecuting?: boolean
+  hasExecutionError?: boolean
+  isPaused?: boolean
   fieldMap?: string[]
   [key: string]: unknown
 }

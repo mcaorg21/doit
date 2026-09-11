@@ -13,6 +13,11 @@ class RunHandle:
     queue: "asyncio.Queue[LogLine | None]" = field(default_factory=asyncio.Queue)
     process: asyncio.subprocess.Process | None = None
     cancelled: bool = False
+    unattended: bool = False
+    """True for Schedule/Webhook-triggered runs — nobody is watching to click Continue
+    past a breakpoint or to retry after a failure. Used by runner._stream_output to
+    scope the auto-unpublish-on-error behavior to runs where it actually matters;
+    manual and MCP live-session runs are excluded since a human is already there."""
 
 
 _active_runs: dict[str, RunHandle] = {}

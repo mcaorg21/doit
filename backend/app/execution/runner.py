@@ -1,4 +1,5 @@
 import asyncio
+import os
 from datetime import datetime, timezone
 
 from app.config import GENERATED_SCRIPTS_DIR, PYTHON_EXECUTABLE
@@ -8,11 +9,16 @@ from app.storage import run_store
 from app.storage.ids import gen_id
 
 
+NODE_ERROR_MARKER = "__NODE_ERROR__"
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-async def start_run(project_id: str, workflow_id: str, script: str) -> RunHandle:
+async def start_run(
+    project_id: str, workflow_id: str, script: str, unattended: bool = False
+) -> RunHandle:
     run_id = gen_id("run")
     script_path = GENERATED_SCRIPTS_DIR / f"{workflow_id}_{run_id}.py"
     script_path.write_text(script, encoding="utf-8")
@@ -24,7 +30,9 @@ async def start_run(project_id: str, workflow_id: str, script: str) -> RunHandle
         status=RunStatus.running,
         scriptPath=str(script_path),
     )
-    handle = RunHandle(run_id=run_id, project_id=project_id, workflow_id=workflow_id, record=record)
+    handle = RunHandle(
+        run_id=run_id, project_id=project_id, workflow_id=workflow_id, record=record, unattended=unattended
+    )
 
     process = await asyncio.create_subprocess_exec(
         PYTHON_EXECUTABLE,
@@ -36,6 +44,7 @@ async def start_run(project_id: str, workflow_id: str, script: str) -> RunHandle
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
+        env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"},
     )
     handle.process = process
     register_run(handle)
@@ -76,6 +85,7 @@ async def run_preview_script(script: str, timeout: float = 20.0) -> str:
         str(script_path),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
+        env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"},
     )
     try:
         stdout, _ = await asyncio.wait_for(process.communicate(), timeout=timeout)
@@ -128,6 +138,19 @@ async def _stream_output(handle: RunHandle) -> None:
         text = raw_line.decode(errors="replace").rstrip("\n")
         line = LogLine(ts=_now(), level="info", text=text)
         handle.record.logLines.append(line)
+        if text.startswith(NODE_ERROR_MARKER) and handle.unattended:
+            # Only unattended (Schedule/Webhook) runs auto-unpublish + flag the error —
+            # a manual or MCP live-session run has a human already watching it fail,
+            # who doesn't need the workflow yanked out from under them mid-debug.
+            try:
+                from app.storage import workflow_store
+
+                workflow = workflow_store.get_workflow(handle.project_id, handle.workflow_id)
+                if workflow.published:
+                    workflow_store.set_published(handle.project_id, handle.workflow_id, False)
+                    workflow_store.set_error_state(handle.project_id, handle.workflow_id, True)
+            except Exception as exc:
+                print(f"[runner] failed to unpublish workflow '{handle.workflow_id}': {exc}")
         await handle.queue.put(line)
         # Keeps the persisted record's log up to date while still running — matters
         # most for a run stuck at a Pause breakpoint (see the note in start_run): the

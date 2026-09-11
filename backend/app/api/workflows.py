@@ -9,6 +9,10 @@ from app.storage import workflow_store
 class WorkflowMove(BaseModel):
     folderId: str | None = None
 
+
+class WorkflowNotes(BaseModel):
+    notes: str
+
 router = APIRouter(prefix="/api/projects/{project_id}/workflows", tags=["workflows"])
 
 # Separate, unprefixed router: the MCP server's live-build tools (app/mcp/server.py)
@@ -86,3 +90,14 @@ def unpublish_workflow(project_id: str, workflow_id: str):
 @router.delete("/{workflow_id}", status_code=204)
 def delete_workflow(project_id: str, workflow_id: str):
     workflow_store.delete_workflow(project_id, workflow_id)
+
+
+@router.get("/{workflow_id}/notes", response_model=WorkflowNotes)
+def get_workflow_notes(project_id: str, workflow_id: str):
+    return WorkflowNotes(notes=workflow_store.get_workflow_notes(project_id, workflow_id))
+
+
+@router.put("/{workflow_id}/notes", response_model=WorkflowNotes)
+def set_workflow_notes(project_id: str, workflow_id: str, payload: WorkflowNotes):
+    workflow_store.set_workflow_notes(project_id, workflow_id, payload.notes)
+    return payload

@@ -11,6 +11,34 @@ def _workflow_file(project_id: str, workflow_id: str):
     return workflows_dir(project_id) / f"{workflow_id}.json"
 
 
+def _workflow_notes_file(project_id: str, workflow_id: str):
+    # A real sibling .md file next to <workflow_id>.json — not a field inside the
+    # workflow's own JSON — so it's directly readable/editable as plain markdown by
+    # a coding agent's own file tools (or a human in a text editor), not just through
+    # this app's API. Deliberately no per-run isolation (unlike temp_files_dir/
+    # cookies_dir): this is human-written guidance for the workflow itself, the same
+    # one document regardless of which run reads it.
+    return workflows_dir(project_id) / f"{workflow_id}.md"
+
+
+def get_workflow_notes(project_id: str, workflow_id: str) -> str:
+    get_workflow(project_id, workflow_id)  # 404 if the workflow itself doesn't exist
+    nfile = _workflow_notes_file(project_id, workflow_id)
+    return nfile.read_text(encoding="utf-8") if nfile.exists() else ""
+
+
+def set_workflow_notes(project_id: str, workflow_id: str, notes: str) -> None:
+    get_workflow(project_id, workflow_id)  # 404 if the workflow itself doesn't exist
+    nfile = _workflow_notes_file(project_id, workflow_id)
+    if not notes.strip():
+        # Don't leave an empty .md file sitting around once the human clears it out.
+        if nfile.exists():
+            nfile.unlink()
+        return
+    workflows_dir(project_id).mkdir(parents=True, exist_ok=True)
+    nfile.write_text(notes, encoding="utf-8")
+
+
 def list_workflows(project_id: str) -> list[Workflow]:
     project_store.get_project(project_id)  # 404 if project missing
     wdir = workflows_dir(project_id)
@@ -138,10 +166,27 @@ def move_workflow(project_id: str, workflow_id: str, folder_id: str | None) -> W
 
 def set_published(project_id: str, workflow_id: str, published: bool) -> Workflow:
     existing = get_workflow(project_id, workflow_id)
-    updated = existing.model_copy(update={"published": published, "updatedAt": now_utc()})
+    update: dict = {"published": published, "updatedAt": now_utc()}
+    if published:
+        # A fresh publish is the user saying "this is fixed now" — clear any stale
+        # error flag from a previous unattended failure so the button goes back to a
+        # plain Published state instead of staying red.
+        update["hasError"] = False
+    updated = existing.model_copy(update=update)
     _workflow_file(project_id, workflow_id).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
     project_store.touch_project(project_id)
     _resync_triggers(project_id, updated)
+    return updated
+
+
+def set_error_state(project_id: str, workflow_id: str, has_error: bool) -> Workflow:
+    """Flags (or clears) hasError without touching published — used by
+    app/execution/runner.py when an unattended (Schedule/Webhook) run fails, right
+    before it also unpublishes via set_published above."""
+    existing = get_workflow(project_id, workflow_id)
+    updated = existing.model_copy(update={"hasError": has_error, "updatedAt": now_utc()})
+    _workflow_file(project_id, workflow_id).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
+    project_store.touch_project(project_id)
     return updated
 
 
@@ -150,10 +195,20 @@ def duplicate_workflow(project_id: str, workflow_id: str) -> Workflow:
     new_id = gen_id("wf")
     ts = now_utc()
     duplicate = existing.model_copy(
-        update={"id": new_id, "name": f"{existing.name} (copy)", "createdAt": ts, "updatedAt": ts, "published": False}
+        update={
+            "id": new_id,
+            "name": f"{existing.name} (copy)",
+            "createdAt": ts,
+            "updatedAt": ts,
+            "published": False,
+            "hasError": False,
+        }
     )
     workflows_dir(project_id).mkdir(parents=True, exist_ok=True)
     _workflow_file(project_id, new_id).write_text(duplicate.model_dump_json(indent=2), encoding="utf-8")
+    existing_notes = _workflow_notes_file(project_id, workflow_id)
+    if existing_notes.exists():
+        _workflow_notes_file(project_id, new_id).write_text(existing_notes.read_text(encoding="utf-8"), encoding="utf-8")
     project_store.touch_project(project_id)
     return duplicate
 
@@ -163,6 +218,9 @@ def delete_workflow(project_id: str, workflow_id: str) -> None:
     if not wfile.exists():
         raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
     wfile.unlink()
+    notes_file = _workflow_notes_file(project_id, workflow_id)
+    if notes_file.exists():
+        notes_file.unlink()
     project_store.touch_project(project_id)
 
     from app.execution import scheduler, webhook_registry

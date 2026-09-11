@@ -15,6 +15,8 @@ interface Props {
   edges: Edge<FlowEdgeData>[]
   startNodeId: string | null
   onNodeExecuting: (nodeId: string | null) => void
+  onNodeFailed: (nodeId: string | null) => void
+  onNodePaused: (nodeId: string | null) => void
 }
 
 interface LogEntry {
@@ -33,6 +35,12 @@ const STATUS_LABELS: Record<RunStatus, string> = {
 // action runs — lets the canvas highlight whichever node is currently executing. Not
 // one of the node's own descriptive logs, so it's filtered out of the visible log list.
 const NODE_START_MARKER = '__NODE_START__'
+const NODE_ERROR_MARKER = '__NODE_ERROR__'
+// Printed right before a breakpoint() the script is actually about to sit at — either
+// a Pause node or a connector with its breakpoint toggled on (see engine.py/pause.py).
+// Distinct from NODE_ERROR_MARKER: this isn't a failure, just an intentional stop
+// waiting for a human, so the canvas can tell "broken" and "paused for you" apart.
+const NODE_PAUSED_MARKER = '__NODE_PAUSED__'
 
 // One-line JS injected into the live paused page via page.evaluate() — adds a mouseover
 // listener that outlines the hovered element and shows a floating tooltip with its
@@ -195,7 +203,7 @@ const PDB_SNIPPETS: { label: string; template: string; placeholder?: string }[] 
 // evaluate() to also cover the page as it stands right now.
 const INSPECTOR_COMMAND = `page.add_init_script("""${INSPECTOR_JS}"""); page.evaluate("""${INSPECTOR_JS}""")`
 
-export default function RunPanel({ projectId, workflowId, nodes, edges, startNodeId, onNodeExecuting }: Props) {
+export default function RunPanel({ projectId, workflowId, nodes, edges, startNodeId, onNodeExecuting, onNodeFailed, onNodePaused }: Props) {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [status, setStatus] = useState<RunStatus | null>(null)
   const [running, setRunning] = useState(false)
@@ -266,6 +274,8 @@ export default function RunPanel({ projectId, workflowId, nodes, edges, startNod
     setError(null)
     setRunning(true)
     onNodeExecuting(null)
+    onNodeFailed(null)
+    onNodePaused(null)
     runIdRef.current = null
     setClipboardText(null)
     setClipboardHasNew(false)
@@ -282,7 +292,18 @@ export default function RunPanel({ projectId, workflowId, nodes, edges, startNod
         const msg = JSON.parse(event.data)
         if (msg.type === 'log') {
           if (msg.text.startsWith(NODE_START_MARKER)) {
+            // A new node starting means we're no longer sitting at whatever previous
+            // breakpoint printed NODE_PAUSED_MARKER (Continue was sent to get here).
+            onNodePaused(null)
             onNodeExecuting(msg.text.slice(NODE_START_MARKER.length).trim())
+            return
+          }
+          if (msg.text.startsWith(NODE_ERROR_MARKER)) {
+            onNodeFailed(msg.text.slice(NODE_ERROR_MARKER.length).trim())
+            return
+          }
+          if (msg.text.startsWith(NODE_PAUSED_MARKER)) {
+            onNodePaused(msg.text.slice(NODE_PAUSED_MARKER.length).trim())
             return
           }
           setLogs((prev) => [...prev, { text: msg.text, level: msg.level }])
@@ -290,11 +311,13 @@ export default function RunPanel({ projectId, workflowId, nodes, edges, startNod
           setStatus(msg.status)
           setRunning(false)
           onNodeExecuting(null)
+          onNodePaused(null)
           ws.close()
         } else if (msg.type === 'error') {
           setError(msg.detail)
           setRunning(false)
           onNodeExecuting(null)
+          onNodePaused(null)
           ws.close()
         }
       }
@@ -302,6 +325,7 @@ export default function RunPanel({ projectId, workflowId, nodes, edges, startNod
         setError('WebSocket connection error')
         setRunning(false)
         onNodeExecuting(null)
+        onNodePaused(null)
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to start run')

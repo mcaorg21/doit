@@ -98,5 +98,5 @@ async def trigger(method: str, path: str) -> dict:
     except CodegenError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    handle = await start_run(project_id, workflow_id, script)
+    handle = await start_run(project_id, workflow_id, script, unattended=True)
     return {"runId": handle.run_id, "workflowId": workflow_id}

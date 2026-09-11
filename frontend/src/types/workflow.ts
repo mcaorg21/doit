@@ -37,6 +37,7 @@ export interface Workflow {
   nodes: WFNode[]
   edges: WFEdge[]
   published: boolean
+  hasError: boolean
   folderId: string | null
   startNodeId?: string | null
 }

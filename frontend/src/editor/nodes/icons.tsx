@@ -28,6 +28,8 @@ import {
   LuUpload,
   LuShieldCheck,
   LuDownload,
+  LuCookie,
+  LuLogIn,
 } from 'react-icons/lu'
 
 // One specific, deliberately-picked icon per node type — Lucide for general/functional
@@ -60,6 +62,8 @@ const ICONS: Record<string, IconType> = {
   upload: LuUpload, // Upload File
   'shield-check': LuShieldCheck, // 2FA Code (TOTP)
   download: LuDownload, // Download File
+  cookie: LuCookie, // Save Cookies / Load Cookies
+  'log-in': LuLogIn, // Login
 }
 
 // LuSplit's glyph reads top-to-bottom (a path forking upward) — the canvas flows

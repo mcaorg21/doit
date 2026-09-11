@@ -23,6 +23,7 @@ import RunPanel from '../editor/RunPanel'
 import ExecutionsPanel from '../editor/ExecutionsPanel'
 import { toWFEdges, toWFNodes, wfEdgeToFlowEdge, wfNodeToFlowNode } from '../editor/convert'
 import { getUpstreamVariables, getUpstreamFieldMapOptions, type VariableSource } from '../editor/graph'
+import { arrangeWorkflowNodes } from '../editor/layout'
 import { genRandomToken } from '../editor/randomToken'
 import type { FlowEdgeData, FlowNodeData } from '../editor/types'
 import type { NodeTypeSpec } from '../types/nodeType'
@@ -47,6 +48,9 @@ export default function EditorPage() {
   const [activeTab, setActiveTab] = useState<'code' | 'run' | 'executions'>('code')
   const [loaded, setLoaded] = useState(false)
   const [pendingDeleteNodeIds, setPendingDeleteNodeIds] = useState<string[]>([])
+  const [notesOpen, setNotesOpen] = useState(false)
+  const [notesDraft, setNotesDraft] = useState('')
+  const [notesError, setNotesError] = useState<string | null>(null)
 
   type Snapshot = { nodes: Node<FlowNodeData>[]; edges: Edge<FlowEdgeData>[] }
   const nodesRef = useRef(nodes)
@@ -173,6 +177,33 @@ export default function EditorPage() {
       setPublishError(null)
       queryClient.setQueryData(['workflow', projectId, workflowId], updated)
       queryClient.invalidateQueries({ queryKey: ['workflows', projectId] })
+    },
+  })
+
+  // Notes: a per-workflow markdown doc (stored as a real sibling .md file, not part
+  // of the workflow's own JSON — see backend/app/storage/workflow_store.py) meant to
+  // guide a human AND an AI working on this workflow via the MCP connector (its
+  // get_workflow tool returns this same text). Fetched lazily only once the modal is
+  // actually opened, not on every editor page load.
+  const notesQuery = useQuery({
+    queryKey: ['workflowNotes', projectId, workflowId],
+    queryFn: () => workflowsApi.getNotes(projectId!, workflowId!),
+    enabled: notesOpen && !!projectId && !!workflowId,
+  })
+
+  useEffect(() => {
+    if (notesQuery.data) setNotesDraft(notesQuery.data.notes)
+  }, [notesQuery.data])
+
+  const saveNotesMutation = useMutation({
+    mutationFn: (notes: string) => workflowsApi.setNotes(projectId!, workflowId!, notes),
+    onSuccess: (result) => {
+      setNotesError(null)
+      queryClient.setQueryData(['workflowNotes', projectId, workflowId], result)
+      setNotesOpen(false)
+    },
+    onError: (err: unknown) => {
+      setNotesError(err instanceof ApiError || err instanceof Error ? err.message : 'Failed to save notes')
     },
   })
 
@@ -512,6 +543,43 @@ export default function EditorPage() {
     )
   }
 
+  function handleNodeFailed(nodeId: string | null) {
+    setNodes((prev) =>
+      prev.map((n) => {
+        if (nodeId === null) {
+          return n.data.hasExecutionError ? { ...n, data: { ...n.data, hasExecutionError: false } } : n
+        }
+        const isFailedNode = n.id === nodeId
+        if (!isFailedNode && !n.data.isExecuting) return n
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            isExecuting: false,
+            hasExecutionError: isFailedNode ? true : n.data.hasExecutionError,
+          },
+        }
+      }),
+    )
+    if (nodeId !== null) {
+      queryClient.invalidateQueries({ queryKey: ['workflow', projectId, workflowId] })
+      queryClient.invalidateQueries({ queryKey: ['workflows', projectId] })
+    }
+  }
+
+  // Mirrors handleNodeExecuting — highlights whichever node the running script is
+  // currently sitting at a breakpoint on (see the "__NODE_PAUSED__" marker RunPanel
+  // parses out of the log stream). Also not a user edit.
+  function handleNodePaused(nodeId: string | null) {
+    setNodes((prev) =>
+      prev.map((n) => {
+        const isPaused = n.id === nodeId
+        if (Boolean(n.data.isPaused) === isPaused) return n
+        return { ...n, data: { ...n.data, isPaused } }
+      }),
+    )
+  }
+
   // Applies a node/edge mutation that the MCP server (see backend/app/mcp/server.py)
   // already persisted, received live over /ws/workflows/{id} — these deliberately do
   // NOT call markDirty()/recordHistory(): the change is already saved on the server,
@@ -719,6 +787,14 @@ export default function EditorPage() {
     window.addEventListener('mouseup', onUp)
   }
 
+  const handleArrangeNodes = useCallback(() => {
+    if (nodesRef.current.length === 0) return
+    recordHistory(true)
+    setNodes(arrangeWorkflowNodes(nodesRef.current, edgesRef.current, startNodeId))
+    markDirty()
+    requestAnimationFrame(() => flowCanvasRef.current?.fitView())
+  }, [recordHistory, markDirty, startNodeId])
+
   return (
     <div className="editor-page">
       <div className="topbar">
@@ -771,6 +847,22 @@ export default function EditorPage() {
               </svg>
             </button>
           </div>
+
+          <button
+            className="icon-btn"
+            onClick={() => {
+              setNotesError(null)
+              setNotesOpen(true)
+            }}
+            title="Notes — a markdown guide for this workflow, also read by Claude/Codex via the MCP connector"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+              <line x1="9" y1="7" x2="15" y2="7" />
+              <line x1="9" y1="11" x2="15" y2="11" />
+            </svg>
+          </button>
 
           <div className="launch-menu-wrap" ref={launchMenuRef}>
             <button
@@ -837,19 +929,21 @@ export default function EditorPage() {
           <div className="topbar-divider" />
 
           <button
-            className={`publish-toggle ${workflow?.published ? 'is-published' : ''}`}
+            className={`publish-toggle ${workflow?.published ? 'is-published' : ''} ${workflow?.hasError ? 'has-error' : ''}`}
             onClick={() => (workflow?.published ? unpublishMutation.mutate() : publishMutation.mutate())}
             disabled={workflow?.published ? unpublishMutation.isPending : publishMutation.isPending || dirty}
             title={
               workflow?.published
                 ? 'Unpublish — stops the Schedule/Webhook trigger from firing'
-                : dirty
-                  ? 'Save your changes before publishing'
-                  : "Publish — lets this workflow's Schedule/Webhook trigger fire"
+                : workflow?.hasError
+                  ? 'An unattended run of this workflow failed, so it was automatically unpublished — fix it, then click to publish again'
+                  : dirty
+                    ? 'Save your changes before publishing'
+                    : "Publish — lets this workflow's Schedule/Webhook trigger fire"
             }
           >
             <span className="dot" />
-            {workflow?.published ? 'Published' : 'Publish'}
+            {workflow?.hasError ? 'Error' : workflow?.published ? 'Published' : 'Publish'}
           </button>
 
           <button className="btn btn-primary btn-sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !dirty}>
@@ -879,6 +973,7 @@ export default function EditorPage() {
           nodeTypesByType={nodeTypesByType}
           startNodeId={startNodeId}
           onSetStartNode={handleSetStartNode}
+          onArrangeNodes={handleArrangeNodes}
         />
 
         <div className="side-panel">
@@ -932,6 +1027,8 @@ export default function EditorPage() {
                 edges={edges}
                 startNodeId={startNodeId}
                 onNodeExecuting={handleNodeExecuting}
+                onNodeFailed={handleNodeFailed}
+                onNodePaused={handleNodePaused}
               />
             )}
             {activeTab === 'executions' && projectId && workflowId && (
@@ -969,6 +1066,50 @@ export default function EditorPage() {
               </button>
               <button className="btn btn-danger" onClick={confirmDeleteNode}>
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {notesOpen && (
+        <div className="modal-overlay" onClick={() => setNotesOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640 }}>
+            <h3>Notes</h3>
+            <p className="hint" style={{ marginBottom: 8 }}>
+              A markdown guide for this workflow — what it does, known quirks, how to validate it. Saved as a plain
+              .md file next to the workflow itself; Claude/Codex read it automatically via the MCP connector's
+              get_workflow tool before working on this workflow.
+            </p>
+            {notesQuery.isLoading ? (
+              <p className="hint">Loading…</p>
+            ) : (
+              <textarea
+                autoFocus
+                value={notesDraft}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                placeholder={'# What this workflow does\n\n...'}
+                style={{
+                  width: '100%',
+                  minHeight: 320,
+                  fontFamily: 'var(--mono)',
+                  fontSize: 13,
+                  resize: 'vertical',
+                  boxSizing: 'border-box',
+                }}
+              />
+            )}
+            {notesError && <div className="error-banner">{notesError}</div>}
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setNotesOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={saveNotesMutation.isPending || notesQuery.isLoading}
+                onClick={() => saveNotesMutation.mutate(notesDraft)}
+              >
+                Save
               </button>
             </div>
           </div>

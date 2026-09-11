@@ -355,12 +355,12 @@ export default function WorkflowListPage() {
               </Link>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span
-                  title={w.published ? 'Published' : 'Not published'}
+                  title={w.hasError ? 'Error — an unattended run failed and it was auto-unpublished' : w.published ? 'Published' : 'Not published'}
                   style={{
                     width: 8,
                     height: 8,
                     borderRadius: '50%',
-                    background: w.published ? 'var(--success)' : 'var(--text-muted)',
+                    background: w.hasError ? 'var(--danger)' : w.published ? 'var(--success)' : 'var(--text-muted)',
                     flexShrink: 0,
                   }}
                 />

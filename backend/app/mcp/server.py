@@ -14,6 +14,8 @@ Every mutating tool publishes to app/execution/workflow_events.py so an open edi
 tab (see /ws/workflows/{id} in app/api/workflows.py) redraws live.
 """
 
+import asyncio
+import time
 from typing import Any
 
 from fastapi import HTTPException
@@ -22,6 +24,8 @@ from mcp.server.fastmcp import FastMCP
 from app.codegen.context import CodegenError
 from app.codegen.engine import generate_script
 from app.execution import workflow_events
+from app.execution.runner import NODE_ERROR_MARKER, start_run, stop_run
+from app.execution.triggers import _find_pause_points, find_root_node
 from app.mcp import live_sessions
 from app.models.mcp import (
     AddNodeResult,
@@ -31,9 +35,12 @@ from app.models.mcp import (
     FinishLiveSessionResult,
     LiveSessionResult,
     NodeCatalogResponse,
+    RunWorkflowResult,
     ValidateWorkflowResult,
     WorkflowSummary,
+    WorkflowWithNotes,
 )
+from app.models.run import RunStatus
 from app.models.workflow import Position, WFEdge, WFNode, Workflow, WorkflowCreate, WorkflowSave
 from app.nodes.registry import NODE_REGISTRY
 from app.services.workflow_reconstructor import (
@@ -45,6 +52,10 @@ from app.services.workflow_reconstructor import (
 )
 from app.storage import folder_store, project_store, workflow_store
 from app.storage.ids import gen_id
+
+NODE_START_MARKER = "__NODE_START__"
+NODE_PAUSED_MARKER = "__NODE_PAUSED__"
+DEFAULT_RUN_TIMEOUT_SECONDS = 120.0
 
 mcp = FastMCP(
     "auto-mation",
@@ -60,28 +71,58 @@ mcp = FastMCP(
         "(navigate/fill/click/...) so the human watches it happen for real; fall back "
         "to add_node/connect_nodes for anything demo_node rejects (loops, "
         "conditionals, or when there's no live session). Never invent a node type — "
-        "use type=\"unknown\" with a clear params.code/sourceHint for anything that "
-        "doesn't fit, and tell the human it needs manual attention rather than "
-        "chaining more steps on top of it."
+        "if a step genuinely needs one that doesn't exist yet, STOP and ask the human "
+        "whether they want a new node type built for it (this is a normal, expected "
+        "request in this project — new node types get added directly to the "
+        "backend's own source, which you can't do through this MCP server) before "
+        "falling back to type=\"unknown\" with a clear params.code/sourceHint as a "
+        "last resort. Either way, tell the human it needs attention rather than "
+        "silently chaining more steps on top of an 'unknown' placeholder. To check "
+        "an existing workflow still works — after editing it, or as a maintenance "
+        "pass — call run_workflow: it runs the whole thing for real and tells you "
+        "exactly which node broke, if any. Working on an EXISTING workflow (editing "
+        "it further, running it, debugging a failure)? Call get_workflow first and "
+        "read its `notes` field before doing anything else — that's where a human "
+        "writes down what this specific workflow does, known quirks, and how to "
+        "validate/run it; it exists specifically to help you."
     ),
 )
 
 _MCP_NOTES = [
+    "If a step in what the human is asking for needs a node type that isn't in "
+    "get_node_catalog(), don't just downgrade to type=\"unknown\" and keep going — "
+    "stop and ask the human whether they want a new node type built for that "
+    "capability first. Adding a node type is normal, expected work in this project "
+    "(it's a small, well-established pattern in the backend's own source — codegen "
+    "function + NodeSpec registration + a frontend icon), just not something this "
+    "MCP server's tools can do themselves. Only fall back to type=\"unknown\" once "
+    "the human has declined or a new node isn't worth it for a one-off step.",
     "credentialId-type fields (see credentialType on a param in the catalog) cannot "
     "be filled by you — there is no credential-listing tool. If a step genuinely "
-    "needs one of these node types (two_captcha, browser_2captcha), add_node/"
-    "demo_node will automatically turn it into an 'unknown' placeholder with a note "
+    "needs one of these node types (two_captcha, browser_2captcha, login, totp), "
+    "add_node will automatically turn it into an 'unknown' placeholder with a note "
     "instead of failing; check needsHumanAttention on the result rather than trying "
-    "to work around it yourself.",
-    "This server never runs a finished workflow — running/scheduling stays a manual "
-    "step in the editor. start_live_session/demo_node execute a step for real only "
-    "while you're actively building it, one step at a time.",
+    "to work around it yourself. login specifically also can't be demoed live at all "
+    "(see the next note) — always author it with add_node, then tell the human to "
+    "pick its credential in the editor before the workflow can actually run.",
+    "start_live_session/demo_node execute a step for real only while you're actively "
+    "building it, one step at a time — for an already-saved workflow, run_workflow "
+    "runs the WHOLE thing end to end unattended and reports whether it still works, "
+    "which node broke if not, and the tail of its log. Use it after editing an "
+    "existing workflow (e.g. adding a new node type) to prove the change actually "
+    "works, or to health-check a workflow before it would fail for real on its own "
+    "schedule/webhook. It's rejected up front if the workflow can reach a Pause node "
+    "or a breakpointed connector — nothing unattended can click Continue past one of "
+    "those, run it manually from the editor instead.",
     "loop, if, and browser_2captcha nodes can't be demonstrated live (they open a "
     "nested block) — author them with add_node/connect_nodes instead of demo_node. "
-    "Save Files and Get File can't either, same reason (their fragments contain "
-    "indented blocks even though they don't open one at the graph level). "
-    "download_file CAN be demonstrated live — it clicks a real element, waits for "
-    "the real download, and only records the node once the file is actually saved.",
+    "Save Files, Get File, Load Cookies, and Login can't either, same reason (their "
+    "fragments contain indented blocks even though they don't open one at the graph "
+    "level) — Login is rejected explicitly for the credential reason above too. "
+    "download_file and save_cookies CAN be demonstrated live — download_file "
+    "clicks a real element and waits for the real download; save_cookies just reads "
+    "the live browser context's current cookies, both only recording the node once "
+    "the real action actually succeeded.",
 ]
 
 
@@ -177,11 +218,18 @@ def list_workflows(project_id: str) -> list[dict]:
 
 
 @mcp.tool()
-def get_workflow(project_id: str, workflow_id: str) -> Workflow:
-    """Returns a workflow's current nodes and edges — call this before editing an
-    existing workflow further (e.g. in a new conversation) so you know what's
-    already there instead of guessing."""
-    return _get_workflow(project_id, workflow_id)
+def get_workflow(project_id: str, workflow_id: str) -> WorkflowWithNotes:
+    """Returns a workflow's current nodes and edges, plus its `notes` field — call
+    this before editing an existing workflow further (e.g. in a new conversation, or
+    before run_workflow/demo_node) so you know what's already there instead of
+    guessing. ALWAYS read `notes` first if it's non-empty: it's human-written
+    guidance for THIS specific workflow (what it does, known quirks, what to check
+    if it breaks, how to run/validate it) — written via the "Notes" button next to
+    the AI launch button in the editor topbar, meant specifically to help you work
+    on this workflow correctly."""
+    workflow = _get_workflow(project_id, workflow_id)
+    notes = workflow_store.get_workflow_notes(project_id, workflow_id)
+    return WorkflowWithNotes(**workflow.model_dump(), notes=notes)
 
 
 @mcp.tool()
@@ -206,12 +254,16 @@ async def add_node(
     note: str | None = None,
 ) -> AddNodeResult:
     """Adds one node, auto-positioned after the current last node — pure authoring,
-    nothing is executed. Use ONLY types from get_node_catalog(); use type="unknown"
-    with params={"code": "...", "sourceHint": "..."} for any step with no matching
-    node type — never invent a type. If the result's needsHumanAttention is true
-    (type ended up "unknown", possibly because it needed a credential this server
-    can't provide), stop chaining further steps that depend on this node's output and
-    tell the human it needs manual setup in the editor."""
+    nothing is executed. Use ONLY types from get_node_catalog(); never invent a type.
+    If a step genuinely needs a node type that doesn't exist, don't reach for
+    type="unknown" as your first move — STOP and ask the human whether they want a
+    new node type built for it first (normal in this project; it's a source change
+    on the backend, not something this tool can do). Only use type="unknown" with
+    params={"code": "...", "sourceHint": "..."} as the fallback once that's been
+    asked/declined. If the result's needsHumanAttention is true (type ended up
+    "unknown", possibly because it needed a credential this server can't provide),
+    stop chaining further steps that depend on this node's output and tell the human
+    it needs manual setup in the editor."""
     workflow = _get_workflow(project_id, workflow_id)
     catalog = build_node_catalog()
     clean_params = _clean_params(type, params, catalog)
@@ -318,6 +370,107 @@ def validate_workflow(project_id: str, workflow_id: str) -> ValidateWorkflowResu
     return ValidateWorkflowResult(ok=True)
 
 
+@mcp.tool()
+async def run_workflow(
+    project_id: str, workflow_id: str, timeout_seconds: float = DEFAULT_RUN_TIMEOUT_SECONDS
+) -> RunWorkflowResult:
+    """Actually RUNS an existing, already-saved workflow end to end for real (same as
+    clicking Run in the editor) with whatever settings it already has (headless,
+    browser channel, ...) and waits for it to finish. Use this to confirm a workflow
+    still works after you've changed it (e.g. added a new node type, edited a
+    selector) — validate_workflow only proves the graph compiles, not that it
+    actually runs — or as a maintenance health-check across several workflows to see
+    which ones need fixing before they'd fail for real on their own schedule/webhook.
+    Rejected up front (a ValueError, nothing started) if the workflow can reach a
+    Pause node or a breakpointed connector, since nothing here can ever click
+    Continue past one — those have to be run manually from the editor instead. Waits
+    up to timeout_seconds; past that the run is stopped and reported as "timedOut"
+    rather than left running forever. On failure, failedNodeId/failedNodeLabel/
+    errorMessage say exactly what needs fixing; logTail has the run's last lines for
+    more context."""
+    workflow = _get_workflow(project_id, workflow_id)
+    root = find_root_node(workflow.nodes, workflow.edges, workflow.startNodeId)
+    if root is not None:
+        pause_points = _find_pause_points(workflow.nodes, workflow.edges, root)
+        if pause_points:
+            names = "; ".join(pause_points)
+            raise ValueError(
+                f"Can't run unattended — this workflow can reach: {names}. Nothing here can click Continue "
+                "past a breakpoint; remove it first, or run this workflow manually from the editor instead."
+            )
+
+    try:
+        script = generate_script(
+            workflow.nodes, workflow.edges, project_id, start_node_id=workflow.startNodeId, workflow_id=workflow_id
+        )
+    except CodegenError as exc:
+        raise ValueError(str(exc)) from exc
+
+    node_label_by_id = {n.id: (n.title or n.id) for n in workflow.nodes}
+    # unattended=False (the default) is deliberate: an agent is actively watching this
+    # call and will report the result back to a human, same as a manual Run-button
+    # click — unlike a real schedule/webhook fire, a failure here must NOT auto-
+    # unpublish the workflow (see app/execution/runner.py's _stream_output).
+    handle = await start_run(project_id, workflow_id, script)
+
+    log_tail: list[str] = []
+    failed_node_id: str | None = None
+    error_message: str | None = None
+    timed_out = False
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            timed_out = True
+            await stop_run(handle)
+            break
+        try:
+            line = await asyncio.wait_for(handle.queue.get(), timeout=remaining)
+        except asyncio.TimeoutError:
+            timed_out = True
+            await stop_run(handle)
+            break
+        if line is None:
+            break
+        text = line.text
+        if text.startswith(NODE_ERROR_MARKER):
+            failed_node_id = text[len(NODE_ERROR_MARKER) :].strip()
+            continue
+        if text.startswith(NODE_START_MARKER) or text.startswith(NODE_PAUSED_MARKER):
+            continue
+        log_tail.append(text)
+        if failed_node_id is not None and error_message is None and text.startswith("Tratar erro no node"):
+            error_message = text
+            # The engine's auto-wrap calls breakpoint() right after printing this line
+            # (see engine.py's render()) — the script is about to hang at pdb forever,
+            # since nothing unattended can ever send it "continue". No point waiting
+            # out the rest of timeout_seconds to learn that; stop it now and report
+            # what actually broke, immediately.
+            await stop_run(handle)
+            break
+
+    if failed_node_id is not None:
+        status = "error"
+    elif timed_out:
+        status = "timedOut"
+    elif handle.record.status == RunStatus.cancelled:
+        status = "cancelled"
+    elif handle.record.status == RunStatus.success:
+        status = "success"
+    else:
+        status = "error"
+
+    return RunWorkflowResult(
+        ok=status == "success",
+        status=status,
+        runId=handle.run_id,
+        failedNodeId=failed_node_id,
+        failedNodeLabel=node_label_by_id.get(failed_node_id) if failed_node_id else None,
+        errorMessage=error_message,
+        logTail=log_tail[-20:],
+    )
+
+
 # ---------------------------------------------------------------------------
 # Layer 2 — live execution
 # ---------------------------------------------------------------------------
@@ -362,10 +515,12 @@ async def demo_node(
     note: str | None = None,
 ) -> DemoNodeResult:
     """Runs one step FOR REAL against the live session's browser (goto/fill/click/
-    hover/select_option/wait/get_text/element_present/http_request-without-autoLoop/
-    download_file only — loop/if/browser_2captcha aren't demoable, use add_node
-    instead; Save Files/Get File aren't demoable either, same reason — use add_node
-    for those too). For download_file specifically: the node is only recorded once
+    hover/select_option/wait/element_present/get_text/http_request-without-autoLoop/
+    download_file/save_cookies only — loop/if/browser_2captcha aren't demoable, use
+    add_node instead; Save Files/Get File/Load Cookies/Login aren't demoable either,
+    same reason — use add_node for those too (Login also always needs a credential
+    this server can't supply, so it'll come back as an 'unknown' placeholder either
+    way). For download_file specifically: the node is only recorded once
     the download actually finishes and the file is saved successfully — a timeout or
     a click that never triggers a download fails the step like any other, nothing is
     persisted, and capturedOutput reports the saved filename/path only, never

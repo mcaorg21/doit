@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from app.models.workflow import WFEdge, WFNode
+from app.models.workflow import WFEdge, WFNode, Workflow
 
 
 class NodeCatalogResponse(BaseModel):
@@ -19,6 +19,17 @@ class WorkflowSummary(BaseModel):
     workflowId: str
     projectId: str
     name: str
+
+
+class WorkflowWithNotes(Workflow):
+    """get_workflow's MCP-specific return shape — the same Workflow fields the REST
+    API uses, plus `notes`: the human-written markdown guidance doc for this specific
+    workflow (see the "Notes" button next to the AI launch button in the editor
+    topbar), stored as a real sibling .md file next to the workflow's own JSON (see
+    app/storage/workflow_store.py::get_workflow_notes), not part of Workflow itself
+    so the REST API's persisted JSON shape doesn't carry it around on every save."""
+
+    notes: str = ""
 
 
 class AddNodeResult(BaseModel):
@@ -70,3 +81,24 @@ class DemoNodeResult(BaseModel):
 class FinishLiveSessionResult(BaseModel):
     workflowId: str
     stopped: bool
+
+
+class RunWorkflowResult(BaseModel):
+    ok: bool
+    """True only when the run finished with exit code 0 — the same bar a real
+    scheduled/webhook fire would need to clear."""
+    status: str
+    """"success" | "error" | "cancelled" | "timedOut" — mirrors RunStatus, plus
+    "timedOut" for when this tool gave up waiting (see timeoutSeconds) and stopped
+    the run itself rather than leaving it running unattended."""
+    runId: str
+    failedNodeId: str | None = None
+    failedNodeLabel: str | None = None
+    """Set together — which node's own try/except caught an exception, identified by
+    the __NODE_ERROR__ marker every generated script prints (see engine.py). This is
+    "what needs fixing" for a maintenance pass."""
+    errorMessage: str | None = None
+    logTail: list[str] = Field(default_factory=list)
+    """The run's last ~20 real log lines (internal __NODE_START__/__NODE_ERROR__/
+    __NODE_PAUSED__ markers stripped out) — enough context to see what the workflow
+    was doing right before it stopped, without dumping the whole run."""

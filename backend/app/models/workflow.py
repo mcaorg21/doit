@@ -55,6 +55,13 @@ class Workflow(BaseModel):
     with no incoming edges (e.g. a leftover disconnected trigger from earlier edits).
     Only consulted by generate_script (app/codegen/engine.py) when there's genuine
     ambiguity — a single-root graph ignores this field entirely."""
+    hasError: bool = False
+    """Set when a Schedule/Webhook-triggered (unattended) run of this workflow hits a
+    node error — see app/execution/runner.py's _stream_output. Paired with an
+    automatic unpublish (nobody is watching an unattended run to fix and retry it), so
+    this flags workflows that need maintenance. Cleared on the next successful publish.
+    Manual runs and MCP live-session runs never set this — someone is already watching
+    those."""
 
 
 class WorkflowCreate(BaseModel):

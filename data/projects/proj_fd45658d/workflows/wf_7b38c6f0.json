@@ -1,12 +1,12 @@
 {
   "id": "wf_7b38c6f0",
   "projectId": "proj_fd45658d",
-  "name": "Teste MCP - Extracao PAN Relatorio",
+  "name": "Teste - Extracao PAN Relatorio",
   "createdAt": "2026-09-10T14:35:03.608695Z",
-  "updatedAt": "2026-09-11T12:51:48.845692Z",
+  "updatedAt": "2026-09-11T19:07:32.965688Z",
   "nodes": [
     {
-      "id": "node_0f20f201",
+      "id": "node_25d8baa9",
       "type": "open_browser",
       "position": {
         "x": 0.0,
@@ -21,7 +21,7 @@
       "fieldMap": null
     },
     {
-      "id": "node_cc2fcee1",
+      "id": "node_00df1450",
       "type": "goto",
       "position": {
         "x": 180.0,
@@ -30,21 +30,45 @@
       "params": {
         "url": "https://bancopan.elaw.com.br"
       },
-      "title": "Acessar Panjud",
+      "title": "Acessar Banco Pan eLaw",
+      "note": "Abre o portal Panjud; o login é redirecionado para a Microsoft.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_42c6b39c",
+      "type": "element_present",
+      "position": {
+        "x": 360.0,
+        "y": 200.0
+      },
+      "params": {
+        "selector": "input[type='email']",
+        "selectorType": "css",
+        "resultVar": "loginEmailVisivel"
+      },
+      "title": "Aguardar tela de login Microsoft",
       "note": null,
       "fieldMap": null
     }
   ],
   "edges": [
     {
-      "id": "edge_5e20c2f4",
-      "source": "node_0f20f201",
-      "target": "node_cc2fcee1",
+      "id": "edge_b77c7c68",
+      "source": "node_25d8baa9",
+      "target": "node_00df1450",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_910c7400",
+      "source": "node_00df1450",
+      "target": "node_42c6b39c",
       "sourceHandle": null,
       "breakpoint": false
     }
   ],
   "published": false,
   "folderId": "fold_f9b5c1ac",
-  "startNodeId": null
+  "startNodeId": null,
+  "hasError": false
 }

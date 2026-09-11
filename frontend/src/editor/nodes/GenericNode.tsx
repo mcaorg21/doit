@@ -62,12 +62,12 @@ export default function GenericNode({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 84 }}>
       <div
-        title={tooltip}
-        className={data.isExecuting ? 'node-executing' : undefined}
+        title={data.isPaused ? [tooltip, 'Paused at a breakpoint — use Continue in the Run panel'].filter(Boolean).join('\n\n') : tooltip}
+        className={data.isPaused ? 'node-paused' : data.isExecuting ? 'node-executing' : undefined}
         style={{
           width: SQUARE_SIZE,
           height: SQUARE_SIZE,
-          border: `1px solid ${data.isExecuting ? 'var(--success)' : selected ? 'var(--accent)' : 'var(--border)'}`,
+          border: `1px solid ${data.hasExecutionError || data.isPaused ? 'var(--danger)' : data.isExecuting ? 'var(--success)' : selected ? 'var(--accent)' : 'var(--border)'}`,
           borderRadius: 12,
           background: 'var(--surface)',
           position: 'relative',
@@ -75,7 +75,14 @@ export default function GenericNode({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text)',
-          boxShadow: data.isExecuting ? undefined : selected ? '0 0 0 2px var(--accent-bg)' : undefined,
+          boxShadow:
+            data.hasExecutionError && !data.isPaused
+              ? '0 0 0 3px color-mix(in srgb, var(--danger) 30%, transparent)'
+              : data.isExecuting || data.isPaused
+                ? undefined
+                : selected
+                  ? '0 0 0 2px var(--accent-bg)'
+                  : undefined,
         }}
       >
         <Handle type="target" position={Position.Left} />

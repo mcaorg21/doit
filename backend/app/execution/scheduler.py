@@ -141,4 +141,4 @@ async def _run_workflow_job(project_id: str, workflow_id: str) -> None:
         return
 
     print(f"[scheduler] firing scheduled run for workflow '{workflow.name}' ({workflow_id})")
-    await start_run(project_id, workflow_id, script)
+    await start_run(project_id, workflow_id, script, unattended=True)

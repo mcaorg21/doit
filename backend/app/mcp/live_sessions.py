@@ -136,6 +136,17 @@ def is_demoable(node_type: str) -> tuple[bool, str | None]:
     open_browser is the session bootstrap rather than a per-step demo."""
     if node_type == "open_browser":
         return False, "open_browser is the live session's bootstrap step — it's created by start_live_session, not demo_node"
+    if node_type == "login":
+        # Distinct from the generic indentation check below: login ALWAYS needs a
+        # real credential (username+password), which no MCP client can ever supply
+        # (no credential-listing tool) — codegen would raise a CodegenError about the
+        # missing credential before the indentation check even ran. Caught here with
+        # a clearer message instead of letting that surface as a raw CodegenError.
+        return False, (
+            "login always needs a real credential this server can never provide — use add_node instead; "
+            "it'll be downgraded to an 'unknown' placeholder automatically until a human picks a real "
+            "credential in the editor"
+        )
     spec = NODE_REGISTRY.get(node_type)
     if spec is None:
         return False, f"Unknown node type '{node_type}'"

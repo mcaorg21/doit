@@ -63,6 +63,70 @@ document.getElementById('trigger').addEventListener('click', function () {
 </script>
 """
 
+HIDDEN_DUPLICATE_TEXT_HTML = """
+<button id="trigger">Status</button>
+<div class="panel" style="display:none">
+  <ul><li id="visible-option"><span>Removido</span></li></ul>
+</div>
+<div style="display:none">
+  <ul><li id="hidden-option"><span>Removido</span></li></ul>
+</div>
+<script>
+document.getElementById('trigger').addEventListener('click', function () {
+  document.querySelector('.panel').style.display = 'block';
+});
+window.__clickedOption = null;
+document.querySelectorAll('li').forEach(function (li) {
+  li.addEventListener('click', function () {
+    window.__clickedOption = li.id;
+  });
+});
+</script>
+"""
+
+CHECKBOX_HTML = """
+<button id="trigger">Status</button>
+<div class="panel" style="display:none">
+  <label><input type="checkbox" value="Antigo" checked><span>Antigo</span></label>
+  <label><input type="checkbox" value="Removido"><span>Removido</span></label>
+  <div role="checkbox" aria-checked="true" id="aria-old">Outro antigo</div>
+</div>
+<script>
+document.getElementById('trigger').addEventListener('click', function () {
+  document.querySelector('.panel').style.display = 'block';
+});
+document.getElementById('aria-old').addEventListener('click', function () {
+  this.setAttribute('aria-checked', this.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+});
+</script>
+"""
+
+PRIMEFACES_CHECKBOX_HTML = """
+<button id="trigger">Status</button>
+<div class="panel" style="display:none">
+  <div class="ui-selectcheckboxmenu-header">
+    <div class="ui-chkbox"><input id="all" type="checkbox" checked></div>
+  </div>
+  <div class="ui-chkbox"><input value="Ativo" type="checkbox" checked></div><span>Ativo</span>
+  <div class="ui-chkbox"><input value="Removido" type="checkbox" checked></div><span>Removido</span>
+</div>
+<script>
+document.getElementById('trigger').addEventListener('click', function () {
+  document.querySelector('.panel').style.display = 'block';
+});
+document.getElementById('all').addEventListener('click', function () {
+  const next = this.checked;
+  document.querySelectorAll('.panel input[type=checkbox]').forEach(cb => cb.checked = next);
+});
+document.querySelectorAll('.panel span').forEach(function (span) {
+  span.addEventListener('click', function () {
+    const input = span.previousElementSibling.querySelector('input');
+    input.checked = !input.checked;
+  });
+});
+</script>
+"""
+
 
 @pytest.fixture(scope="module")
 def browser():
@@ -110,12 +174,12 @@ def _base_params(**overrides) -> dict:
 
 def test_node_registered_with_expected_shape():
     spec = NODE_REGISTRY["html_list_select"]
-    assert spec.label == "HTML List Select"
+    assert spec.label == "Select List HTML"
     assert spec.category == "action"
     assert spec.icon == "list-select"
     assert spec.opens_block is False
     param_keys = {p.key for p in spec.params}
-    assert {"triggerSelector", "clearSelector", "mode", "optionText", "optionTexts", "matchType", "listContainerSelector", "bypassOnFailure"} <= param_keys
+    assert {"triggerSelector", "clearSelector", "mode", "optionText", "optionTexts", "clearCheckedBeforeSelect", "matchType", "listContainerSelector", "bypassOnFailure"} <= param_keys
 
 
 def test_get_node_catalog_includes_it():
@@ -172,6 +236,75 @@ def test_multiple_mode_clicks_several_options_in_sequence(page):
     assert ns["r"] == {"clicked": ["Aprovado", "Reprovado"], "failed": []}
 
 
+def test_multiple_mode_clears_native_and_aria_checked_options_first(browser):
+    page = browser.new_page()
+    page.set_default_timeout(1500)
+    page.set_content(CHECKBOX_HTML)
+    try:
+        fragment = codegen_html_list_select(
+            _ctx(
+                _base_params(
+                    mode="multiple",
+                    optionTexts=["Removido"],
+                    listContainerSelector=".panel",
+                    listContainerSelectorType="css",
+                )
+            )
+        )
+        _exec_fragment(page, fragment)
+        assert page.locator("input[value='Antigo']").is_checked() is False
+        assert page.locator("input[value='Removido']").is_checked() is True
+        assert page.locator("#aria-old").get_attribute("aria-checked") == "false"
+    finally:
+        page.close()
+
+
+def test_multiple_mode_can_preserve_existing_checked_options(browser):
+    page = browser.new_page()
+    page.set_default_timeout(1500)
+    page.set_content(CHECKBOX_HTML)
+    try:
+        fragment = codegen_html_list_select(
+            _ctx(
+                _base_params(
+                    mode="multiple",
+                    optionTexts=["Removido"],
+                    clearCheckedBeforeSelect=False,
+                    listContainerSelector=".panel",
+                    listContainerSelectorType="css",
+                )
+            )
+        )
+        _exec_fragment(page, fragment)
+        assert page.locator("input[value='Antigo']").is_checked() is True
+        assert page.locator("input[value='Removido']").is_checked() is True
+        assert page.locator("#aria-old").get_attribute("aria-checked") == "true"
+    finally:
+        page.close()
+
+
+def test_multiple_mode_uses_master_visual_checkbox_to_clear_custom_container(browser):
+    page = browser.new_page()
+    page.set_default_timeout(1500)
+    page.set_content(PRIMEFACES_CHECKBOX_HTML)
+    try:
+        fragment = codegen_html_list_select(
+            _ctx(
+                _base_params(
+                    mode="multiple",
+                    optionTexts=["Removido"],
+                    listContainerSelector=".panel",
+                    listContainerSelectorType="css",
+                )
+            )
+        )
+        _exec_fragment(page, fragment)
+        assert page.locator("input[value='Ativo']").is_checked() is False
+        assert page.locator("input[value='Removido']").is_checked() is True
+    finally:
+        page.close()
+
+
 def test_clear_selector_is_clicked_before_selecting(page):
     fragment = codegen_html_list_select(_ctx(_base_params(clearSelector=".clear", clearSelectorType="css")))
     _exec_fragment(page, fragment)
@@ -203,6 +336,18 @@ def test_ambiguous_text_across_containers_raises_clear_error(browser):
         fragment = codegen_html_list_select(_ctx(_base_params(optionText="Aprovado", matchType="exact")))
         with pytest.raises(PlaywrightError, match="strict mode violation"):
             _exec_fragment(page, fragment)
+    finally:
+        page.close()
+
+
+def test_hidden_duplicate_is_ignored(browser):
+    page = browser.new_page()
+    page.set_default_timeout(1500)
+    page.set_content(HIDDEN_DUPLICATE_TEXT_HTML)
+    try:
+        fragment = codegen_html_list_select(_ctx(_base_params(optionText="Removido", matchType="exact")))
+        _exec_fragment(page, fragment)
+        assert page.evaluate("window.__clickedOption") == "visible-option"
     finally:
         page.close()
 

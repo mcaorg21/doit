@@ -3,7 +3,7 @@
   "projectId": "proj_fd45658d",
   "name": "Teste - Extracao PAN Relatorio",
   "createdAt": "2026-09-10T14:35:03.608695Z",
-  "updatedAt": "2026-09-11T20:55:47.103479Z",
+  "updatedAt": "2026-09-12T11:59:41.057731Z",
   "nodes": [
     {
       "id": "node_25d8baa9",
@@ -134,18 +134,158 @@
         "y": 80.0
       },
       "params": {
-        "triggerSelector": "(//*[normalize-space()='Status'])[1]/following::*[@role='combobox' or self::button or contains(@class,'select')][1]",
+        "triggerSelector": "//*[@id='tabSearchTab:comboStatus']",
         "triggerSelectorType": "xpath",
-        "mode": "single",
+        "mode": "multiple",
         "optionText": "Removido",
         "matchType": "exact",
         "bypassOnFailure": false,
         "resultVar": "statusProcessoSelecionado",
-        "listContainerSelector": "(//*[normalize-space()='Removido'])[1]/parent::*",
-        "listContainerSelectorType": "xpath"
+        "listContainerSelector": "//*[@id='tabSearchTab:comboStatus_panel']",
+        "listContainerSelectorType": "xpath",
+        "clearSelector": "",
+        "clearSelectorType": "xpath",
+        "optionTexts": [
+          "Removido"
+        ],
+        "clearCheckedBeforeSelect": true
       },
       "title": "Selecionar status Removido",
-      "note": "Abre o menu HTML do primeiro Status e restringe a opção ao contêiner pai da primeira ocorrência de Removido; a última ocorrência é uma cópia oculta que expirou no teste.",
+      "note": "Usa o clear geral nativo do HTML List Select: limpa todos os checkboxes marcados exclusivamente dentro de listContainerSelector e depois seleciona somente Removido.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_1301f2e9",
+      "type": "click",
+      "position": {
+        "x": 1600.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Pesquisar'])[last()]",
+        "selectorType": "xpath"
+      },
+      "title": "Pesquisar processos removidos",
+      "note": "Executa a pesquisa após selecionar o status Removido. Usa a última ocorrência visível do texto para evitar o item Pesquisar do menu lateral.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_629a2531",
+      "type": "element_present",
+      "position": {
+        "x": 1790.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Excel processo'])[1]",
+        "selectorType": "xpath",
+        "resultVar": "excelProcessoVisivel"
+      },
+      "title": "Aguardar resultados da pesquisa",
+      "note": "Aguarda a ação Excel processo ficar disponível após o carregamento dos resultados.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_46a426d0",
+      "type": "click",
+      "position": {
+        "x": 1980.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Excel processo'])[1]",
+        "selectorType": "xpath"
+      },
+      "title": "Abrir Excel processo",
+      "note": "Abre o diálogo de geração do relatório de processos.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_01131f86",
+      "type": "html_list_select",
+      "position": {
+        "x": 2170.0,
+        "y": 80.0
+      },
+      "params": {
+        "triggerSelector": "(//*[normalize-space()='Modelo Relatório']/following::*[contains(@class,'ui-selectonemenu')][1])",
+        "triggerSelectorType": "xpath",
+        "mode": "single",
+        "optionText": "DADOS DO PROCESSO",
+        "matchType": "exact",
+        "bypassOnFailure": false,
+        "resultVar": "modeloDadosProcessoSelecionado"
+      },
+      "title": "Selecionar modelo DADOS DO PROCESSO",
+      "note": "No diálogo Excel processo, abre o dropdown associado a Modelo Relatório e escolhe DADOS DO PROCESSO pelo texto visível.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_121783c8",
+      "type": "click",
+      "position": {
+        "x": 2360.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Gerar relatório'])[last()]",
+        "selectorType": "xpath",
+        "bypassOnFailure": false
+      },
+      "title": "Gerar relatório DADOS DO PROCESSO",
+      "note": "Solicita a geração do primeiro relatório após escolher o modelo.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_ee62211c",
+      "type": "html_list_select",
+      "position": {
+        "x": 2550.0,
+        "y": 80.0
+      },
+      "params": {
+        "triggerSelector": "(//*[normalize-space()='Modelo Relatório']/following::*[contains(@class,'ui-selectonemenu')][1])",
+        "triggerSelectorType": "xpath",
+        "mode": "single",
+        "optionText": "Inativações",
+        "matchType": "exact",
+        "bypassOnFailure": false,
+        "resultVar": "modeloInativacoesSelecionado"
+      },
+      "title": "Selecionar modelo Inativações",
+      "note": "Mantém o diálogo aberto e troca o Modelo Relatório para Inativações.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_a2fd5149",
+      "type": "click",
+      "position": {
+        "x": 2740.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Gerar relatório'])[last()]",
+        "selectorType": "xpath",
+        "bypassOnFailure": false
+      },
+      "title": "Gerar relatório Inativações",
+      "note": "Solicita a geração do segundo relatório.",
+      "fieldMap": null
+    },
+    {
+      "id": "node_2f5bff3c",
+      "type": "click",
+      "position": {
+        "x": 2930.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Fechar'])[last()]",
+        "selectorType": "xpath",
+        "bypassOnFailure": false
+      },
+      "title": "Fechar diálogo Excel processo",
+      "note": "Fecha o diálogo após solicitar os relatórios DADOS DO PROCESSO e Inativações.",
       "fieldMap": null
     }
   ],
@@ -196,6 +336,62 @@
       "id": "edge_8e7dec2a",
       "source": "node_87cbc51e",
       "target": "node_8c49c39d",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_9cf92ec7",
+      "source": "node_8c49c39d",
+      "target": "node_1301f2e9",
+      "sourceHandle": null,
+      "breakpoint": true
+    },
+    {
+      "id": "edge_59f19a42",
+      "source": "node_1301f2e9",
+      "target": "node_629a2531",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_88c68c1e",
+      "source": "node_629a2531",
+      "target": "node_46a426d0",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_b72cb280",
+      "source": "node_46a426d0",
+      "target": "node_01131f86",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_d49ad30f",
+      "source": "node_01131f86",
+      "target": "node_121783c8",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_0b5bc248",
+      "source": "node_121783c8",
+      "target": "node_ee62211c",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_360f202a",
+      "source": "node_ee62211c",
+      "target": "node_a2fd5149",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_4c3564a8",
+      "source": "node_a2fd5149",
+      "target": "node_2f5bff3c",
       "sourceHandle": null,
       "breakpoint": false
     }

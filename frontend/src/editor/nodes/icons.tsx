@@ -65,7 +65,7 @@ const ICONS: Record<string, IconType> = {
   download: LuDownload, // Download File
   cookie: LuCookie, // Save Cookies / Load Cookies
   'log-in': LuLogIn, // Login
-  'list-select': LuListTree, // HTML List Select
+  'list-select': LuListTree, // Select List HTML
 }
 
 // LuSplit's glyph reads top-to-bottom (a path forking upward) — the canvas flows

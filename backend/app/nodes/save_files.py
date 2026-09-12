@@ -100,6 +100,7 @@ register(
             "the same folder. Use Get File anywhere else in the SAME run to retrieve what was saved here by "
             "filename."
         ),
+        example="Decodes a base64 PDF from an earlier HTTP Request and saves it as 'invoice.pdf'",
         icon="save",
         params=[
             ParamField(key="files", label="Files", type="fileList", default=[]),

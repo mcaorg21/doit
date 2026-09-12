@@ -20,6 +20,7 @@ register(
         label="Select Option",
         category="action",
         description="Selects an option in a <select> element identified by a selector.",
+        example="Selects 'Brazil' in the <select> '#country'",
         icon="chevrons-up-down",
         params=[
             selector_field(placeholder="country"),

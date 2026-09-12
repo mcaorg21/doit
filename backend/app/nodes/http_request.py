@@ -134,6 +134,7 @@ register(
             "the fetched data in a named variable for a separate Loop node to pick up "
             "and iterate later."
         ),
+        example='GET https://api.example.com/leads — stores the JSON response in a variable',
         icon="globe",
         opens_block=_auto_loop,
         params=[

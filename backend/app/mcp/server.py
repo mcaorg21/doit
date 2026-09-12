@@ -524,12 +524,16 @@ async def demo_node(
     note: str | None = None,
 ) -> DemoNodeResult:
     """Runs one step FOR REAL against the live session's browser (goto/fill/click/
-    hover/select_option/wait/element_present/get_text/http_request-without-autoLoop/
-    download_file/save_cookies only — loop/if/browser_2captcha aren't demoable, use
-    add_node instead; Save Files/Get File/Load Cookies/Login aren't demoable either,
-    same reason — use add_node for those too (Login also always needs a credential
-    this server can't supply, so it'll come back as an 'unknown' placeholder either
-    way). For download_file specifically: the node is only recorded once
+    hover/select_option/wait/element_present/get_text/execute_script/html_list_select/
+    http_request-without-autoLoop/download_file/save_cookies only — loop/if/
+    browser_2captcha aren't demoable, use add_node instead; Save Files/Get File/Load
+    Cookies/Login aren't demoable either, same reason — use add_node for those too
+    (Login also always needs a credential this server can't supply, so it'll come
+    back as an 'unknown' placeholder either way). execute_script is exactly
+    Selenium/ChromeDriver's execute_script(): raw JS, arguments[0]/arguments[1]/...
+    for whatever you pass in `args`, `return` becomes the result — useful for
+    anything no other node covers (reading a computed style, dispatching a custom
+    event, scrolling, ...). For download_file specifically: the node is only recorded once
     the download actually finishes and the file is saved successfully — a timeout or
     a click that never triggers a download fails the step like any other, nothing is
     persisted, and capturedOutput reports the saved filename/path only, never

@@ -123,6 +123,7 @@ register(
             "error instead of guessing — use 'List Container Selector' to scope the search to just the "
             "menu's own panel when that happens."
         ),
+        example="Opens the 'Status' menu and clicks the option 'Aprovado'",
         icon="list-select",
         params=[
             ParamField(key="triggerSelector", label="Trigger Selector (opens the menu)", type="text", required=True, placeholder="#status-dropdown"),

@@ -28,6 +28,7 @@ register(
             "set by an earlier node — running everything downstream once per item, "
             "accessible as {{item.field}} (same mechanism as HTTP Request's loop)."
         ),
+        example='Loops over {{leads}}, running the nodes inside once per item',
         icon="repeat",
         opens_block=True,
         params=[

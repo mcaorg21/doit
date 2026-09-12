@@ -21,6 +21,7 @@ register(
             "(e.g. to detect whether login succeeded), storing True/False in a variable for a "
             "later IF node to branch on."
         ),
+        example="Checks whether '#logged-in-badge' exists, storing True/False in 'loggedIn'",
         icon="scan-search",
         params=[
             selector_field(placeholder="logged-in-badge"),

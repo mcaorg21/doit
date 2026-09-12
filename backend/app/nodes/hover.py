@@ -16,6 +16,7 @@ register(
         label="Hover",
         category="action",
         description="Hovers the mouse over an element identified by a selector.",
+        example="Hovers over '.menu-item' to reveal a submenu",
         icon="mouse-pointer-2",
         params=[
             selector_field(placeholder=".menu-item"),

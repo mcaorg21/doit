@@ -26,6 +26,7 @@ register(
             "Optional — the browser is already closed automatically at the end of its "
             "block even without this node; use this to close it early, mid-flow."
         ),
+        example='Closes the browser opened earlier in this flow',
         icon="circle-x",
         params=[],
         codegen=codegen_close_browser,

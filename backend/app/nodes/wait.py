@@ -37,6 +37,7 @@ register(
         label="Wait",
         category="action",
         description="Pauses execution either for a fixed duration or until an element appears on the page.",
+        example="Waits 2 seconds, or until '#result' appears on the page",
         icon="clock",
         params=[
             ParamField(

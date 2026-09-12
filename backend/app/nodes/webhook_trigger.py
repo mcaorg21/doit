@@ -22,6 +22,7 @@ register(
             "fires while the workflow is published (topbar toggle) — same as the Schedule "
             "Trigger."
         ),
+        example='POST /webhooks/new-lead',
         icon="webhook",
         params=[
             ParamField(

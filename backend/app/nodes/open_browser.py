@@ -75,6 +75,7 @@ register(
             "node or a breakpoint on any connector, DevTools opens automatically so you can "
             "inspect elements while it's paused."
         ),
+        example='Launches Chrome (visible) and opens a blank page',
         icon="chrome",
         opens_block=True,
         closing_stmt=closing_stmt_open_browser,

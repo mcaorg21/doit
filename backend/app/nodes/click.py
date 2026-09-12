@@ -25,6 +25,7 @@ register(
         label="Click",
         category="action",
         description="Clicks an element identified by a selector.",
+        example="Clicks the button matching '#submit'",
         icon="mouse-pointer-click",
         params=[
             selector_field(placeholder="button[type=submit]"),

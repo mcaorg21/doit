@@ -20,6 +20,7 @@ register(
         label="Fill Input",
         category="action",
         description="Fills a text input identified by a selector.",
+        example="Fills '#email' with 'john@example.com'",
         icon="rectangle-ellipsis",
         params=[
             selector_field(placeholder="email"),

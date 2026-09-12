@@ -22,6 +22,7 @@ register(
             "(sec min hour day month weekday). Must be the workflow's start node. The "
             "workflow only runs on schedule while Published (topbar toggle)."
         ),
+        example='Every day at 08:00',
         icon="schedule",
         params=[
             ParamField(

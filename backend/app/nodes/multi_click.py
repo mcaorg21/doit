@@ -33,6 +33,7 @@ register(
             "selector and selector type (ID/Class/CSS/XPath/Full XPath). Runs top to bottom, "
             "in a single node, one click after another."
         ),
+        example="Clicks '.tab-1' then '.tab-2' in sequence",
         icon="list-checks",
         params=[
             ParamField(key="clicks", label="Clicks", type="clickList", default=[]),

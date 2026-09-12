@@ -25,6 +25,7 @@ register(
             "Same mechanism as toggling a breakpoint on a connector, but as an explicit "
             "node — use the Run panel's Continue button or type a pdb command to resume."
         ),
+        example='Stops the run here so you can inspect the page with pdb',
         icon="pause",
         params=[],
         codegen=codegen_pause,

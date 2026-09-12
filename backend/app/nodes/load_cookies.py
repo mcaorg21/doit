@@ -52,6 +52,7 @@ register(
             "it just skips loading and logs it, unless \"Skip if missing\" is turned off. Needs an "
             "open_browser earlier in the flow."
         ),
+        example="Loads 'cookies.json' from a previous run to skip logging in again",
         icon="cookie",
         params=[
             ParamField(

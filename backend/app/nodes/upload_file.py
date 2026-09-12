@@ -24,6 +24,7 @@ register(
             "counterpart to Fill Input for text fields. File Path is usually {{getFileNode.resultVar}} "
             "from a Get File node, or {{saveFilesNode.resultVar.files[0]}} straight from Save Files."
         ),
+        example="Attaches 'filePath' to the file input '#upload'",
         icon="upload",
         params=[
             selector_field(placeholder="input[type=file]"),

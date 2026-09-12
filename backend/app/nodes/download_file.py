@@ -136,6 +136,7 @@ register(
             "gets its own isolated subfolder, so two runs of this workflow firing at the same time (e.g. two "
             "webhook calls, or a scheduled run overlapping a manual one) never mix up each other's files."
         ),
+        example="Clicks '.download-link' and saves the downloaded file",
         icon="download",
         params=[
             selector_field(placeholder="a.download-link, button#export"),

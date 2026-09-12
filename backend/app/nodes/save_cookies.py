@@ -44,6 +44,7 @@ register(
             "open_browser earlier in the flow. Unlike Save Files/Download File, this is NOT isolated per "
             "run — saving overwrites whatever was there before, by design."
         ),
+        example="Saves the current login session's cookies to 'cookies.json'",
         icon="cookie",
         params=[
             ParamField(

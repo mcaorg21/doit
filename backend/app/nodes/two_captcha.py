@@ -107,6 +107,7 @@ register(
             "still doesn't advance after this node, add a Pause node right after it to inspect "
             "what the widget expects. Requires a 2Captcha API key credential."
         ),
+        example="Solves the page's reCAPTCHA v2 and stores the token in 'captcha_token'",
         icon="puzzle",
         params=[
             ParamField(

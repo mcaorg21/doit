@@ -15,6 +15,7 @@ register(
         label="Navigate",
         category="action",
         description="Navigates the current page to a URL.",
+        example='Navigates to https://example.com/login',
         icon="navigation",
         params=[
             ParamField(

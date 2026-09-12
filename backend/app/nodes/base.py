@@ -61,6 +61,11 @@ class NodeSpec:
     params: list[ParamField]
     codegen: Callable[[Any], str]
     icon: str | None = None
+    example: str | None = None
+    """One concrete, concise sentence showing this node doing something real (e.g.
+    "Fills '#email' with 'john@example.com'") — shown alongside `description` in the
+    palette's hover tooltip so someone browsing node types can tell what a node
+    actually DOES without adding it first."""
     opens_block: bool | Callable[[Any], bool] = False
     """Whether this node's fragment ends by opening an indented block (a `for`/`with`
     line). Can be a per-instance callable when that depends on the node's own params
@@ -94,6 +99,7 @@ class NodeSpec:
             "label": self.label,
             "category": self.category,
             "description": self.description,
+            "example": self.example,
             "icon": self.icon,
             "isBranch": self.is_branch,
             "params": [

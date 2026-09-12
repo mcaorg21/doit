@@ -20,6 +20,7 @@ from app.nodes import (  # noqa: F401,E402
     wait,
     element_present,
     get_text,
+    execute_script,
     if_node,
     pause,
     two_captcha,

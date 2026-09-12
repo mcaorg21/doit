@@ -98,6 +98,7 @@ register(
             "Signs in through Microsoft's two-step username/password pages using a project login credential, "
             "then saves cookies for later runs. Use a confirmation selector that only exists inside the target app."
         ),
+        example="Signs into a Microsoft/Office 365 login page (username + password, optional 'stay signed in')",
         icon="log-in",
         params=[
             ParamField(key="url", label="Application URL", type="text", required=True, supportsTemplate=True),

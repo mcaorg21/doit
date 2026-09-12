@@ -58,6 +58,7 @@ register(
             "'login:password' (from your 2Captcha Scraping Browser dashboard) plus a "
             "Profile ID."
         ),
+        example='Connects to a 2Captcha Scraping Browser instead of a local Chrome',
         icon="cloud",
         opens_block=True,
         closing_stmt=closing_stmt_browser_2captcha,

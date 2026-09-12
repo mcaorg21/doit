@@ -26,6 +26,7 @@ register(
             "register the site's T2FA_SECRET as a Credential first (any Type name, e.g. \"totp\"), then "
             "pick it here. Stores the 6-digit code in a variable, ready to fill into the login form."
         ),
+        example='Generates the current 6-digit code from the stored 2FA secret',
         icon="shield-check",
         params=[
             ParamField(

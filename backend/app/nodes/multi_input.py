@@ -36,6 +36,7 @@ register(
             "selector, selector type (ID/Class/CSS/XPath/Full XPath), and whether it's a text input "
             "or a select dropdown. Runs top to bottom, in a single node."
         ),
+        example="Fills '#name' with 'Ana' and '#email' with 'ana@x.com' in one step",
         icon="rows",
         params=[
             ParamField(key="fields", label="Fields", type="fieldList", default=[]),

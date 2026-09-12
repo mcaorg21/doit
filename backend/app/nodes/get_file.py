@@ -47,6 +47,7 @@ register(
             "connected to the Save Files node directly, can sit anywhere later in the flow. Feed the result "
             "into Upload File to attach it to a file input, or reference it in any templated field."
         ),
+        example="Looks up 'invoice.pdf' saved earlier in this run and stores its path in 'filePath'",
         icon="folder-open",
         params=[
             ParamField(

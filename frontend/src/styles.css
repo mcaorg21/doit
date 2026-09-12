@@ -468,6 +468,50 @@
   border-color: var(--accent);
 }
 
+.palette-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.palette-tooltip-title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.palette-tooltip-desc {
+  color: var(--text-muted);
+}
+
+.palette-tooltip-example {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+}
+
+.palette-tooltip-example-label {
+  display: block;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
 .node-toolbar {
   position: absolute;
   top: -18px;

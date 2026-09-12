@@ -31,6 +31,7 @@ import {
   LuCookie,
   LuLogIn,
   LuListTree,
+  LuCode,
 } from 'react-icons/lu'
 
 // One specific, deliberately-picked icon per node type — Lucide for general/functional
@@ -66,6 +67,7 @@ const ICONS: Record<string, IconType> = {
   cookie: LuCookie, // Save Cookies / Load Cookies
   'log-in': LuLogIn, // Login
   'list-select': LuListTree, // Select List HTML
+  code: LuCode, // Execute Script (JS)
 }
 
 // LuSplit's glyph reads top-to-bottom (a path forking upward) — the canvas flows

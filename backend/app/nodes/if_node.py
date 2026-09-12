@@ -183,6 +183,7 @@ register(
             "Array/Object), an operator, and the value(s) to compare, n8n-style. Connect its two outputs "
             "to separate true/false paths — in v1 the branches run independently and don't rejoin."
         ),
+        example="If {{status}} equals 'Aprovado', branch one way, otherwise the other",
         icon="split",
         opens_block=True,
         is_branch=True,

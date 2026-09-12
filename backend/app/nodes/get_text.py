@@ -20,6 +20,7 @@ register(
             "Reads the visible text of an element matching a selector (ID/Class/CSS/XPath/Full XPath) "
             "and stores it in a variable, ready to reference elsewhere as {{varName}} or feed a Loop node."
         ),
+        example="Reads the text of '#price' into the variable 'price'",
         icon="scan-text",
         params=[
             selector_field(placeholder="price"),

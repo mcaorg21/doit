@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { nodeTypesApi } from '../api/nodeTypes'
 import type { NodeCategory, NodeTypeSpec } from '../types/nodeType'
@@ -41,6 +42,12 @@ interface Props {
   onAddNode: (spec: NodeTypeSpec) => void
 }
 
+interface TooltipState {
+  spec: NodeTypeSpec
+  x: number
+  y: number
+}
+
 export default function NodePalette({ onAddNode }: Props) {
   const { data: nodeTypes } = useQuery({
     queryKey: ['node-types'],
@@ -48,6 +55,13 @@ export default function NodePalette({ onAddNode }: Props) {
   })
 
   const [collapsed, setCollapsed] = useState<Set<NodeCategory>>(loadCollapsed)
+  // A custom tooltip (not the native `title=`, which is slow to appear and can't be
+  // styled) — shows what a node type actually DOES plus a concrete example, so
+  // someone browsing types can tell which one they want without adding it first.
+  // Rendered via a portal straight onto <body> for the same reason GenericNode's
+  // preview modal does: `.palette` has `overflow-y: auto`, which would clip a
+  // tooltip wide enough to need to spill past the sidebar's right edge.
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null)
 
   function toggleCategory(category: NodeCategory) {
     setCollapsed((prev) => {
@@ -107,9 +121,12 @@ export default function NodePalette({ onAddNode }: Props) {
                     onDragStart={(e) => {
                       e.dataTransfer.setData('application/x-automation-node-type', spec.type)
                       e.dataTransfer.effectAllowed = 'move'
+                      setTooltip(null)
                     }}
                     onClick={() => onAddNode(spec)}
-                    title={spec.description}
+                    onMouseEnter={(e) => setTooltip({ spec, x: e.clientX, y: e.clientY })}
+                    onMouseMove={(e) => setTooltip((t) => (t && t.spec.type === spec.type ? { ...t, x: e.clientX, y: e.clientY } : t))}
+                    onMouseLeave={() => setTooltip((t) => (t?.spec.type === spec.type ? null : t))}
                   >
                     {spec.label}
                   </div>
@@ -119,6 +136,21 @@ export default function NodePalette({ onAddNode }: Props) {
           </div>
         )
       })}
+
+      {tooltip &&
+        createPortal(
+          <div className="palette-tooltip" style={{ left: tooltip.x + 16, top: tooltip.y + 12 }}>
+            <div className="palette-tooltip-title">{tooltip.spec.label}</div>
+            <div className="palette-tooltip-desc">{tooltip.spec.description}</div>
+            {tooltip.spec.example && (
+              <div className="palette-tooltip-example">
+                <span className="palette-tooltip-example-label">Example</span>
+                {tooltip.spec.example}
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

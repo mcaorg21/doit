@@ -108,6 +108,7 @@ register(
             "2Captcha node between filling the password and clicking submit. Uses the same cookies storage "
             "as the standalone Save Cookies/Load Cookies nodes (same filename = same jar)."
         ),
+        example='Logs into https://app.example.com using a stored credential, then saves the session',
         icon="log-in",
         params=[
             ParamField(

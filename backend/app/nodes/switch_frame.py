@@ -32,6 +32,7 @@ register(
             "equivalent to Selenium's switch_to.default_content() followed by "
             "switch_to.frame(id). Leave the selector empty to switch back to the main page."
         ),
+        example="Switches into the iframe matching '#payment-frame' — later nodes act inside it",
         icon="frame",
         params=[
             ParamField(

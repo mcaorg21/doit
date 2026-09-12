@@ -23,6 +23,7 @@ register(
             "runs exactly as before — so the reconstructed workflow works immediately. "
             "Replace it with a proper typed node when you get to it."
         ),
+        example="A placeholder for a step this app doesn't have a node for yet",
         icon="help-circle",
         params=[
             ParamField(key="code", label="Original Python (verbatim)", type="textarea", required=True),

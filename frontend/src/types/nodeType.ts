@@ -40,6 +40,7 @@ export interface NodeTypeSpec {
   label: string
   category: NodeCategory
   description: string
+  example?: string | null
   icon: string | null
   isBranch: boolean
   params: ParamFieldSpec[]

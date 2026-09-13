@@ -112,3 +112,11 @@ class RunWorkflowResult(BaseModel):
     """The run's last ~20 real log lines (internal __NODE_START__/__NODE_ERROR__/
     __NODE_PAUSED__ markers stripped out) — enough context to see what the workflow
     was doing right before it stopped, without dumping the whole run."""
+
+
+class WriteWorkflowNotesResult(BaseModel):
+    notes: str
+    """Full Notes contents after this write — same shape get_workflow's `notes`
+    field returns."""
+    mode: str
+    """"append" or "replace", echoing back which one was actually used."""

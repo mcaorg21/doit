@@ -322,6 +322,184 @@
   margin-top: 16px;
 }
 
+.notes-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notes-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.notes-tab:hover {
+  color: var(--text);
+}
+
+.notes-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.notes-preview {
+  width: 100%;
+  min-height: 320px;
+  max-height: 60vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 4px 2px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.notes-preview-empty {
+  min-height: 320px;
+}
+
+.notes-preview > :first-child {
+  margin-top: 0;
+}
+
+.notes-preview > :last-child {
+  margin-bottom: 0;
+}
+
+.notes-preview h1,
+.notes-preview h2,
+.notes-preview h3,
+.notes-preview h4 {
+  margin: 18px 0 8px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.notes-preview h1 {
+  font-size: 22px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.notes-preview h2 {
+  font-size: 18px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+.notes-preview h3 {
+  font-size: 15px;
+}
+
+.notes-preview h4 {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.notes-preview p {
+  margin: 8px 0;
+}
+
+.notes-preview ul,
+.notes-preview ol {
+  margin: 8px 0;
+  padding-left: 22px;
+}
+
+.notes-preview li {
+  margin: 3px 0;
+}
+
+.notes-preview a {
+  color: var(--accent);
+}
+
+.notes-preview strong {
+  font-weight: 700;
+}
+
+.notes-preview em {
+  font-style: italic;
+}
+
+.notes-preview code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: var(--accent-bg);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.notes-preview pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.notes-preview pre code {
+  background: none;
+  padding: 0;
+  font-size: 12.5px;
+}
+
+.notes-preview blockquote {
+  margin: 10px 0;
+  padding: 2px 12px;
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
+}
+
+.notes-preview hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
+.notes-preview table {
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 13px;
+}
+
+.notes-preview th,
+.notes-preview td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+}
+
+.notes-preview th {
+  background: var(--bg);
+}
+
+.voice-recording-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  margin-right: 6px;
+  animation: voice-pulse 1s infinite;
+}
+
+@keyframes voice-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
 .field {
   display: flex;
   flex-direction: column;

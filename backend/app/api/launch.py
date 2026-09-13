@@ -50,6 +50,12 @@ class LaunchTerminalRequest(BaseModel):
     provider: CliProvider = "claude"
     projectId: str | None = None
     workflowId: str | None = None
+    instruction: str | None = None
+    """Free-form text (typically voice-dictated in the editor) to use as the CLI's
+    starting instruction instead of the generic "continue editing" prompt — see
+    _initial_prompt. Unlike projectId/workflowId, this is NOT restricted to
+    _SAFE_ID_RE since it's arbitrary human language; see _sanitize_for_batch_arg for
+    how it's made safe to embed in the generated .bat."""
 
 
 class LaunchResult(BaseModel):
@@ -144,14 +150,40 @@ def _validate_id(value: str | None, label: str) -> str | None:
     return value
 
 
-def _initial_prompt(project_id: str | None, workflow_id: str | None) -> str | None:
+def _initial_prompt(project_id: str | None, workflow_id: str | None, instruction: str | None = None) -> str | None:
     if not (project_id and workflow_id):
         return None
-    return (
+    parts = [
         f"Continue editando o workflow (project_id={project_id}, workflow_id={workflow_id}) "
         f"no app auto-mation via o MCP '{_MCP_SERVER_NAME}' ({_MCP_URL}). Comece chamando "
         f"get_workflow pra ver o que ja existe antes de continuar."
+    ]
+    instruction = (instruction or "").strip()
+    if instruction:
+        parts.append(f'O usuario ditou por voz a seguinte instrucao inicial: "{instruction}"')
+        parts.append(
+            "Esta e uma sessao guiada por voz: depois de cada passo concluido, ou antes de decidir "
+            "sozinho o que fazer a seguir, chame a tool ask_human_voice perguntando algo curto tipo "
+            "'E agora?' e espere a resposta antes de continuar. Repita isso ate a pessoa sinalizar que "
+            "terminou."
+        )
+    parts.append(
+        f"Quando terminar essa sessao de construcao, chame a tool write_workflow_notes "
+        f"(project_id={project_id}, workflow_id={workflow_id}) com um resumo conciso em markdown do "
+        f"que voce construiu ou alterou."
     )
+    return "\n\n".join(parts)
+
+
+def _sanitize_for_batch_arg(text: str) -> str:
+    """Makes free-form dictated text safe to embed as a quoted argument inside the
+    generated .bat (see _write_launch_script) — unlike project_id/workflow_id
+    (_SAFE_ID_RE-restricted), this text is arbitrary human language. Collapses
+    embedded newlines (would otherwise split the single command line), swaps "
+    for ' (an unescaped " would end the quoted argument early), and doubles any %
+    (cmd.exe treats %...% as variable expansion even inside double quotes — a
+    dictated "100% dos casos" would otherwise silently vanish)."""
+    return " ".join(text.split()).replace('"', "'").replace("%", "%%")
 
 
 _PROVIDER_LABELS: dict[CliProvider, str] = {"claude": "Claude Code", "codex": "Codex"}
@@ -163,9 +195,13 @@ def _write_launch_script(provider: CliProvider, prompt: str | None) -> str:
     shell string) is what makes embedding the prompt text safe. Left behind in TEMP
     after use, same as GENERATED_SCRIPTS_DIR's run scripts elsewhere in this app —
     small and harmless, not worth cleaning up."""
-    cli_cmd = f'{provider} "{prompt}"' if prompt else provider
+    cli_cmd = f'{provider} "{_sanitize_for_batch_arg(prompt)}"' if prompt else provider
     lines = [
         "@echo off",
+        # Dictated instructions can contain accented PT-BR characters; without this,
+        # cmd.exe's default console code page mangles them reading the UTF-8 .bat
+        # file back. Never needed before — only ASCII alnum ids flowed through here.
+        "chcp 65001 >nul",
         f"title {_PROVIDER_LABELS[provider]} - auto-mation",
         f'cd /d "{REPO_ROOT}"',
         cli_cmd,
@@ -184,7 +220,7 @@ def launch_terminal(payload: LaunchTerminalRequest):
 
     mcp_ok, mcp_detail = _ensure_mcp_registered(provider)
 
-    prompt = _initial_prompt(project_id, workflow_id)
+    prompt = _initial_prompt(project_id, workflow_id, payload.instruction)
     try:
         script_path = _write_launch_script(provider, prompt)
         # os.startfile (ShellExecute) opens the .bat the same way double-clicking it

@@ -12,6 +12,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",
     "@xyflow/react": "^12.11.2",
+    "marked": "^12.0.2",
     "prism-react-renderer": "^2.4.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

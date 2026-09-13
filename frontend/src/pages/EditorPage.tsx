@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { marked } from 'marked'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -25,6 +26,7 @@ import { toWFEdges, toWFNodes, wfEdgeToFlowEdge, wfNodeToFlowNode } from '../edi
 import { getUpstreamVariables, getUpstreamFieldMapOptions, type VariableSource } from '../editor/graph'
 import { arrangeWorkflowNodes } from '../editor/layout'
 import { genRandomToken } from '../editor/randomToken'
+import { useVoiceCapture } from '../editor/useVoiceCapture'
 import type { FlowEdgeData, FlowNodeData } from '../editor/types'
 import type { NodeTypeSpec } from '../types/nodeType'
 import type { WFEdge as WFEdgeModel, WFNode as WFNodeModel } from '../types/workflow'
@@ -51,6 +53,17 @@ export default function EditorPage() {
   const [notesOpen, setNotesOpen] = useState(false)
   const [notesDraft, setNotesDraft] = useState('')
   const [notesError, setNotesError] = useState<string | null>(null)
+  const [notesTab, setNotesTab] = useState<'edit' | 'preview'>('edit')
+
+  // Voice-guided build: dictate the starting instruction here, then the launched
+  // Claude/Codex session calls the ask_human_voice MCP tool for every follow-up
+  // ("E agora?"), surfaced below via pendingVoiceQuestion — see
+  // backend/app/mcp/voice_prompts.py for the blocking round-trip this answers.
+  const [voiceOpen, setVoiceOpen] = useState(false)
+  const [voiceProvider, setVoiceProvider] = useState<CliProvider>('claude')
+  const voiceLaunchCapture = useVoiceCapture()
+  const [pendingVoiceQuestion, setPendingVoiceQuestion] = useState<{ id: string; question: string } | null>(null)
+  const voiceAnswerCapture = useVoiceCapture()
 
   type Snapshot = { nodes: Node<FlowNodeData>[]; edges: Edge<FlowEdgeData>[] }
   const nodesRef = useRef(nodes)
@@ -195,6 +208,9 @@ export default function EditorPage() {
     if (notesQuery.data) setNotesDraft(notesQuery.data.notes)
   }, [notesQuery.data])
 
+  // marked.parse is synchronous unless {async: true} is passed — safe to use directly as a string.
+  const notesHtml = useMemo(() => marked.parse(notesDraft, { breaks: true }) as string, [notesDraft])
+
   const saveNotesMutation = useMutation({
     mutationFn: (notes: string) => workflowsApi.setNotes(projectId!, workflowId!, notes),
     onSuccess: (result) => {
@@ -204,6 +220,15 @@ export default function EditorPage() {
     },
     onError: (err: unknown) => {
       setNotesError(err instanceof ApiError || err instanceof Error ? err.message : 'Failed to save notes')
+    },
+  })
+
+  const answerVoiceQuestionMutation = useMutation({
+    mutationFn: (answer: string) =>
+      workflowsApi.answerVoiceQuestion(projectId!, workflowId!, pendingVoiceQuestion!.id, answer),
+    onSuccess: () => {
+      setPendingVoiceQuestion(null)
+      voiceAnswerCapture.reset()
     },
   })
 
@@ -639,9 +664,18 @@ export default function EditorPage() {
         case 'edge_removed':
           applyRemoteEdgeRemoved(msg.edgeId)
           break
+        case 'voice_question_asked':
+          voiceAnswerCapture.reset()
+          setPendingVoiceQuestion({ id: msg.questionId, question: msg.question })
+          break
+        case 'voice_question_timeout':
+          setPendingVoiceQuestion((prev) => (prev?.id === msg.questionId ? null : prev))
+          break
       }
     }
     return () => ws.close()
+    // voiceAnswerCapture is a fresh object every render (its own state/callbacks) —
+    // deliberately excluded so this effect doesn't reconnect the socket every render.
   }, [workflowId, loaded, applyRemoteNodeAdded, applyRemoteNodeUpdated, applyRemoteNodeRemoved, applyRemoteEdgeAdded, applyRemoteEdgeRemoved])
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null
@@ -717,11 +751,12 @@ export default function EditorPage() {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [launchMenuOpen])
 
-  async function handleLaunchTerminal(provider: CliProvider) {
+  async function handleLaunchTerminal(provider: CliProvider, instruction?: string) {
     setLaunchMenuOpen(false)
+    setVoiceOpen(false)
     const title = provider === 'codex' ? 'Terminal (Codex)' : 'Terminal (Claude Code)'
     try {
-      const result = await launchApi.terminal(provider, projectId, workflowId)
+      const result = await launchApi.terminal(provider, projectId, workflowId, instruction)
       if (result.notify) {
         setLaunchResult({
           title,
@@ -852,6 +887,7 @@ export default function EditorPage() {
             className="icon-btn"
             onClick={() => {
               setNotesError(null)
+              setNotesTab('edit')
               setNotesOpen(true)
             }}
             title="Notes — a markdown guide for this workflow, also read by Claude/Codex via the MCP connector"
@@ -861,6 +897,21 @@ export default function EditorPage() {
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
               <line x1="9" y1="7" x2="15" y2="7" />
               <line x1="9" y1="11" x2="15" y2="11" />
+            </svg>
+          </button>
+
+          <button
+            className="icon-btn"
+            onClick={() => {
+              voiceLaunchCapture.reset()
+              setVoiceOpen(true)
+            }}
+            title="Construir por voz — dite uma instrução e continue no Claude ou no Codex"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+              <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+              <line x1="12" y1="19" x2="12" y2="22" />
             </svg>
           </button>
 
@@ -1081,9 +1132,25 @@ export default function EditorPage() {
               .md file next to the workflow itself; Claude/Codex read it automatically via the MCP connector's
               get_workflow tool before working on this workflow.
             </p>
+            <div className="notes-tabs">
+              <button
+                type="button"
+                className={`notes-tab${notesTab === 'edit' ? ' active' : ''}`}
+                onClick={() => setNotesTab('edit')}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className={`notes-tab${notesTab === 'preview' ? ' active' : ''}`}
+                onClick={() => setNotesTab('preview')}
+              >
+                Preview
+              </button>
+            </div>
             {notesQuery.isLoading ? (
               <p className="hint">Loading…</p>
-            ) : (
+            ) : notesTab === 'edit' ? (
               <textarea
                 autoFocus
                 value={notesDraft}
@@ -1098,6 +1165,10 @@ export default function EditorPage() {
                   boxSizing: 'border-box',
                 }}
               />
+            ) : notesDraft.trim() ? (
+              <div className="notes-preview" dangerouslySetInnerHTML={{ __html: notesHtml }} />
+            ) : (
+              <p className="hint notes-preview-empty">Nothing to preview yet — switch to Edit and write some markdown.</p>
             )}
             {notesError && <div className="error-banner">{notesError}</div>}
             <div className="modal-actions">
@@ -1110,6 +1181,157 @@ export default function EditorPage() {
                 onClick={() => saveNotesMutation.mutate(notesDraft)}
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {voiceOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            voiceLaunchCapture.stop()
+            setVoiceOpen(false)
+          }}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 520 }}>
+            <h3>Construir por voz</h3>
+            <p className="hint" style={{ marginBottom: 8 }}>
+              Dite a instrução inicial pro Claude/Codex. Depois de abrir o terminal, sempre que a sessão terminar um
+              passo ela vai perguntar "E agora?" bem aqui no editor, e você continua guiando por voz.
+            </p>
+            {!voiceLaunchCapture.supported && (
+              <div className="error-banner">Reconhecimento de voz não é suportado neste navegador (funciona no Chrome) — digite a instrução abaixo.</div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={!voiceLaunchCapture.supported}
+                onClick={() => (voiceLaunchCapture.recording ? voiceLaunchCapture.stop() : voiceLaunchCapture.start())}
+              >
+                {voiceLaunchCapture.recording && <span className="voice-recording-dot" />}
+                {voiceLaunchCapture.recording ? 'Parar' : 'Gravar'}
+              </button>
+              {voiceLaunchCapture.interim && (
+                <span className="hint" style={{ fontStyle: 'italic' }}>
+                  {voiceLaunchCapture.interim}
+                </span>
+              )}
+            </div>
+            <textarea
+              autoFocus
+              value={voiceLaunchCapture.transcript}
+              onChange={(e) => voiceLaunchCapture.setTranscript(e.target.value)}
+              placeholder="Ex: cria um workflow que abre o site X, faz login e baixa o relatório mensal"
+              style={{
+                width: '100%',
+                minHeight: 120,
+                fontSize: 13,
+                resize: 'vertical',
+                boxSizing: 'border-box',
+              }}
+            />
+            {voiceLaunchCapture.error && <div className="error-banner">{voiceLaunchCapture.error}</div>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button
+                type="button"
+                className={`btn btn-sm${voiceProvider === 'claude' ? ' control-button-active' : ''}`}
+                onClick={() => setVoiceProvider('claude')}
+              >
+                Claude
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm${voiceProvider === 'codex' ? ' control-button-active' : ''}`}
+                onClick={() => setVoiceProvider('codex')}
+              >
+                Codex
+              </button>
+            </div>
+            <div className="modal-actions">
+              <button
+                className="btn"
+                onClick={() => {
+                  voiceLaunchCapture.stop()
+                  setVoiceOpen(false)
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={!voiceLaunchCapture.transcript.trim()}
+                onClick={() => handleLaunchTerminal(voiceProvider, voiceLaunchCapture.transcript.trim())}
+              >
+                Continuar no {voiceProvider === 'codex' ? 'Codex' : 'Claude'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingVoiceQuestion && (
+        <div className="modal-overlay">
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 520 }}>
+            <h3>🎙️ E agora?</h3>
+            <p className="hint" style={{ marginBottom: 8 }}>
+              {pendingVoiceQuestion.question}
+            </p>
+            {!voiceAnswerCapture.supported && (
+              <div className="error-banner">Reconhecimento de voz não é suportado neste navegador (funciona no Chrome) — digite a resposta abaixo.</div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={!voiceAnswerCapture.supported}
+                onClick={() => (voiceAnswerCapture.recording ? voiceAnswerCapture.stop() : voiceAnswerCapture.start())}
+              >
+                {voiceAnswerCapture.recording && <span className="voice-recording-dot" />}
+                {voiceAnswerCapture.recording ? 'Parar' : 'Gravar'}
+              </button>
+              {voiceAnswerCapture.interim && (
+                <span className="hint" style={{ fontStyle: 'italic' }}>
+                  {voiceAnswerCapture.interim}
+                </span>
+              )}
+            </div>
+            <textarea
+              autoFocus
+              value={voiceAnswerCapture.transcript}
+              onChange={(e) => voiceAnswerCapture.setTranscript(e.target.value)}
+              placeholder="Sua resposta..."
+              style={{
+                width: '100%',
+                minHeight: 100,
+                fontSize: 13,
+                resize: 'vertical',
+                boxSizing: 'border-box',
+              }}
+            />
+            {voiceAnswerCapture.error && <div className="error-banner">{voiceAnswerCapture.error}</div>}
+            <div className="modal-actions">
+              <button
+                className="btn"
+                disabled={answerVoiceQuestionMutation.isPending}
+                onClick={() => {
+                  voiceAnswerCapture.stop()
+                  answerVoiceQuestionMutation.mutate('(cancelado pelo usuário — sem resposta)')
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={!voiceAnswerCapture.transcript.trim() || answerVoiceQuestionMutation.isPending}
+                onClick={() => {
+                  voiceAnswerCapture.stop()
+                  answerVoiceQuestionMutation.mutate(voiceAnswerCapture.transcript.trim())
+                }}
+              >
+                Enviar
               </button>
             </div>
           </div>

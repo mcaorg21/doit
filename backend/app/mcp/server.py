@@ -26,7 +26,7 @@ from app.codegen.engine import generate_script
 from app.execution import workflow_events
 from app.execution.runner import NODE_ERROR_MARKER, start_run, stop_run
 from app.execution.triggers import _find_pause_points, find_root_node
-from app.mcp import live_sessions
+from app.mcp import live_sessions, voice_prompts
 from app.models.mcp import (
     AddNodeResult,
     ConnectNodesResult,
@@ -40,6 +40,7 @@ from app.models.mcp import (
     ValidateWorkflowResult,
     WorkflowSummary,
     WorkflowWithNotes,
+    WriteWorkflowNotesResult,
 )
 from app.models.run import RunStatus
 from app.models.workflow import Position, WFEdge, WFNode, Workflow, WorkflowCreate, WorkflowSave
@@ -93,7 +94,15 @@ mcp = FastMCP(
         "it further, running it, debugging a failure)? Call get_workflow first and "
         "read its `notes` field before doing anything else — that's where a human "
         "writes down what this specific workflow does, known quirks, and how to "
-        "validate/run it; it exists specifically to help you."
+        "validate/run it; it exists specifically to help you. In a VOICE-GUIDED "
+        "session (the human dictated your starting instruction instead of typing "
+        "it): after each step you finish, or whenever you're not sure what to do "
+        "next, call ask_human_voice with a short question like \"E agora?\" and wait "
+        "for the answer instead of guessing — repeat this until the human signals "
+        "they're done. When you finish a build/edit session — voice-guided or not — "
+        "call write_workflow_notes with a concise markdown summary of what you did, "
+        "so the notes stay useful for whoever (or whatever) works on this workflow "
+        "next."
     ),
 )
 
@@ -655,6 +664,45 @@ async def pause_for_human(project_id: str, workflow_id: str, reason: str) -> Pau
             "it. Tell the human what you're stuck on now; don't call finish_live_session until they've resolved it."
         ),
     )
+
+
+@mcp.tool()
+async def ask_human_voice(project_id: str, workflow_id: str, question: str, timeout_seconds: float = 600) -> str:
+    """Ask the human something and WAIT for their answer by voice, inside the app
+    itself (not this terminal). Use this whenever you finish a step in a
+    voice-guided session, or whenever you're not sure what to do next — ask
+    something short like "E agora?" or "Finished X, what next?". The human sees a
+    mic prompt in the browser tab where this workflow is open; their answer
+    (transcribed and reviewed by them) becomes this call's return value. Raises an
+    error if nobody answers within timeout_seconds — in that case, try again or ask
+    directly in this terminal as a fallback."""
+    _get_workflow(project_id, workflow_id)
+    return await voice_prompts.ask(workflow_id, question, timeout_seconds)
+
+
+@mcp.tool()
+def write_workflow_notes(project_id: str, workflow_id: str, summary: str, mode: str = "append") -> WriteWorkflowNotesResult:
+    """Write markdown into this workflow's Notes — the write counterpart to
+    get_workflow's read-only `notes` field, and the same file the "Notes" button in
+    the editor topbar edits. Call this when you finish a build/edit session
+    (especially one kicked off from a dictated voice instruction) with a CONCISE
+    markdown summary of what you built or changed — the next session reads `notes`
+    first, so this is how it learns what happened here. mode="append" (default)
+    adds `summary` after whatever notes already exist, separated by a horizontal
+    rule, so a human's own prior guidance is never lost. mode="replace" OVERWRITES
+    the whole file with just `summary` — only use this if the human explicitly
+    asked you to rewrite the notes from scratch."""
+    if mode not in ("append", "replace"):
+        raise ValueError('mode must be "append" or "replace"')
+    _get_workflow(project_id, workflow_id)
+    summary = summary.strip()
+    if mode == "append":
+        existing = workflow_store.get_workflow_notes(project_id, workflow_id).rstrip()
+        new_notes = f"{existing}\n\n---\n\n{summary}\n" if existing else f"{summary}\n"
+    else:
+        new_notes = f"{summary}\n"
+    workflow_store.set_workflow_notes(project_id, workflow_id, new_notes)
+    return WriteWorkflowNotesResult(notes=new_notes, mode=mode)
 
 
 @mcp.tool()

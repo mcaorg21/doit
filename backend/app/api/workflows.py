@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from app.execution import triggers, workflow_events
+from app.mcp import voice_prompts
 from app.models.workflow import Workflow, WorkflowCreate, WorkflowImport, WorkflowSave
 from app.storage import workflow_store
 
@@ -12,6 +13,11 @@ class WorkflowMove(BaseModel):
 
 class WorkflowNotes(BaseModel):
     notes: str
+
+
+class VoiceAnswer(BaseModel):
+    questionId: str
+    answer: str
 
 router = APIRouter(prefix="/api/projects/{project_id}/workflows", tags=["workflows"])
 
@@ -101,3 +107,13 @@ def get_workflow_notes(project_id: str, workflow_id: str):
 def set_workflow_notes(project_id: str, workflow_id: str, payload: WorkflowNotes):
     workflow_store.set_workflow_notes(project_id, workflow_id, payload.notes)
     return payload
+
+
+@router.post("/{workflow_id}/voice-answer")
+def submit_voice_answer(project_id: str, workflow_id: str, payload: VoiceAnswer):
+    """Resolves a pending ask_human_voice MCP tool call (app/mcp/voice_prompts.py)
+    with the human's transcribed answer — the REST half of the voice-guided build
+    loop, called by the editor's "E agora?" prompt."""
+    if not voice_prompts.answer(workflow_id, payload.questionId, payload.answer):
+        raise HTTPException(status_code=404, detail="No matching pending question (it may have timed out or already been answered).")
+    return {"ok": True}

@@ -1318,10 +1318,14 @@ export default function EditorPage() {
                 disabled={answerVoiceQuestionMutation.isPending}
                 onClick={() => {
                   voiceAnswerCapture.stop()
-                  answerVoiceQuestionMutation.mutate('(cancelado pelo usuário — sem resposta)')
+                  answerVoiceQuestionMutation.mutate(
+                    '(usuário encerrou a sessão guiada por voz — não há mais instruções. Finalize agora: não faça ' +
+                      'mais nenhuma alteração e chame a tool write_workflow_notes com um resumo em markdown do que ' +
+                      'foi construído ou alterado nesta sessão antes de parar.)',
+                  )
                 }}
               >
-                Cancelar
+                Terminar sessão
               </button>
               <button
                 className="btn btn-primary"

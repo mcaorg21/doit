@@ -1,0 +1,213 @@
+import { en } from './en'
+
+// Portuguese strings — must define every key from en.ts (enforced by
+// LanguageContext.tsx's Record<TranslationKey, string> type).
+export const pt: Record<keyof typeof en, string> = {
+  // Topbar (editor)
+  workflowNamePlaceholder: 'Nome do workflow',
+  buildingBannerTitle: 'Uma sessão de terminal (Claude/Codex) está trabalhando neste workflow',
+  buildingLabel: 'Construindo...',
+  dismiss: 'Dispensar',
+  saving: 'Salvando…',
+  unsavedChanges: 'Alterações não salvas',
+  undoTitle: 'Desfazer (Ctrl+Z)',
+  redoTitle: 'Refazer (Ctrl+Y)',
+  notesButtonTitle: 'Notes — um guia em markdown deste workflow, também lido pelo Claude/Codex via o conector MCP',
+  voiceButtonTitle: 'Construir por voz — dite uma instrução e continue no Claude ou no Codex',
+  launchButtonTitle: 'Continuar este workflow no Claude ou no Codex',
+  claudeLabel: 'Claude',
+  codexLabel: 'Codex',
+  openInTerminal: 'Abrir no Terminal',
+  openInClaudeDesktop: 'Abrir no Claude Desktop',
+  exportTitle: 'Exportar workflow como JSON',
+  publishUnpublishTitle: 'Despublicar — impede o gatilho de Agenda/Webhook de disparar',
+  publishErrorTitle: 'Uma execução automática deste workflow falhou, então ele foi despublicado automaticamente — corrija e clique pra publicar de novo',
+  publishDirtyTitle: 'Salve suas alterações antes de publicar',
+  publishTitle: 'Publicar — permite que o gatilho de Agenda/Webhook deste workflow dispare',
+  errorLabel: 'Erro',
+  publishedLabel: 'Publicado',
+  publishLabel: 'Publicar',
+  saveButton: 'Salvar',
+
+  // Panel tabs
+  codePreviewTab: 'Pré-visualização do Código',
+  runTab: 'Executar',
+  executionsTab: 'Execuções',
+  resizeHandleTitle: 'Arraste para redimensionar',
+
+  // Delete node modal
+  deleteNodeTitle: 'Excluir node',
+  deletePrefix: 'Excluir',
+  thesePrefix: 'estes',
+  nodeWord: 'node',
+  nodesWord: 'nodes',
+  thisNode: 'este node',
+  deleteConfirmSuffix: '? As conexões dele com outros nodes também serão removidas.',
+  deleteConfirmPluralSuffix: ')? As conexões deles com outros nodes também serão removidas.',
+  cancel: 'Cancelar',
+  delete: 'Excluir',
+
+  // Notes modal
+  notesTitle: 'Notes',
+  notesDescription:
+    'Um guia em markdown pra este workflow — o que ele faz, particularidades conhecidas, como validar. Salvo como um arquivo .md simples ao lado do próprio workflow; o Claude/Codex lê automaticamente via a tool get_workflow do conector MCP antes de trabalhar neste workflow.',
+  editTab: 'Editar',
+  previewTab: 'Pré-visualização',
+  loading: 'Carregando…',
+  notesPlaceholder: '# O que este workflow faz\n\n...',
+  notesEmptyPreview: 'Nada pra pré-visualizar ainda — mude pra Editar e escreva um pouco de markdown.',
+
+  // Voice launch modal
+  voiceModalTitle: 'Construir por voz',
+  voiceModalDescription:
+    'Dite a instrução inicial pro Claude/Codex. Depois de abrir o terminal, sempre que a sessão terminar um passo ela vai perguntar "E agora?" bem aqui no editor, e você continua guiando por voz.',
+  voiceBuildingDescription: 'Construindo... abrindo o terminal e conectando ao MCP. Isso pode levar alguns segundos.',
+  voiceUnsupported: 'Reconhecimento de voz não é suportado neste navegador (funciona no Chrome) — digite a instrução abaixo.',
+  record: 'Gravar',
+  stop: 'Parar',
+  voicePlaceholder: 'Ex: cria um workflow que abre o site X, faz login e baixa o relatório mensal',
+  continuePrefix: 'Continuar no',
+
+  // "E agora?" modal
+  whatNowTitle: '🎙️ E agora?',
+  answerUnsupported: 'Reconhecimento de voz não é suportado neste navegador (funciona no Chrome) — digite a resposta abaixo.',
+  answerPlaceholder: 'Sua resposta...',
+  endSession: 'Terminar sessão',
+  send: 'Enviar',
+
+  // Launch result modal
+  ok: 'OK',
+  terminalOpened: 'Terminal aberto.',
+  terminalOpenFailed: 'Falha ao abrir terminal.',
+  claudeDesktopOpened: 'Claude Desktop aberto.',
+  claudeDesktopOpenFailed: 'Falha ao abrir Claude Desktop.',
+
+  // Node palette
+  categoryTriggers: 'Gatilhos',
+  categoryDataSources: 'Fontes de Dados',
+  categoryBrowser: 'Navegador',
+  categoryActions: 'Ações',
+  categoryLogic: 'Lógica',
+  categoryFunctions: 'Funções',
+  exampleLabel: 'Exemplo',
+
+  // Node config panel
+  selectNodePrompt: 'Selecione um node pra configurá-lo.',
+  titleFieldLabel: 'Título (exibido no node no canvas)',
+  noteFieldLabel: 'Nota (o que este node faz?)',
+  noteSetSuffix: '(preenchida)',
+  notePlaceholder: 'Explique pra que serve este node…',
+  noteHint: 'Aparece como comentário acima do código deste node, e como tooltip no canvas.',
+  resultTypeLabel: 'Tipo do Resultado',
+  resultType_auto: 'Automático',
+  resultType_string: 'Texto',
+  resultType_array: 'Array',
+  resultType_object: 'Objeto',
+  resultExampleLabel: 'Exemplo (da última execução real):',
+  resultExampleEmpty: 'Ainda sem exemplo — rode este node de verdade uma vez pra capturar um.',
+  fullUrlLabel: 'URL Completa',
+  webhookOnlyRespondsHint: 'só responde enquanto este workflow está Publicado (botão no topo).',
+
+  // Variable picker field
+  failedToPreview: 'Falha ao pré-visualizar',
+  selectVariablePlaceholder: 'Selecione uma variável…',
+  noUpstreamVariableHint: 'Nenhum node anterior nesta cadeia define uma variável nomeada ainda (ex: adicione um node "Elemento Presente?" antes deste).',
+  runningPreview: 'Rodando pré-visualização…',
+
+  // Text field template support
+  templateSupportHint:
+    'Suporta {{item.campo}} dentro de um loop, ou {{minhaVar.campo}} pra uma variável definida por um node anterior (ex: a Variável de Resultado da Requisição HTTP) — campos aninhados também funcionam, ex: {{item.endereco.rua}}',
+  insertVariableTitle: 'Inserir uma variável descoberta via Save Mapping de um node anterior',
+  insertVariablePlaceholder: '+ Inserir variável…',
+
+  // Credential picker field
+  failedToCreateCredential: 'Falha ao criar credencial',
+  selectCredentialPlaceholder: 'Selecione uma credencial…',
+  createNewCredentialTitlePrefix: 'Criar uma nova',
+  newCredentialButton: '+ Nova',
+  noCredentialHintPrefix: 'Nenhuma credencial',
+  noCredentialHintSuffix: 'ainda — clique em "+ Nova" acima, ou adicione uma pelo botão Credenciais na página do projeto.',
+  newCredentialModalTitlePrefix: 'Nova credencial',
+  newCredentialModalTitleSuffix: '',
+  credentialLoginLabel: 'Login',
+  credentialPasswordLabel: 'Senha',
+  credentialValueLabel: 'Valor',
+
+  // List field components (Click/Field/File/KeyValue/Text lists)
+  noClicksYetHint: 'Nenhum clique ainda — adicione um abaixo.',
+  clickWord: 'Clique',
+  removeClickTitle: 'Remover clique',
+  addClickButton: '+ Adicionar Clique',
+  noFieldsYetHint: 'Nenhum campo ainda — adicione um abaixo.',
+  fieldWord: 'Campo',
+  removeFieldTitle: 'Remover campo',
+  fieldKindText: 'Texto (preencher)',
+  fieldKindSelect: 'Select (dropdown)',
+  addFieldButton: '+ Adicionar Campo',
+  noneYetHint: 'Nenhum ainda — adicione um abaixo.',
+  removeTitle: 'Remover',
+  addGenericButton: '+ Adicionar',
+  fileListBase64Hint: 'O conteúdo precisa ser base64 — o modo de resposta "File" da Requisição HTTP já produz isso, seja lá o que a API realmente retornou.',
+  keyValueTemplateHint: 'Os valores suportam {{item.campo}} dentro de um loop, ou {{minhaVar.campo}} pra uma variável definida por um node anterior.',
+  noOptionsYetHint: 'Nenhuma opção ainda — adicione uma abaixo.',
+  removeOptionTitle: 'Remover opção',
+  addOptionButton: '+ Adicionar Opção',
+
+  // Language toggle
+  languageToggleTitle: 'Trocar idioma do app',
+
+  // Project list page
+  appName: 'Auto-mation',
+  projectsTitle: 'Projetos',
+  newProject: '+ Novo Projeto',
+  newProjectModalTitle: 'Novo Projeto',
+  nameLabel: 'Nome',
+  newProjectNamePlaceholder: 'Coletor de Leads',
+  create: 'Criar',
+  deleteEmptyProjectTitle: 'Excluir projeto vazio',
+  deleteProjectModalTitle: 'Excluir projeto',
+  deleteProjectConfirm: 'Ele não tem workflows, então isso não pode ser desfeito restaurando nada — o projeto em si (e suas credenciais) vai desaparecer.',
+  noProjectsYet: 'Nenhum projeto ainda. Crie o primeiro pra começar.',
+  updatedPrefix: 'Atualizado em',
+  loadingEllipsis: 'Carregando...',
+  configureBackupTitle: 'Configurar backup —',
+  configureBackupDescription:
+    'Este projeto ainda não tem um endereço de backup (Postgres) configurado. Você pode configurar agora ou pular e fazer isso depois na página de Backup do projeto.',
+  postgresConnectionStringLabel: 'Connection string do Postgres',
+  configureLater: 'Configurar depois',
+  saveConnection: 'Salvar conexão',
+  testingConnection: 'Testando conexão…',
+
+  // Workflow list page
+  backToProjects: '← Projetos',
+  projectNamePlaceholder: 'Nome do projeto',
+  workflowsLabel: 'Workflows',
+  import: 'Importar',
+  backup: 'Backup',
+  credentials: 'Credenciais',
+  importPythonAi: 'Importar Python (IA)',
+  newFolder: '+ Nova Pasta',
+  newWorkflow: '+ Novo Workflow',
+  folderEmpty: 'Esta pasta está vazia.',
+  noWorkflowsInProject: 'Nenhum workflow ainda neste projeto.',
+  renameFolderTitle: 'Renomear pasta',
+  deleteFolderTitle: 'Excluir pasta',
+  duplicateWorkflowTitle: 'Duplicar workflow',
+  deleteWorkflowTitle: 'Excluir workflow',
+  moveToFolderTitle: 'Mover pra pasta',
+  rootFolderOption: '(raiz)',
+  newWorkflowModalTitle: 'Novo Workflow',
+  newWorkflowNamePlaceholder: 'Preencher formulário de cadastro por lead',
+  newFolderModalTitle: 'Nova Pasta',
+  newFolderNamePlaceholder: 'ex: Marketing',
+  renameFolderModalTitle: 'Renomear Pasta',
+  deleteFolderConfirmSuffix: '? Ela precisa estar vazia primeiro.',
+  deleteWorkflowConfirmSuffix: '? Isso não pode ser desfeito.',
+  errorPublishedStatus: 'Erro — uma execução automática falhou e foi despublicado automaticamente',
+  publishedStatus: 'Publicado',
+  notPublishedStatus: 'Não publicado',
+  failedToDeleteFolder: 'Falha ao excluir a pasta',
+  failedToImportWorkflow: 'Falha ao importar o workflow',
+  notValidWorkflowExport: 'Não é uma exportação de workflow válida — faltam nodes/edges',
+  failedToReadFile: 'Falha ao ler o arquivo',
+}

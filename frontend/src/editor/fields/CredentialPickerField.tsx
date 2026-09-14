@@ -4,6 +4,7 @@ import { credentialsApi } from '../../api/credentials'
 import { ApiError } from '../../api/client'
 import { PAIR_TYPES } from '../credentialTypes'
 import type { ParamFieldSpec } from '../../types/nodeType'
+import { useLanguage } from '../../i18n/LanguageContext'
 
 interface Props {
   spec: ParamFieldSpec
@@ -17,6 +18,7 @@ interface Props {
 // id; the node's own codegen resolves that id to the actual secret value.
 export default function CredentialPickerField({ spec, value, onChange, projectId }: Props) {
   const queryClient = useQueryClient()
+  const { t } = useLanguage()
   const { data: credentials } = useQuery({
     queryKey: ['credentials', projectId],
     queryFn: () => credentialsApi.list(projectId),
@@ -55,7 +57,7 @@ export default function CredentialPickerField({ spec, value, onChange, projectId
       setCreating(false)
     },
     onError: (err: unknown) => {
-      setError(err instanceof ApiError || err instanceof Error ? err.message : 'Failed to create credential')
+      setError(err instanceof ApiError || err instanceof Error ? err.message : t('failedToCreateCredential'))
     },
   })
 
@@ -69,56 +71,57 @@ export default function CredentialPickerField({ spec, value, onChange, projectId
       </label>
       <div style={{ display: 'flex', gap: 6 }}>
         <select value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} style={{ flex: 1 }}>
-          <option value="">Select a credential…</option>
+          <option value="">{t('selectCredentialPlaceholder')}</option>
           {matching.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
         </select>
-        <button type="button" className="btn btn-sm" onClick={startCreate} title={`Create a new "${spec.credentialType}" credential`}>
-          + New
+        <button type="button" className="btn btn-sm" onClick={startCreate} title={`${t('createNewCredentialTitlePrefix')} "${spec.credentialType}"`}>
+          {t('newCredentialButton')}
         </button>
       </div>
       {matching.length === 0 && (
         <span className="hint">
-          No "{spec.credentialType}" credential yet — click "+ New" above, or add one from the Credentials button on
-          the project page.
+          {t('noCredentialHintPrefix')} "{spec.credentialType}" {t('noCredentialHintSuffix')}
         </span>
       )}
 
       {creating && (
         <div className="modal-overlay" onClick={() => setCreating(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>New "{spec.credentialType}" credential</h3>
+            <h3>
+              {t('newCredentialModalTitlePrefix')} "{spec.credentialType}" {t('newCredentialModalTitleSuffix')}
+            </h3>
             <div className="field">
-              <label>Name</label>
+              <label>{t('nameLabel')}</label>
               <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. prod-account" />
             </div>
             {isPairType ? (
               <>
                 <div className="field">
-                  <label>Login</label>
+                  <label>{t('credentialLoginLabel')}</label>
                   <input value={pairLogin} onChange={(e) => setPairLogin(e.target.value)} placeholder="username" />
                 </div>
                 <div className="field">
-                  <label>Password</label>
+                  <label>{t('credentialPasswordLabel')}</label>
                   <input type="password" value={pairPassword} onChange={(e) => setPairPassword(e.target.value)} placeholder="password" />
                 </div>
               </>
             ) : (
               <div className="field">
-                <label>Value</label>
+                <label>{t('credentialValueLabel')}</label>
                 <input type="password" value={singleValue} onChange={(e) => setSingleValue(e.target.value)} placeholder="API key / token / secret" />
               </div>
             )}
             {error && <div className="error-banner">{error}</div>}
             <div className="modal-actions">
               <button className="btn" onClick={() => setCreating(false)}>
-                Cancel
+                {t('cancel')}
               </button>
               <button className="btn btn-primary" disabled={!canSave || createMutation.isPending} onClick={() => createMutation.mutate()}>
-                Create
+                {t('create')}
               </button>
             </div>
           </div>

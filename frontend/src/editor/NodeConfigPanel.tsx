@@ -6,17 +6,79 @@ import CredentialPickerField from './fields/CredentialPickerField'
 import type { FlowNodeData } from './types'
 import type { FieldMapOption, VariableSource } from './graph'
 import type { NodeTypeSpec, ParamFieldSpec, VisibleWhenCondition } from '../types/nodeType'
+import { useLanguage, type TranslationKey } from '../i18n/LanguageContext'
+import { translateNodeSpec, translateParamSpec } from '../i18n/useNodeText'
 
 interface Props {
   node: Node<FlowNodeData> | null
   spec: NodeTypeSpec | undefined
   onChangeParam: (key: string, value: unknown) => void
   onChangeMeta: (key: 'title' | 'note', value: string) => void
+  onChangeResultType: (paramKey: string, resultType: string) => void
   onDeleteNode: () => void
   upstreamVariables: VariableSource[]
   onPreviewVariable: (source: VariableSource) => Promise<unknown>
   upstreamFieldMapOptions: FieldMapOption[]
   projectId: string
+}
+
+const RESULT_TYPE_OPTIONS = ['auto', 'string', 'array', 'object'] as const
+type ResultType = (typeof RESULT_TYPE_OPTIONS)[number]
+
+// Shown right under a producesVariable field (usually "Result Variable") — lets the
+// human declare the variable's shape up front (so a downstream field can offer
+// object-path suggestions before this node has ever run) and shows the real example
+// value captured the last time it actually did run (see
+// backend/app/execution/runner.py's __NODE_RESULT__ marker capture).
+function ResultVariableExtras({
+  resultType,
+  example,
+  hasExample,
+  onChangeType,
+  t,
+}: {
+  resultType: ResultType
+  example: unknown
+  hasExample: boolean
+  onChangeType: (value: string) => void
+  t: (key: TranslationKey) => string
+}) {
+  return (
+    <div className="field" style={{ marginTop: -6 }}>
+      <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('resultTypeLabel')}</label>
+      <select value={resultType} onChange={(e) => onChangeType(e.target.value)} style={{ fontSize: 12 }}>
+        {RESULT_TYPE_OPTIONS.map((opt) => (
+          <option key={opt} value={opt}>
+            {t(`resultType_${opt}` as TranslationKey)}
+          </option>
+        ))}
+      </select>
+      {hasExample ? (
+        <>
+          <span className="hint">{t('resultExampleLabel')}</span>
+          <pre
+            style={{
+              marginTop: 4,
+              fontFamily: 'var(--mono)',
+              fontSize: 12,
+              background: 'var(--bg)',
+              border: '1px solid var(--border)',
+              padding: '6px 8px',
+              borderRadius: 6,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+              maxHeight: 160,
+              overflowY: 'auto',
+            }}
+          >
+            {JSON.stringify(example, null, 2)}
+          </pre>
+        </>
+      ) : (
+        <span className="hint">{t('resultExampleEmpty')}</span>
+      )}
+    </div>
+  )
 }
 
 // The "selector" field's example depends on which locator strategy is selected in the
@@ -48,6 +110,7 @@ export default function NodeConfigPanel({
   spec,
   onChangeParam,
   onChangeMeta,
+  onChangeResultType,
   onDeleteNode,
   upstreamVariables,
   onPreviewVariable,
@@ -55,6 +118,7 @@ export default function NodeConfigPanel({
   projectId,
 }: Props) {
   const [noteOpen, setNoteOpen] = useState(false)
+  const { language, t } = useLanguage()
 
   // Starts collapsed again for every newly selected node — closed by default is the
   // point (it otherwise eats vertical space in the side panel for a field most nodes
@@ -64,8 +128,10 @@ export default function NodeConfigPanel({
   }, [node?.id])
 
   if (!node || !spec) {
-    return <div className="node-config-empty">Select a node to configure it.</div>
+    return <div className="node-config-empty">{t('selectNodePrompt')}</div>
   }
+
+  const specText = translateNodeSpec(spec, language)
 
   // Every upstream field the user can reference in a {{...}} field: whole variables
   // an earlier node produced (e.g. Get Text's Result Variable), plus any nested
@@ -78,18 +144,18 @@ export default function NodeConfigPanel({
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-        <h3 style={{ marginTop: 0 }}>{spec.label}</h3>
-        <button className="btn btn-sm" onClick={onDeleteNode} title="Delete node">
-          Delete
+        <h3 style={{ marginTop: 0 }}>{specText.label}</h3>
+        <button className="btn btn-sm" onClick={onDeleteNode} title={t('deleteNodeTitle')}>
+          {t('delete')}
         </button>
       </div>
-      <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: -8 }}>{spec.description}</p>
+      <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: -8 }}>{specText.description}</p>
 
       <div className="field">
-        <label>Title (shown on the node in the canvas)</label>
+        <label>{t('titleFieldLabel')}</label>
         <input
           value={node.data.title ?? ''}
-          placeholder={spec.label}
+          placeholder={specText.label}
           onChange={(e) => onChangeMeta('title', e.target.value)}
         />
       </div>
@@ -101,20 +167,20 @@ export default function NodeConfigPanel({
           <span style={{ display: 'inline-block', transform: noteOpen ? 'rotate(90deg)' : undefined, transition: 'transform 0.1s' }}>
             ▸
           </span>
-          Note (what does this node do?)
+          {t('noteFieldLabel')}
           {!noteOpen && node.data.note?.trim() && (
-            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(set)</span>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{t('noteSetSuffix')}</span>
           )}
         </label>
         {noteOpen && (
           <>
             <textarea
               value={node.data.note ?? ''}
-              placeholder="Explain what this node is for…"
+              placeholder={t('notePlaceholder')}
               rows={3}
               onChange={(e) => onChangeMeta('note', e.target.value)}
             />
-            <span className="hint">Shown as a comment above this node's code, and as a tooltip on the canvas.</span>
+            <span className="hint">{t('noteHint')}</span>
           </>
         )}
       </div>
@@ -129,7 +195,7 @@ export default function NodeConfigPanel({
           return (
             <VariablePickerField
               key={paramSpec.key}
-              spec={paramSpec}
+              spec={translateParamSpec(paramSpec, language)}
               value={node.data.params[paramSpec.key] ?? paramSpec.default}
               onChange={(value) => onChangeParam(paramSpec.key, value)}
               sources={upstreamVariables}
@@ -142,7 +208,7 @@ export default function NodeConfigPanel({
           return (
             <CredentialPickerField
               key={paramSpec.key}
-              spec={paramSpec}
+              spec={translateParamSpec(paramSpec, language)}
               value={node.data.params[paramSpec.key] ?? paramSpec.default}
               onChange={(value) => onChangeParam(paramSpec.key, value)}
               projectId={projectId}
@@ -163,21 +229,34 @@ export default function NodeConfigPanel({
           const depValue = String(node.data.params[paramSpec.optionsSource.key] ?? '')
           fieldSpec = { ...fieldSpec, options: paramSpec.optionsSource.map[depValue] ?? [] }
         }
+        fieldSpec = translateParamSpec(fieldSpec, language)
 
         return (
-          <FieldComponent
-            key={paramSpec.key}
-            spec={fieldSpec}
-            value={node.data.params[paramSpec.key] ?? paramSpec.default}
-            onChange={(value) => onChangeParam(paramSpec.key, value)}
-            insertOptions={paramSpec.supportsTemplate ? insertOptions : undefined}
-          />
+          <div key={paramSpec.key}>
+            <FieldComponent
+              spec={fieldSpec}
+              value={node.data.params[paramSpec.key] ?? paramSpec.default}
+              onChange={(value) => onChangeParam(paramSpec.key, value)}
+              insertOptions={paramSpec.supportsTemplate ? insertOptions : undefined}
+            />
+            {paramSpec.producesVariable && (
+              <ResultVariableExtras
+                resultType={(node.data.resultTypes?.[paramSpec.key] as ResultType) ?? 'auto'}
+                example={node.data.resultExamples?.[paramSpec.key]}
+                hasExample={
+                  !!node.data.resultExamples && Object.prototype.hasOwnProperty.call(node.data.resultExamples, paramSpec.key)
+                }
+                onChangeType={(value) => onChangeResultType(paramSpec.key, value)}
+                t={t}
+              />
+            )}
+          </div>
         )
       })}
 
       {node.data.nodeType === 'webhook_trigger' && (
         <div className="field">
-          <label>Full URL</label>
+          <label>{t('fullUrlLabel')}</label>
           {(() => {
             const method = String(node.data.params.method ?? 'POST')
             const path = String(node.data.params.path ?? '').trim().replace(/^\/+|\/+$/g, '')
@@ -187,7 +266,7 @@ export default function NodeConfigPanel({
               <>
                 <input readOnly value={`${window.location.origin}${route}`} style={{ fontFamily: 'var(--mono)', fontSize: 12 }} />
                 <span className="hint">
-                  {method} {route} — only responds while this workflow is Published (topbar toggle).
+                  {method} {route} — {t('webhookOnlyRespondsHint')}
                 </span>
               </>
             )

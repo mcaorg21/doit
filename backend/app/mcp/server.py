@@ -94,7 +94,12 @@ mcp = FastMCP(
         "it further, running it, debugging a failure)? Call get_workflow first and "
         "read its `notes` field before doing anything else — that's where a human "
         "writes down what this specific workflow does, known quirks, and how to "
-        "validate/run it; it exists specifically to help you. In a VOICE-GUIDED "
+        "validate/run it; it exists specifically to help you. If `notes` already has "
+        "content, or the workflow already has nodes, an earlier session already made "
+        "progress on it — CONTINUE from what's there instead of rebuilding from "
+        "scratch, even if the task you were given sounds like a fresh 'build X' "
+        "request; treat it as the next step on top of the existing work. Only start "
+        "from zero if the workflow is genuinely empty (no nodes, no notes). In a VOICE-GUIDED "
         "session (the human dictated your starting instruction instead of typing "
         "it): after each step you finish, or whenever you're not sure what to do "
         "next, call ask_human_voice with a short question like \"E agora?\" and wait "
@@ -702,6 +707,10 @@ def write_workflow_notes(project_id: str, workflow_id: str, summary: str, mode: 
     else:
         new_notes = f"{summary}\n"
     workflow_store.set_workflow_notes(project_id, workflow_id, new_notes)
+    # Called as the natural "wrapping up" step at the end of a build session — the
+    # editor's "Building..." banner (set when a terminal was launched) listens for
+    # this to clear itself, same event bus as node/edge mutations above.
+    workflow_events.publish(workflow_id, {"type": "workflow_notes_written"})
     return WriteWorkflowNotesResult(notes=new_notes, mode=mode)
 
 

@@ -27,6 +27,32 @@ def test_initial_prompt_returns_none_without_both_ids():
     assert launch._initial_prompt("proj_1", None) is None
 
 
+def test_initial_prompt_tells_agent_to_continue_not_rebuild():
+    """Prevents the agent from treating a dictated instruction like "cria um workflow
+    que faz X" as license to recreate everything from scratch when a prior session
+    already left nodes/notes behind."""
+    prompt = launch._initial_prompt("proj_1", "wf_1", instruction="cria um workflow que faz X")
+    assert prompt is not None
+    assert "CONTINUE a partir do que ja esta la" in prompt
+    assert "nao recrie o workflow do zero" in prompt
+    assert "nao como uma" in prompt  # dictated instruction framed as next step, not full spec
+    assert 'mode="append"' in prompt
+
+
+def test_initial_prompt_defaults_to_portuguese_node_titles():
+    prompt = launch._initial_prompt("proj_1", "wf_1")
+    assert prompt is not None
+    assert "escreva em portugues" in prompt
+    assert "write it in English" not in prompt
+
+
+def test_initial_prompt_with_english_language_tells_agent_to_use_english():
+    prompt = launch._initial_prompt("proj_1", "wf_1", language="en")
+    assert prompt is not None
+    assert "write it in English" in prompt
+    assert "escreva em portugues" not in prompt
+
+
 def test_initial_prompt_with_instruction_mentions_voice_loop_in_order():
     prompt = launch._initial_prompt("proj_1", "wf_1", instruction="abre o navegador e vai pro google")
     assert prompt is not None

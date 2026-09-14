@@ -2,15 +2,18 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { nodeTypesApi } from '../api/nodeTypes'
+import { useLanguage } from '../i18n/LanguageContext'
+import { translateNodeSpec } from '../i18n/useNodeText'
+import type { TranslationKey } from '../i18n/LanguageContext'
 import type { NodeCategory, NodeTypeSpec } from '../types/nodeType'
 
-const CATEGORY_LABELS: Record<NodeCategory, string> = {
-  trigger: 'Triggers',
-  dataSource: 'Data Sources',
-  browser: 'Browser',
-  action: 'Actions',
-  logic: 'Logic',
-  function: 'Functions',
+const CATEGORY_LABEL_KEYS: Record<NodeCategory, TranslationKey> = {
+  trigger: 'categoryTriggers',
+  dataSource: 'categoryDataSources',
+  browser: 'categoryBrowser',
+  action: 'categoryActions',
+  logic: 'categoryLogic',
+  function: 'categoryFunctions',
 }
 
 const ALL_CATEGORIES: NodeCategory[] = ['trigger', 'dataSource', 'browser', 'action', 'logic', 'function']
@@ -49,6 +52,7 @@ interface TooltipState {
 }
 
 export default function NodePalette({ onAddNode }: Props) {
+  const { language, t } = useLanguage()
   const { data: nodeTypes } = useQuery({
     queryKey: ['node-types'],
     queryFn: nodeTypesApi.list,
@@ -108,7 +112,7 @@ export default function NodePalette({ onAddNode }: Props) {
               >
                 <polyline points="6 9 12 15 18 9" />
               </svg>
-              <span>{CATEGORY_LABELS[category]}</span>
+              <span>{t(CATEGORY_LABEL_KEYS[category])}</span>
               <span className="palette-category-count">{specs.length}</span>
             </button>
             {!isCollapsed && (
@@ -125,10 +129,10 @@ export default function NodePalette({ onAddNode }: Props) {
                     }}
                     onClick={() => onAddNode(spec)}
                     onMouseEnter={(e) => setTooltip({ spec, x: e.clientX, y: e.clientY })}
-                    onMouseMove={(e) => setTooltip((t) => (t && t.spec.type === spec.type ? { ...t, x: e.clientX, y: e.clientY } : t))}
-                    onMouseLeave={() => setTooltip((t) => (t?.spec.type === spec.type ? null : t))}
+                    onMouseMove={(e) => setTooltip((prev) => (prev && prev.spec.type === spec.type ? { ...prev, x: e.clientX, y: e.clientY } : prev))}
+                    onMouseLeave={() => setTooltip((prev) => (prev?.spec.type === spec.type ? null : prev))}
                   >
-                    {spec.label}
+                    {translateNodeSpec(spec, language).label}
                   </div>
                 ))}
               </div>
@@ -138,19 +142,22 @@ export default function NodePalette({ onAddNode }: Props) {
       })}
 
       {tooltip &&
-        createPortal(
-          <div className="palette-tooltip" style={{ left: tooltip.x + 16, top: tooltip.y + 12 }}>
-            <div className="palette-tooltip-title">{tooltip.spec.label}</div>
-            <div className="palette-tooltip-desc">{tooltip.spec.description}</div>
-            {tooltip.spec.example && (
-              <div className="palette-tooltip-example">
-                <span className="palette-tooltip-example-label">Example</span>
-                {tooltip.spec.example}
-              </div>
-            )}
-          </div>,
-          document.body,
-        )}
+        (() => {
+          const text = translateNodeSpec(tooltip.spec, language)
+          return createPortal(
+            <div className="palette-tooltip" style={{ left: tooltip.x + 16, top: tooltip.y + 12 }}>
+              <div className="palette-tooltip-title">{text.label}</div>
+              <div className="palette-tooltip-desc">{text.description}</div>
+              {text.example && (
+                <div className="palette-tooltip-example">
+                  <span className="palette-tooltip-example-label">{t('exampleLabel')}</span>
+                  {text.example}
+                </div>
+              )}
+            </div>,
+            document.body,
+          )
+        })()}
     </div>
   )
 }

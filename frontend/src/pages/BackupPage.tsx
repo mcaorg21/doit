@@ -93,7 +93,7 @@ export default function BackupPage() {
   return (
     <div>
       <div className="topbar">
-        <Link to={`/projects/${projectId}`} className="breadcrumb">
+        <Link to={`/projects/${projectId}`} viewTransition className="breadcrumb">
           ← {project?.name ?? 'Projeto'}
         </Link>
       </div>

@@ -1,0 +1,83 @@
+{
+  "id": "wf_59591acb",
+  "projectId": "proj_fd45658d",
+  "name": "tes som",
+  "createdAt": "2026-09-13T11:36:21.339973Z",
+  "updatedAt": "2026-09-14T20:15:42.669040Z",
+  "nodes": [
+    {
+      "id": "node_edf54652",
+      "type": "open_browser",
+      "position": {
+        "x": 0.0,
+        "y": 200.0
+      },
+      "params": {
+        "headless": false,
+        "browserChannel": "chrome"
+      },
+      "title": null,
+      "note": null,
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_04aee467",
+      "type": "goto",
+      "position": {
+        "x": 180.0,
+        "y": 200.0
+      },
+      "params": {
+        "url": "https://www.uol.com.br"
+      },
+      "title": "Navegar para UOL",
+      "note": null,
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_38b0cf99",
+      "type": "execute_script",
+      "position": {
+        "x": 360.0,
+        "y": 200.0
+      },
+      "params": {
+        "script": "const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4'));\nconst target = headings.find(h => h.textContent.trim() === 'Mais lidas');\nif (!target) { return 'ERRO: widget Mais lidas nao encontrado'; }\nconst container = target.closest('.mostRead') || target.parentElement;\nconst links = Array.from(container.querySelectorAll('a')).filter(a => a.textContent.trim().length > 0);\nreturn links.slice(0, 5).map((a, i) => (i + 1) + '. ' + a.textContent.trim()).join('\\n');",
+        "resultVar": "cinco_principais_noticias"
+      },
+      "title": "Pegar 5 Principais Notícias (Mais lidas)",
+      "note": "Extrai as 5 manchetes do widget \"Mais lidas\" da home do UOL e guarda em {{cinco_principais_noticias}}.",
+      "fieldMap": null,
+      "resultExamples": {
+        "resultVar": "1. 'Turma' pediu apoio do PCC a 'companheiro' Vorcaro na prisão: 'Amigo nosso'\n2. Carro invade calçada e mata criança em Maceió; motorista morre após ser agredido\n3. O que mensagens e propostas de delação de Vorcaro revelam sobre Moraes\n4. Fachin pede para Mendonça levantar sigilo sobre pagamentos de Vorcaro\n5. Alexandre Borges: Mendonça parece entender pouco de guerra"
+      },
+      "resultTypes": {
+        "resultVar": "auto"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_b738023f",
+      "source": "node_edf54652",
+      "target": "node_04aee467",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_aad1a3a2",
+      "source": "node_04aee467",
+      "target": "node_38b0cf99",
+      "sourceHandle": null,
+      "breakpoint": false
+    }
+  ],
+  "published": false,
+  "folderId": "fold_f9b5c1ac",
+  "startNodeId": null,
+  "hasError": false
+}

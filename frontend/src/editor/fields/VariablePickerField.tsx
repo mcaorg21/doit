@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ApiError } from '../../api/client'
 import type { VariableSource } from '../graph'
 import type { ParamFieldSpec } from '../../types/nodeType'
+import { useLanguage } from '../../i18n/LanguageContext'
 
 interface Props {
   spec: ParamFieldSpec
@@ -15,6 +16,7 @@ type PreviewState = { loading: boolean; value?: unknown; error?: string }
 
 export default function VariablePickerField({ spec, value, onChange, sources, onPreview }: Props) {
   const [preview, setPreview] = useState<PreviewState | null>(null)
+  const { t } = useLanguage()
 
   async function handleSelect(variableName: string) {
     onChange(variableName)
@@ -28,7 +30,7 @@ export default function VariablePickerField({ spec, value, onChange, sources, on
       const result = await onPreview(source)
       setPreview({ loading: false, value: result })
     } catch (err) {
-      setPreview({ loading: false, error: err instanceof ApiError ? err.message : 'Failed to preview' })
+      setPreview({ loading: false, error: err instanceof ApiError ? err.message : t('failedToPreview') })
     }
   }
 
@@ -39,7 +41,7 @@ export default function VariablePickerField({ spec, value, onChange, sources, on
         {spec.required ? ' *' : ''}
       </label>
       <select value={(value as string) ?? ''} onChange={(e) => handleSelect(e.target.value)}>
-        <option value="">Select a variable…</option>
+        <option value="">{t('selectVariablePlaceholder')}</option>
         {sources.map((s) => (
           <option key={`${s.nodeId}.${s.paramKey}`} value={s.variableName}>
             {s.nodeLabel} → {s.variableName}
@@ -47,13 +49,8 @@ export default function VariablePickerField({ spec, value, onChange, sources, on
         ))}
       </select>
 
-      {sources.length === 0 && (
-        <span className="hint">
-          No earlier node in this chain defines a named variable yet (e.g. add an "Element Present?" node before
-          this one).
-        </span>
-      )}
-      {preview?.loading && <span className="hint">Running preview…</span>}
+      {sources.length === 0 && <span className="hint">{t('noUpstreamVariableHint')}</span>}
+      {preview?.loading && <span className="hint">{t('runningPreview')}</span>}
       {preview?.error && <div className="error-banner" style={{ margin: '6px 0 0' }}>{preview.error}</div>}
       {!preview?.loading && preview?.value !== undefined && (
         <pre

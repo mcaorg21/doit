@@ -4,10 +4,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { projectsApi } from '../api/projects'
 import { backupApi } from '../api/backup'
 import { ApiError } from '../api/client'
+import { useLanguage } from '../i18n/LanguageContext'
 import type { Project } from '../types/workflow'
 
 export default function ProjectListPage() {
   const queryClient = useQueryClient()
+  const { t } = useLanguage()
   const [showNew, setShowNew] = useState(false)
   const [name, setName] = useState('')
   const [backupPromptProject, setBackupPromptProject] = useState<Project | null>(null)
@@ -56,37 +58,41 @@ export default function ProjectListPage() {
   return (
     <div>
       <div className="topbar">
-        <h1>Auto-mation</h1>
+        <h1>{t('appName')}</h1>
       </div>
       <div className="container">
         <div className="page-header">
-          <h2>Projects</h2>
+          <h2>{t('projectsTitle')}</h2>
           <button className="btn btn-primary" onClick={() => setShowNew(true)}>
-            + New Project
+            {t('newProject')}
           </button>
         </div>
 
-        {isLoading && <p>Loading...</p>}
+        {isLoading && <p>{t('loadingEllipsis')}</p>}
 
         {!isLoading && (!projects || projects.length === 0) && (
-          <div className="empty-state">No projects yet. Create your first one to get started.</div>
+          <div className="empty-state">{t('noProjectsYet')}</div>
         )}
 
         <div className="list">
           {projects?.map((p) => (
             <div key={p.id} className="list-item">
-              <Link to={`/projects/${p.id}`} style={{ display: 'contents', color: 'inherit', textDecoration: 'none' }}>
+              <Link
+                to={`/projects/${p.id}`}
+                viewTransition
+                style={{ display: 'contents', color: 'inherit', textDecoration: 'none' }}
+              >
                 <div>
                   <div className="list-item-title">{p.name}</div>
                   <div className="list-item-meta">
-                    Updated {new Date(p.updatedAt).toLocaleString()}
+                    {t('updatedPrefix')} {new Date(p.updatedAt).toLocaleString()}
                   </div>
                 </div>
               </Link>
               {p.workflowCount === 0 && (
                 <button
                   className="icon-btn icon-btn-danger"
-                  title="Delete empty project"
+                  title={t('deleteEmptyProjectTitle')}
                   onClick={(e) => {
                     e.preventDefault()
                     setConfirmDelete(p)
@@ -108,17 +114,16 @@ export default function ProjectListPage() {
       {confirmDelete && (
         <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete project</h3>
+            <h3>{t('deleteProjectModalTitle')}</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-              Delete "{confirmDelete.name}"? It has no workflows, so this can't be undone by restoring anything —
-              the project itself (and its credentials) will be gone.
+              {t('deletePrefix')} "{confirmDelete.name}"? {t('deleteProjectConfirm')}
             </p>
             <div className="modal-actions">
               <button className="btn" onClick={() => setConfirmDelete(null)}>
-                Cancel
+                {t('cancel')}
               </button>
               <button className="btn btn-danger" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(confirmDelete.id)}>
-                Delete
+                {t('delete')}
               </button>
             </div>
           </div>
@@ -128,14 +133,14 @@ export default function ProjectListPage() {
       {showNew && (
         <div className="modal-overlay" onClick={() => setShowNew(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>New Project</h3>
+            <h3>{t('newProjectModalTitle')}</h3>
             <div className="field">
-              <label>Name</label>
+              <label>{t('nameLabel')}</label>
               <input
                 autoFocus
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Lead Scraper"
+                placeholder={t('newProjectNamePlaceholder')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && name.trim()) createMutation.mutate(name.trim())
                 }}
@@ -143,14 +148,14 @@ export default function ProjectListPage() {
             </div>
             <div className="modal-actions">
               <button className="btn" onClick={() => setShowNew(false)}>
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 disabled={!name.trim() || createMutation.isPending}
                 onClick={() => createMutation.mutate(name.trim())}
               >
-                Create
+                {t('create')}
               </button>
             </div>
           </div>
@@ -167,13 +172,12 @@ export default function ProjectListPage() {
           }}
         >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Configurar backup — {backupPromptProject.name}</h3>
+            <h3>{t('configureBackupTitle')} {backupPromptProject.name}</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: -6 }}>
-              Este projeto ainda não tem um endereço de backup (Postgres) configurado. Você pode configurar agora ou
-              pular e fazer isso depois na página de Backup do projeto.
+              {t('configureBackupDescription')}
             </p>
             <div className="field">
-              <label>Connection string do Postgres</label>
+              <label>{t('postgresConnectionStringLabel')}</label>
               <input
                 autoFocus
                 value={connectionString}
@@ -191,14 +195,14 @@ export default function ProjectListPage() {
                   setBackupError(null)
                 }}
               >
-                Configurar depois
+                {t('configureLater')}
               </button>
               <button
                 className="btn btn-primary"
                 disabled={!connectionString.trim() || saveBackupMutation.isPending}
                 onClick={() => saveBackupMutation.mutate(connectionString.trim())}
               >
-                {saveBackupMutation.isPending ? 'Testando conexão…' : 'Salvar conexão'}
+                {saveBackupMutation.isPending ? t('testingConnection') : t('saveConnection')}
               </button>
             </div>
           </div>

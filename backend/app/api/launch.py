@@ -56,6 +56,10 @@ class LaunchTerminalRequest(BaseModel):
     _initial_prompt. Unlike projectId/workflowId, this is NOT restricted to
     _SAFE_ID_RE since it's arbitrary human language; see _sanitize_for_batch_arg for
     how it's made safe to embed in the generated .bat."""
+    language: Literal["en", "pt"] | None = None
+    """The editor's current UI language (see frontend/src/i18n/), passed through so
+    the agent writes node titles/notes in the same language the human is looking at
+    the app in — see _initial_prompt."""
 
 
 class LaunchResult(BaseModel):
@@ -150,17 +154,36 @@ def _validate_id(value: str | None, label: str) -> str | None:
     return value
 
 
-def _initial_prompt(project_id: str | None, workflow_id: str | None, instruction: str | None = None) -> str | None:
+def _initial_prompt(
+    project_id: str | None, workflow_id: str | None, instruction: str | None = None, language: str | None = None
+) -> str | None:
     if not (project_id and workflow_id):
         return None
     parts = [
         f"Continue editando o workflow (project_id={project_id}, workflow_id={workflow_id}) "
-        f"no app auto-mation via o MCP '{_MCP_SERVER_NAME}' ({_MCP_URL}). Comece chamando "
-        f"get_workflow pra ver o que ja existe antes de continuar."
+        f"no app auto-mation via o MCP '{_MCP_SERVER_NAME}' ({_MCP_URL}). SEMPRE comece chamando "
+        f"get_workflow — isso retorna os nodes/edges ja existentes e o campo `notes`. Se `notes` ja "
+        f"tiver conteudo, ou ja existirem nodes no workflow, uma sessao anterior ja avancou nele: "
+        f"CONTINUE a partir do que ja esta la, nao recrie o workflow do zero. So comece do zero se o "
+        f"workflow estiver genuinamente vazio (sem nodes e sem notes)."
     ]
+    if language == "en":
+        parts.append(
+            "The editor's UI language is currently set to English — when you set a custom `title` or `note` "
+            "on a node (add_node/update_node), write it in English."
+        )
+    else:
+        parts.append(
+            "O idioma da interface do editor esta em portugues — ao definir um `title` ou `note` customizado "
+            "num node (add_node/update_node), escreva em portugues."
+        )
     instruction = (instruction or "").strip()
     if instruction:
-        parts.append(f'O usuario ditou por voz a seguinte instrucao inicial: "{instruction}"')
+        parts.append(
+            f'O usuario ditou por voz a seguinte instrucao: "{instruction}" — trate isso como o proximo '
+            f"passo a partir do estado atual do workflow (visto em get_workflow), nao como uma "
+            f"especificacao completa pra reconstruir tudo do zero."
+        )
         parts.append(
             "Esta e uma sessao guiada por voz: depois de cada passo concluido, ou antes de decidir "
             "sozinho o que fazer a seguir, chame a tool ask_human_voice perguntando algo curto tipo "
@@ -170,7 +193,8 @@ def _initial_prompt(project_id: str | None, workflow_id: str | None, instruction
     parts.append(
         f"Quando terminar essa sessao de construcao, chame a tool write_workflow_notes "
         f"(project_id={project_id}, workflow_id={workflow_id}) com um resumo conciso em markdown do "
-        f"que voce construiu ou alterou."
+        f'que voce construiu ou alterou — use mode="append" (o padrao), nunca substitua as notes '
+        f"anteriores, pra sessao seguinte tambem saber o historico completo."
     )
     return "\n\n".join(parts)
 
@@ -220,7 +244,7 @@ def launch_terminal(payload: LaunchTerminalRequest):
 
     mcp_ok, mcp_detail = _ensure_mcp_registered(provider)
 
-    prompt = _initial_prompt(project_id, workflow_id, payload.instruction)
+    prompt = _initial_prompt(project_id, workflow_id, payload.instruction, payload.language)
     try:
         script_path = _write_launch_script(provider, prompt)
         # os.startfile (ShellExecute) opens the .bat the same way double-clicking it

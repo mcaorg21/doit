@@ -19,6 +19,8 @@ export interface WFNode {
   title?: string | null
   note?: string | null
   fieldMap?: string[] | null
+  resultExamples?: Record<string, unknown>
+  resultTypes?: Record<string, string>
 }
 
 export interface WFEdge {

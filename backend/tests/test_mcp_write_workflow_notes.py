@@ -6,6 +6,7 @@ sibling .md file the editor's Notes modal reads/writes
 
 import pytest
 
+from app.execution import workflow_events
 from app.mcp.server import write_workflow_notes
 from app.models.project import ProjectCreate
 from app.models.workflow import WorkflowCreate
@@ -56,3 +57,15 @@ def test_unknown_workflow_raises(project):
 def test_invalid_mode_raises(project, workflow):
     with pytest.raises(ValueError, match="mode"):
         write_workflow_notes(project.id, workflow.id, "summary", mode="bogus")
+
+
+def test_publishes_workflow_notes_written_event(project, workflow):
+    """The editor's "Building..." banner listens for this to clear itself once a
+    build session wraps up — see EditorPage.tsx's workflow_notes_written case."""
+    queue = workflow_events.subscribe(workflow.id)
+    try:
+        write_workflow_notes(project.id, workflow.id, "Built a login flow.")
+        event = queue.get_nowait()
+        assert event == {"type": "workflow_notes_written"}
+    finally:
+        workflow_events.unsubscribe(workflow.id, queue)

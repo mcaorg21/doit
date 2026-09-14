@@ -1,4 +1,5 @@
 import type { FieldProps } from './TextField'
+import { useLanguage } from '../../i18n/LanguageContext'
 
 interface KeyValueRow {
   key: string
@@ -14,6 +15,7 @@ function emptyRow(): KeyValueRow {
 // used by HTTP Request for Headers and for its key/value Body Fields mode. Values
 // support {{item.field}} / {{varName.field}} templates, same as a plain text field.
 export default function KeyValueListField({ spec, value, onChange }: FieldProps) {
+  const { t } = useLanguage()
   const rows: KeyValueRow[] = Array.isArray(value) ? (value as KeyValueRow[]) : []
 
   function updateRow(index: number, patch: Partial<KeyValueRow>) {
@@ -29,7 +31,7 @@ export default function KeyValueListField({ spec, value, onChange }: FieldProps)
   return (
     <div className="field">
       <label>{spec.label}</label>
-      {rows.length === 0 && <span className="hint">None yet — add one below.</span>}
+      {rows.length === 0 && <span className="hint">{t('noneYetHint')}</span>}
 
       {rows.map((row, i) => (
         <div key={i} className="field-list-row">
@@ -47,7 +49,7 @@ export default function KeyValueListField({ spec, value, onChange }: FieldProps)
             <button
               type="button"
               className="icon-btn icon-btn-danger"
-              title="Remove"
+              title={t('removeTitle')}
               onClick={() => removeRow(i)}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -62,12 +64,9 @@ export default function KeyValueListField({ spec, value, onChange }: FieldProps)
       ))}
 
       <button type="button" className="btn btn-sm" onClick={addRow} style={{ marginTop: rows.length ? 8 : 4 }}>
-        + Add
+        {t('addGenericButton')}
       </button>
-      <span className="hint">
-        Values support {'{{item.field}}'} inside a loop, or {'{{varName.field}}'} for a variable set by an earlier
-        node.
-      </span>
+      <span className="hint">{t('keyValueTemplateHint')}</span>
     </div>
   )
 }

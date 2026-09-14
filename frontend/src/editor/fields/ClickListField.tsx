@@ -1,4 +1,6 @@
 import type { FieldProps } from './TextField'
+import { useLanguage } from '../../i18n/LanguageContext'
+import { paramOptionsPt } from '../../i18n/paramLabels'
 
 interface ClickRow {
   selector: string
@@ -21,7 +23,10 @@ function emptyRow(): ClickRow {
 // array in the param's value (same round-trip-with-no-extra-encoding trick as
 // FieldListField) — used by Multi Click to click several elements in one step.
 export default function ClickListField({ spec, value, onChange }: FieldProps) {
+  const { language, t } = useLanguage()
   const rows: ClickRow[] = Array.isArray(value) ? (value as ClickRow[]) : []
+  const selectorTypeOptions =
+    language === 'pt' ? SELECTOR_TYPE_OPTIONS.map((o) => ({ ...o, label: paramOptionsPt[o.value] ?? o.label })) : SELECTOR_TYPE_OPTIONS
 
   function updateRow(index: number, patch: Partial<ClickRow>) {
     onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
@@ -36,16 +41,18 @@ export default function ClickListField({ spec, value, onChange }: FieldProps) {
   return (
     <div className="field">
       <label>{spec.label}</label>
-      {rows.length === 0 && <span className="hint">No clicks yet — add one below.</span>}
+      {rows.length === 0 && <span className="hint">{t('noClicksYetHint')}</span>}
 
       {rows.map((row, i) => (
         <div key={i} className="field-list-row">
           <div className="field-list-row-header">
-            <strong>Click {i + 1}</strong>
+            <strong>
+              {t('clickWord')} {i + 1}
+            </strong>
             <button
               type="button"
               className="icon-btn icon-btn-danger"
-              title="Remove click"
+              title={t('removeClickTitle')}
               onClick={() => removeRow(i)}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -62,7 +69,7 @@ export default function ClickListField({ spec, value, onChange }: FieldProps) {
             onChange={(e) => updateRow(i, { selector: e.target.value })}
           />
           <select value={row.selectorType} onChange={(e) => updateRow(i, { selectorType: e.target.value })}>
-            {SELECTOR_TYPE_OPTIONS.map((o) => (
+            {selectorTypeOptions.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -72,7 +79,7 @@ export default function ClickListField({ spec, value, onChange }: FieldProps) {
       ))}
 
       <button type="button" className="btn btn-sm" onClick={addRow} style={{ marginTop: rows.length ? 8 : 4 }}>
-        + Add Click
+        {t('addClickButton')}
       </button>
     </div>
   )

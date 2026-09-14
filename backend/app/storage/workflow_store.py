@@ -179,6 +179,30 @@ def set_published(project_id: str, workflow_id: str, published: bool) -> Workflo
     return updated
 
 
+def set_node_result_examples(project_id: str, workflow_id: str, results: dict[str, dict[str, object]]) -> Workflow | None:
+    """Merges captured producesVariable example values onto matching nodes, keyed by
+    node id then param key (see app/codegen/engine.py's _result_capture_lines and
+    app/execution/runner.py's _stream_output, which calls this once a real Run
+    finishes). A surgical per-node merge — like set_error_state — rather than a full
+    save, since a Run can take a while and the graph itself may have been edited (or
+    nodes deleted) by the time it finishes; ids no longer present are just skipped.
+    Returns None (no-op, no write) if none of the captured node ids still exist."""
+    existing = get_workflow(project_id, workflow_id)
+    changed = False
+    new_nodes = []
+    for node in existing.nodes:
+        captured = results.get(node.id)
+        if captured:
+            node = node.model_copy(update={"resultExamples": {**node.resultExamples, **captured}})
+            changed = True
+        new_nodes.append(node)
+    if not changed:
+        return None
+    updated = existing.model_copy(update={"nodes": new_nodes, "updatedAt": now_utc()})
+    _workflow_file(project_id, workflow_id).write_text(updated.model_dump_json(indent=2), encoding="utf-8")
+    return updated
+
+
 def set_error_state(project_id: str, workflow_id: str, has_error: bool) -> Workflow:
     """Flags (or clears) hasError without touching published — used by
     app/execution/runner.py when an unattended (Schedule/Webhook) run fails, right

@@ -12,6 +12,8 @@ export function toWFNodes(nodes: Node<FlowNodeData>[]): WFNode[] {
     title: n.data.title,
     note: n.data.note,
     fieldMap: n.data.fieldMap,
+    resultExamples: n.data.resultExamples,
+    resultTypes: n.data.resultTypes,
   }))
 }
 
@@ -46,6 +48,8 @@ export function wfNodeToFlowNode(n: WFNode, nodeTypesByType: Map<string, NodeTyp
       title: n.title ?? undefined,
       note: n.note ?? undefined,
       fieldMap: n.fieldMap ?? undefined,
+      resultExamples: n.resultExamples ?? undefined,
+      resultTypes: n.resultTypes ?? undefined,
     },
   }
 }

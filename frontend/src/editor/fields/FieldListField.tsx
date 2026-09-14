@@ -1,4 +1,6 @@
 import type { FieldProps } from './TextField'
+import { useLanguage } from '../../i18n/LanguageContext'
+import { paramOptionsPt } from '../../i18n/paramLabels'
 
 interface FieldRow {
   selector: string
@@ -24,7 +26,10 @@ function emptyRow(): FieldRow {
 // backend, so a plain array of objects round-trips through save/load with no extra
 // JSON encoding needed) — used by Multi Input to fill/select several fields at once.
 export default function FieldListField({ spec, value, onChange }: FieldProps) {
+  const { language, t } = useLanguage()
   const rows: FieldRow[] = Array.isArray(value) ? (value as FieldRow[]) : []
+  const selectorTypeOptions =
+    language === 'pt' ? SELECTOR_TYPE_OPTIONS.map((o) => ({ ...o, label: paramOptionsPt[o.value] ?? o.label })) : SELECTOR_TYPE_OPTIONS
 
   function updateRow(index: number, patch: Partial<FieldRow>) {
     onChange(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
@@ -39,16 +44,18 @@ export default function FieldListField({ spec, value, onChange }: FieldProps) {
   return (
     <div className="field">
       <label>{spec.label}</label>
-      {rows.length === 0 && <span className="hint">No fields yet — add one below.</span>}
+      {rows.length === 0 && <span className="hint">{t('noFieldsYetHint')}</span>}
 
       {rows.map((row, i) => (
         <div key={i} className="field-list-row">
           <div className="field-list-row-header">
-            <strong>Field {i + 1}</strong>
+            <strong>
+              {t('fieldWord')} {i + 1}
+            </strong>
             <button
               type="button"
               className="icon-btn icon-btn-danger"
-              title="Remove field"
+              title={t('removeFieldTitle')}
               onClick={() => removeRow(i)}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -66,15 +73,15 @@ export default function FieldListField({ spec, value, onChange }: FieldProps) {
           />
           <div className="field-list-row-pair">
             <select value={row.selectorType} onChange={(e) => updateRow(i, { selectorType: e.target.value })}>
-              {SELECTOR_TYPE_OPTIONS.map((o) => (
+              {selectorTypeOptions.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
             </select>
             <select value={row.kind} onChange={(e) => updateRow(i, { kind: e.target.value as FieldRow['kind'] })}>
-              <option value="text">Text (fill)</option>
-              <option value="select">Select (dropdown)</option>
+              <option value="text">{t('fieldKindText')}</option>
+              <option value="select">{t('fieldKindSelect')}</option>
             </select>
           </div>
           <input
@@ -86,7 +93,7 @@ export default function FieldListField({ spec, value, onChange }: FieldProps) {
       ))}
 
       <button type="button" className="btn btn-sm" onClick={addRow} style={{ marginTop: rows.length ? 8 : 4 }}>
-        + Add Field
+        {t('addFieldButton')}
       </button>
     </div>
   )

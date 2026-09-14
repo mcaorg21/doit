@@ -29,7 +29,7 @@ export default function ExecutionsPage() {
   return (
     <div>
       <div className="topbar">
-        <Link to={`/projects/${projectId}`} className="breadcrumb">
+        <Link to={`/projects/${projectId}`} viewTransition className="breadcrumb">
           ← {project?.name ?? 'Project'}
         </Link>
       </div>

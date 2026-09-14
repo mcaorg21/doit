@@ -6,6 +6,8 @@ import type { FlowNodeData } from '../types'
 import { flattenJsonPaths, referencePrefix } from '../jsonPaths'
 import JsonPathViewer from '../JsonPathViewer'
 import NodeIcon from './icons'
+import { useLanguage } from '../../i18n/LanguageContext'
+import { nodeCatalogPt } from '../../i18n/nodeCatalog'
 
 interface Props extends NodeProps {
   data: FlowNodeData
@@ -34,7 +36,13 @@ export default function GenericNode({
 }: Props) {
   const [preview, setPreview] = useState<PreviewState | null>(null)
   const [mappingSaved, setMappingSaved] = useState(false)
-  const heading = data.title?.trim() || data.label
+  const { language } = useLanguage()
+  // A custom title (set by a human or an AI-authored node) is always shown as-is —
+  // only the DEFAULT label (the node type's own generic name, e.g. "Click") gets
+  // the Portuguese catalog override, same display-layer-only translation as the
+  // palette (see i18n/nodeCatalog.ts).
+  const translatedLabel = language === 'pt' ? (nodeCatalogPt[data.nodeType]?.label ?? data.label) : data.label
+  const heading = data.title?.trim() || translatedLabel
 
   async function handleRun(e: React.MouseEvent) {
     e.stopPropagation()
@@ -223,7 +231,7 @@ export default function GenericNode({
         {heading}
       </div>
       {data.title?.trim() && (
-        <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 1 }}>{data.label}</div>
+        <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 1 }}>{translatedLabel}</div>
       )}
 
       {preview &&

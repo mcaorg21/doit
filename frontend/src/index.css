@@ -29,6 +29,45 @@
   box-sizing: border-box;
 }
 
+/* Smooth page transitions while drilling down (Projects -> a project's folders ->
+   a workflow -> the editor) and back up again — wired via React Router's built-in
+   `viewTransition` prop on the relevant <Link>s/setSearchParams calls (no library
+   needed; browsers without View Transitions support just navigate instantly, same
+   as before). Targets the default root transition group (the whole page, since no
+   individual element opts into its own view-transition-name), replacing the
+   browser's own plain cross-fade with a slightly softer fade + drift so it doesn't
+   feel like a hard cut. Skipped entirely under reduced-motion so it degrades to the
+   still-fine instant swap instead of forcing motion on someone who's opted out. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.22s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  ::view-transition-old(root) {
+    animation-name: page-transition-out;
+  }
+
+  ::view-transition-new(root) {
+    animation-name: page-transition-in;
+  }
+
+  @keyframes page-transition-out {
+    to {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+  }
+
+  @keyframes page-transition-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+}
+
 html,
 body,
 #root {

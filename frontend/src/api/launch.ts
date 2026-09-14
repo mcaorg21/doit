@@ -9,7 +9,7 @@ interface LaunchResult {
 }
 
 export const launchApi = {
-  terminal: (provider: CliProvider, projectId?: string, workflowId?: string, instruction?: string) =>
-    api.post<LaunchResult>('/api/launch/terminal', { provider, projectId, workflowId, instruction }),
+  terminal: (provider: CliProvider, projectId?: string, workflowId?: string, instruction?: string, language?: 'en' | 'pt') =>
+    api.post<LaunchResult>('/api/launch/terminal', { provider, projectId, workflowId, instruction, language }),
   claudeDesktop: () => api.post<LaunchResult>('/api/launch/claude-desktop', {}),
 }

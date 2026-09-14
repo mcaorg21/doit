@@ -10,6 +10,8 @@ export interface FlowNodeData {
   hasExecutionError?: boolean
   isPaused?: boolean
   fieldMap?: string[]
+  resultExamples?: Record<string, unknown>
+  resultTypes?: Record<string, string>
   [key: string]: unknown
 }
 

@@ -24,6 +24,18 @@ class WFNode(BaseModel):
     """Dot-paths (e.g. "address.geo.lat") discovered from a Result preview and saved
     via the node's "Save Mapping" button — purely a frontend convenience so other
     fields' template picker can suggest them; doesn't affect codegen."""
+    resultExamples: dict[str, Any] = Field(default_factory=dict)
+    """Example value(s) this node's producesVariable param(s) actually held the last
+    time it really ran — keyed by the param key (usually just "resultVar"; see
+    app/codegen/engine.py's _result_capture_lines). Auto-captured and overwritten on
+    every real Run (app/execution/runner.py); never read by codegen, purely a UI
+    convenience so a human configuring a downstream node can see a real example
+    without needing to re-run or preview first."""
+    resultTypes: dict[str, str] = Field(default_factory=dict)
+    """User-declared shape ("auto" | "string" | "array" | "object") of this node's
+    producesVariable param(s), keyed the same way as resultExamples — lets the
+    editor offer object-path suggestions for a downstream field even before this
+    node has ever actually been run. Purely a UI hint; never read by codegen."""
 
 
 class WFEdge(BaseModel):

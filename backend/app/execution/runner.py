@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 from datetime import datetime, timezone
 
@@ -10,6 +11,7 @@ from app.storage.ids import gen_id
 
 
 NODE_ERROR_MARKER = "__NODE_ERROR__"
+NODE_RESULT_MARKER = "__NODE_RESULT__"
 
 
 def _now() -> datetime:
@@ -134,6 +136,11 @@ async def _stream_output(handle: RunHandle) -> None:
     process = handle.process
     assert process is not None and process.stdout is not None
 
+    # nodeId -> {paramKey -> value}, accumulated from __NODE_RESULT__ markers (see
+    # app/codegen/engine.py's _result_capture_lines) and persisted once the run ends
+    # (not per-line) — see the flush below.
+    captured_results: dict[str, dict[str, object]] = {}
+
     async for raw_line in process.stdout:
         text = raw_line.decode(errors="replace").rstrip("\n")
         line = LogLine(ts=_now(), level="info", text=text)
@@ -151,6 +158,12 @@ async def _stream_output(handle: RunHandle) -> None:
                     workflow_store.set_error_state(handle.project_id, handle.workflow_id, True)
             except Exception as exc:
                 print(f"[runner] failed to unpublish workflow '{handle.workflow_id}': {exc}")
+        elif text.startswith(NODE_RESULT_MARKER):
+            try:
+                payload = json.loads(text[len(NODE_RESULT_MARKER) :])
+                captured_results.setdefault(payload["nodeId"], {})[payload["key"]] = payload["value"]
+            except (json.JSONDecodeError, KeyError, TypeError):
+                pass  # Malformed marker line — never worth failing the run over.
         await handle.queue.put(line)
         # Keeps the persisted record's log up to date while still running — matters
         # most for a run stuck at a Pause breakpoint (see the note in start_run): the
@@ -166,4 +179,23 @@ async def _stream_output(handle: RunHandle) -> None:
     else:
         handle.record.status = RunStatus.success if exit_code == 0 else RunStatus.error
     run_store.save_run(handle.project_id, handle.record)
+
+    if captured_results:
+        # Whatever ran before a failure/cancellation still produced real, worth-
+        # keeping example values — captured regardless of final run status.
+        try:
+            from app.execution import workflow_events
+            from app.storage import workflow_store
+
+            updated = workflow_store.set_node_result_examples(handle.project_id, handle.workflow_id, captured_results)
+            if updated is not None:
+                for node_id, captured in captured_results.items():
+                    node = next((n for n in updated.nodes if n.id == node_id), None)
+                    if node is not None:
+                        workflow_events.publish(
+                            handle.workflow_id,
+                            {"type": "node_result_captured", "nodeId": node_id, "resultExamples": node.resultExamples},
+                        )
+        except Exception as exc:
+            print(f"[runner] failed to persist captured result example(s) for workflow '{handle.workflow_id}': {exc}")
     await handle.queue.put(None)

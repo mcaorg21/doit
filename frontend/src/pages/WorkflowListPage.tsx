@@ -6,6 +6,7 @@ import { workflowsApi } from '../api/workflows'
 import { foldersApi } from '../api/folders'
 import CredentialsManager from '../editor/CredentialsManager'
 import PythonImportModal from '../editor/PythonImportModal'
+import { useLanguage } from '../i18n/LanguageContext'
 import type { Folder, Workflow } from '../types/workflow'
 
 // Flattens the folder tree into a depth-ordered list for the "move to" picker —
@@ -21,6 +22,7 @@ export default function WorkflowListPage() {
   const currentFolderId = searchParams.get('folder')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { t } = useLanguage()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [showNewWorkflow, setShowNewWorkflow] = useState(false)
@@ -125,7 +127,7 @@ export default function WorkflowListPage() {
       setFolderError(null)
     },
     onError: (err: unknown) => {
-      setFolderError(err instanceof Error ? err.message : 'Failed to delete folder')
+      setFolderError(err instanceof Error ? err.message : t('failedToDeleteFolder'))
     },
   })
 
@@ -172,7 +174,7 @@ export default function WorkflowListPage() {
       navigate(`/projects/${projectId}/workflows/${workflow.id}`)
     },
     onError: (err: unknown) => {
-      setImportError(err instanceof Error ? err.message : 'Failed to import workflow')
+      setImportError(err instanceof Error ? err.message : t('failedToImportWorkflow'))
     },
   })
 
@@ -181,7 +183,7 @@ export default function WorkflowListPage() {
     try {
       const parsed = JSON.parse(await file.text())
       if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
-        throw new Error('Not a valid workflow export — missing nodes/edges')
+        throw new Error(t('notValidWorkflowExport'))
       }
       importMutation.mutate({
         name: typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name : file.name.replace(/\.json$/i, ''),
@@ -190,25 +192,25 @@ export default function WorkflowListPage() {
         startNodeId: typeof parsed.startNodeId === 'string' ? parsed.startNodeId : null,
       })
     } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Failed to read file')
+      setImportError(err instanceof Error ? err.message : t('failedToReadFile'))
     }
   }
 
   function goToFolder(folderId: string | null) {
-    if (folderId) setSearchParams({ folder: folderId })
-    else setSearchParams({})
+    if (folderId) setSearchParams({ folder: folderId }, { viewTransition: true })
+    else setSearchParams({}, { viewTransition: true })
   }
 
   return (
     <div>
       <div className="topbar">
-        <Link to="/" className="breadcrumb">
-          ← Projects
+        <Link to="/" viewTransition className="breadcrumb">
+          {t('backToProjects')}
         </Link>
         <input
           className="topbar-title-input"
           value={projectName}
-          placeholder="Project name"
+          placeholder={t('projectNamePlaceholder')}
           onChange={(e) => setProjectName(e.target.value)}
           onBlur={commitProjectRename}
           onKeyDown={(e) => {
@@ -224,7 +226,7 @@ export default function WorkflowListPage() {
               onClick={() => goToFolder(null)}
               style={{ cursor: 'pointer', color: currentFolderId ? 'var(--text-muted)' : undefined, fontWeight: currentFolderId ? 400 : 600 }}
             >
-              Workflows
+              {t('workflowsLabel')}
             </span>
             {breadcrumbTrail.map((f, i) => (
               <span key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -244,7 +246,7 @@ export default function WorkflowListPage() {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-sm" onClick={() => fileInputRef.current?.click()}>
-              Import
+              {t('import')}
             </button>
             <input
               ref={fileInputRef}
@@ -257,23 +259,23 @@ export default function WorkflowListPage() {
                 e.target.value = ''
               }}
             />
-            <Link to={`/projects/${projectId}/executions`} className="btn btn-sm">
-              Executions
+            <Link to={`/projects/${projectId}/executions`} viewTransition className="btn btn-sm">
+              {t('executionsTab')}
             </Link>
-            <Link to={`/projects/${projectId}/backup`} className="btn btn-sm">
-              Backup
+            <Link to={`/projects/${projectId}/backup`} viewTransition className="btn btn-sm">
+              {t('backup')}
             </Link>
             <button className="btn btn-sm" onClick={() => setShowCredentials(true)}>
-              Credentials
+              {t('credentials')}
             </button>
             <button className="btn btn-sm" onClick={() => setShowPythonImport(true)}>
-              Import Python (AI)
+              {t('importPythonAi')}
             </button>
             <button className="btn btn-sm" onClick={() => setShowNewFolder(true)}>
-              + New Folder
+              {t('newFolder')}
             </button>
             <button className="btn btn-primary" onClick={() => setShowNewWorkflow(true)}>
-              + New Workflow
+              {t('newWorkflow')}
             </button>
           </div>
         </div>
@@ -289,11 +291,11 @@ export default function WorkflowListPage() {
           </div>
         )}
 
-        {isLoading && <p>Loading...</p>}
+        {isLoading && <p>{t('loadingEllipsis')}</p>}
 
         {!isLoading && childFolders.length === 0 && childWorkflows.length === 0 && (
           <div className="empty-state">
-            {currentFolderId ? 'This folder is empty.' : 'No workflows yet in this project.'}
+            {currentFolderId ? t('folderEmpty') : t('noWorkflowsInProject')}
           </div>
         )}
 
@@ -309,7 +311,7 @@ export default function WorkflowListPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <button
                   className="icon-btn"
-                  title="Rename folder"
+                  title={t('renameFolderTitle')}
                   onClick={(e) => {
                     e.stopPropagation()
                     setRenamingFolder(f)
@@ -323,7 +325,7 @@ export default function WorkflowListPage() {
                 </button>
                 <button
                   className="icon-btn icon-btn-danger"
-                  title="Delete folder"
+                  title={t('deleteFolderTitle')}
                   onClick={(e) => {
                     e.stopPropagation()
                     setFolderError(null)
@@ -343,19 +345,20 @@ export default function WorkflowListPage() {
             <div key={w.id} className="list-item">
               <Link
                 to={`/projects/${projectId}/workflows/${w.id}`}
+                viewTransition
                 style={{ display: 'contents', color: 'inherit', textDecoration: 'none' }}
               >
                 <div>
                   <div className="list-item-title">{w.name}</div>
                   <div className="list-item-meta">
-                    {w.nodes.length} node{w.nodes.length === 1 ? '' : 's'} · Updated{' '}
+                    {w.nodes.length} {w.nodes.length === 1 ? t('nodeWord') : t('nodesWord')} · {t('updatedPrefix')}{' '}
                     {new Date(w.updatedAt).toLocaleString()}
                   </div>
                 </div>
               </Link>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span
-                  title={w.hasError ? 'Error — an unattended run failed and it was auto-unpublished' : w.published ? 'Published' : 'Not published'}
+                  title={w.hasError ? t('errorPublishedStatus') : w.published ? t('publishedStatus') : t('notPublishedStatus')}
                   style={{
                     width: 8,
                     height: 8,
@@ -367,13 +370,13 @@ export default function WorkflowListPage() {
                 {flatFolders.length > 0 && (
                   <select
                     value={w.folderId ?? ''}
-                    title="Move to folder"
+                    title={t('moveToFolderTitle')}
                     onChange={(e) => {
                       moveMutation.mutate({ workflowId: w.id, folderId: e.target.value || null })
                     }}
                     style={{ fontSize: 12, padding: '2px 4px', maxWidth: 120 }}
                   >
-                    <option value="">(root)</option>
+                    <option value="">{t('rootFolderOption')}</option>
                     {flatFolders.map(({ folder, depth }) => (
                       <option key={folder.id} value={folder.id}>
                         {'  '.repeat(depth)}
@@ -382,13 +385,13 @@ export default function WorkflowListPage() {
                     ))}
                   </select>
                 )}
-                <button className="icon-btn" title="Duplicate workflow" onClick={() => duplicateMutation.mutate(w.id)}>
+                <button className="icon-btn" title={t('duplicateWorkflowTitle')} onClick={() => duplicateMutation.mutate(w.id)}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
                 </button>
-                <button className="icon-btn icon-btn-danger" title="Delete workflow" onClick={() => setConfirmDelete(w)}>
+                <button className="icon-btn icon-btn-danger" title={t('deleteWorkflowTitle')} onClick={() => setConfirmDelete(w)}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="3 6 5 6 21 6" />
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -411,14 +414,14 @@ export default function WorkflowListPage() {
       {showNewWorkflow && (
         <div className="modal-overlay" onClick={() => setShowNewWorkflow(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>New Workflow</h3>
+            <h3>{t('newWorkflowModalTitle')}</h3>
             <div className="field">
-              <label>Name</label>
+              <label>{t('nameLabel')}</label>
               <input
                 autoFocus
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Fill signup form per lead"
+                placeholder={t('newWorkflowNamePlaceholder')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && name.trim()) createMutation.mutate(name.trim())
                 }}
@@ -426,14 +429,14 @@ export default function WorkflowListPage() {
             </div>
             <div className="modal-actions">
               <button className="btn" onClick={() => setShowNewWorkflow(false)}>
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 disabled={!name.trim() || createMutation.isPending}
                 onClick={() => createMutation.mutate(name.trim())}
               >
-                Create
+                {t('create')}
               </button>
             </div>
           </div>
@@ -443,14 +446,14 @@ export default function WorkflowListPage() {
       {showNewFolder && (
         <div className="modal-overlay" onClick={() => setShowNewFolder(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>New Folder</h3>
+            <h3>{t('newFolderModalTitle')}</h3>
             <div className="field">
-              <label>Name</label>
+              <label>{t('nameLabel')}</label>
               <input
                 autoFocus
                 value={folderName}
                 onChange={(e) => setFolderName(e.target.value)}
-                placeholder="e.g. Marketing"
+                placeholder={t('newFolderNamePlaceholder')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && folderName.trim()) createFolderMutation.mutate(folderName.trim())
                 }}
@@ -458,14 +461,14 @@ export default function WorkflowListPage() {
             </div>
             <div className="modal-actions">
               <button className="btn" onClick={() => setShowNewFolder(false)}>
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 disabled={!folderName.trim() || createFolderMutation.isPending}
                 onClick={() => createFolderMutation.mutate(folderName.trim())}
               >
-                Create
+                {t('create')}
               </button>
             </div>
           </div>
@@ -475,9 +478,9 @@ export default function WorkflowListPage() {
       {renamingFolder && (
         <div className="modal-overlay" onClick={() => setRenamingFolder(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Rename Folder</h3>
+            <h3>{t('renameFolderModalTitle')}</h3>
             <div className="field">
-              <label>Name</label>
+              <label>{t('nameLabel')}</label>
               <input
                 autoFocus
                 value={renameFolderValue}
@@ -491,14 +494,14 @@ export default function WorkflowListPage() {
             </div>
             <div className="modal-actions">
               <button className="btn" onClick={() => setRenamingFolder(null)}>
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 disabled={!renameFolderValue.trim() || renameFolderMutation.isPending}
                 onClick={() => renameFolderMutation.mutate({ folderId: renamingFolder.id, name: renameFolderValue.trim() })}
               >
-                Save
+                {t('saveButton')}
               </button>
             </div>
           </div>
@@ -508,20 +511,20 @@ export default function WorkflowListPage() {
       {confirmDeleteFolder && (
         <div className="modal-overlay" onClick={() => setConfirmDeleteFolder(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete folder</h3>
+            <h3>{t('deleteFolderTitle')}</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-              Delete "{confirmDeleteFolder.name}"? It must be empty first.
+              {t('deletePrefix')} "{confirmDeleteFolder.name}"{t('deleteFolderConfirmSuffix')}
             </p>
             <div className="modal-actions">
               <button className="btn" onClick={() => setConfirmDeleteFolder(null)}>
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 className="btn btn-danger"
                 disabled={deleteFolderMutation.isPending}
                 onClick={() => deleteFolderMutation.mutate(confirmDeleteFolder.id)}
               >
-                Delete
+                {t('delete')}
               </button>
             </div>
           </div>
@@ -531,20 +534,20 @@ export default function WorkflowListPage() {
       {confirmDelete && (
         <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete workflow</h3>
+            <h3>{t('deleteWorkflowTitle')}</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-              Delete "{confirmDelete.name}"? This can't be undone.
+              {t('deletePrefix')} "{confirmDelete.name}"{t('deleteWorkflowConfirmSuffix')}
             </p>
             <div className="modal-actions">
               <button className="btn" onClick={() => setConfirmDelete(null)}>
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 className="btn btn-danger"
                 disabled={deleteMutation.isPending}
                 onClick={() => deleteMutation.mutate(confirmDelete.id)}
               >
-                Delete
+                {t('delete')}
               </button>
             </div>
           </div>

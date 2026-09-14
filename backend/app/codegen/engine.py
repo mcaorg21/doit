@@ -134,6 +134,28 @@ def _node_label(node: WFNode) -> str:
     return node.title or node.id
 
 
+def _result_capture_lines(node: WFNode, spec) -> str | None:
+    """Emits one print('__NODE_RESULT__' + json.dumps(...)) per filled-in
+    producesVariable param on this node (usually just "resultVar") — a generic,
+    per-node-type-agnostic hook so ANY node with a Result Variable field gets its
+    example value captured on every real Run, without each of those node types'
+    own codegen needing to know about it. Consumed by runner._stream_output, which
+    persists the captured value onto WFNode.resultExamples so the editor can show a
+    real example next to the field without the human needing to re-run/preview.
+    None if this node has no such field filled in (the common case)."""
+    lines = []
+    for p in spec.params:
+        if not p.producesVariable:
+            continue
+        var_name = node.params.get(p.key)
+        if not isinstance(var_name, str) or not var_name.strip():
+            continue
+        var_name = var_name.strip()
+        payload = f'{{"nodeId": {node.id!r}, "key": {p.key!r}, "value": {var_name}}}'
+        lines.append(f'print("__NODE_RESULT__" + json.dumps({payload}, default=str))')
+    return "\n".join(lines) if lines else None
+
+
 def _indent_fragment(fragment: str, level: int) -> str:
     prefix = "    " * level
     lines = []
@@ -301,10 +323,21 @@ def generate_script(
         # preview-mode generation, whose subprocess has no stdin attached: a breakpoint()
         # there would just hang until the preview's timeout kills it.
         should_wrap = not opens_for_wrap and node.type != "pause" and preview_node_id is None
+        # Only meaningful for a real run (preview scripts exit right after their own
+        # target node — see the dump below — and demo/live-session codegen doesn't go
+        # through this function at all), and only ever non-None for a node whose type
+        # actually has a producesVariable param filled in (the common case is None).
+        result_capture = None if preview_node_id is not None else _result_capture_lines(node, spec)
         if should_wrap:
             error_prefix = repr(f"Tratar erro no node {ctx.node_label}: ")
             error_marker = repr(f"__NODE_ERROR__{node.id}")
             try_body = _indent_fragment(fragment, 1)
+            if result_capture:
+                # Inside the try body, after the node's own fragment, so it only runs
+                # once the variable actually exists — appending it outside/after the
+                # try/except would crash with a NameError once execution resumes past
+                # a caught exception, since the assignment never happened.
+                try_body += "\n" + _indent_fragment(result_capture, 1)
             wrapped = (
                 "try:\n"
                 f"{try_body}\n"
@@ -316,6 +349,8 @@ def generate_script(
             lines.append(_indent_fragment(wrapped, indent))
         else:
             lines.append(_indent_fragment(fragment, indent))
+            if result_capture:
+                lines.append(_indent_fragment(result_capture, indent))
 
         if node_id == preview_node_id:
             # If this node's own fragment ends by opening a block (e.g. a loop or `if`

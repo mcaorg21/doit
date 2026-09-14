@@ -3,7 +3,7 @@
   "projectId": "proj_fd45658d",
   "name": "Teste - Extracao PAN Relatorio",
   "createdAt": "2026-09-10T14:35:03.608695Z",
-  "updatedAt": "2026-09-12T11:59:41.057731Z",
+  "updatedAt": "2026-09-14T20:30:31.829708Z",
   "nodes": [
     {
       "id": "node_25d8baa9",
@@ -18,7 +18,9 @@
       },
       "title": null,
       "note": null,
-      "fieldMap": null
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
     },
     {
       "id": "node_00df1450",
@@ -32,7 +34,9 @@
       },
       "title": "Acessar Banco Pan eLaw",
       "note": "Abre o portal Panjud; o login é redirecionado para a Microsoft.",
-      "fieldMap": null
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
     },
     {
       "id": "node_42c6b39c",
@@ -48,7 +52,11 @@
       },
       "title": "Aguardar tela de login Microsoft",
       "note": null,
-      "fieldMap": null
+      "fieldMap": null,
+      "resultExamples": {
+        "resultVar": false
+      },
+      "resultTypes": {}
     },
     {
       "id": "node_b491f5d1",
@@ -63,14 +71,248 @@
       },
       "title": "Executar diariamente às 07:30",
       "note": "Agendamento diário conforme as notas da rotina; confirmar no app se o scheduler usa America/Sao_Paulo.",
-      "fieldMap": null
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
     },
     {
-      "id": "node_1789154296529_2",
-      "type": "microsoft_login",
+      "id": "node_bbfc0ceb",
+      "type": "click",
+      "position": {
+        "x": 1220.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Contencioso'])[1]",
+        "selectorType": "xpath"
+      },
+      "title": "Abrir menu Contencioso",
+      "note": "Clica no primeiro item visível Contencioso após o login.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_87cbc51e",
+      "type": "click",
+      "position": {
+        "x": 1410.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Pesquisar'])[1]",
+        "selectorType": "xpath"
+      },
+      "title": "Abrir pesquisa de processos",
+      "note": "No menu Contencioso, abre a opção Pesquisar para configurar os filtros do relatório.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_8c49c39d",
+      "type": "html_list_select",
+      "position": {
+        "x": 1600.0,
+        "y": 80.0
+      },
+      "params": {
+        "triggerSelector": "//*[@id='tabSearchTab:comboStatus']",
+        "triggerSelectorType": "xpath",
+        "mode": "multiple",
+        "optionText": "Removido",
+        "matchType": "exact",
+        "bypassOnFailure": false,
+        "resultVar": "statusProcessoSelecionado",
+        "listContainerSelector": "//*[@id='tabSearchTab:comboStatus_panel']",
+        "listContainerSelectorType": "xpath",
+        "clearSelector": "",
+        "clearSelectorType": "xpath",
+        "optionTexts": [
+          "Removido"
+        ],
+        "clearCheckedBeforeSelect": false
+      },
+      "title": "Selecionar status Removido",
+      "note": "Usa o clear geral nativo do HTML List Select: limpa todos os checkboxes marcados exclusivamente dentro de listContainerSelector e depois seleciona somente Removido.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_1301f2e9",
+      "type": "click",
+      "position": {
+        "x": 1790.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Pesquisar'])[last()]",
+        "selectorType": "xpath"
+      },
+      "title": "Pesquisar processos adicionando removidos",
+      "note": "Executa a pesquisa após selecionar o status Removido. Usa a última ocorrência visível do texto para evitar o item Pesquisar do menu lateral.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_629a2531",
+      "type": "element_present",
+      "position": {
+        "x": 1980.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Excel processo'])[1]",
+        "selectorType": "xpath",
+        "resultVar": "excelProcessoVisivel"
+      },
+      "title": "Aguardar resultados da pesquisa",
+      "note": "Aguarda a ação Excel processo ficar disponível após o carregamento dos resultados.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_46a426d0",
+      "type": "click",
+      "position": {
+        "x": 2170.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Excel processo'])[1]",
+        "selectorType": "xpath"
+      },
+      "title": "Abrir Excel processo",
+      "note": "Abre o diálogo de geração do relatório de processos.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_01131f86",
+      "type": "html_list_select",
+      "position": {
+        "x": 2360.0,
+        "y": 80.0
+      },
+      "params": {
+        "triggerSelector": "(//*[normalize-space()='Modelo Relatório']/following::*[contains(@class,'ui-selectonemenu')][1])",
+        "triggerSelectorType": "xpath",
+        "mode": "single",
+        "optionText": "DADOS DO PROCESSO",
+        "matchType": "exact",
+        "bypassOnFailure": false,
+        "resultVar": "modeloDadosProcessoSelecionado"
+      },
+      "title": "Selecionar modelo DADOS DO PROCESSO",
+      "note": "No diálogo Excel processo, abre o dropdown associado a Modelo Relatório e escolhe DADOS DO PROCESSO pelo texto visível.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_121783c8",
+      "type": "click",
+      "position": {
+        "x": 2550.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Gerar relatório'])[last()]",
+        "selectorType": "xpath",
+        "bypassOnFailure": false
+      },
+      "title": "Gerar relatório DADOS DO PROCESSO",
+      "note": "Solicita a geração do primeiro relatório após escolher o modelo.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_ee62211c",
+      "type": "html_list_select",
+      "position": {
+        "x": 2740.0,
+        "y": 80.0
+      },
+      "params": {
+        "triggerSelector": "(//*[normalize-space()='Modelo Relatório']/following::*[contains(@class,'ui-selectonemenu')][1])",
+        "triggerSelectorType": "xpath",
+        "mode": "single",
+        "optionText": "Inativações",
+        "matchType": "exact",
+        "bypassOnFailure": false,
+        "resultVar": "modeloInativacoesSelecionado"
+      },
+      "title": "Selecionar modelo Inativações",
+      "note": "Mantém o diálogo aberto e troca o Modelo Relatório para Inativações.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_a2fd5149",
+      "type": "click",
+      "position": {
+        "x": 2930.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Gerar relatório'])[last()]",
+        "selectorType": "xpath",
+        "bypassOnFailure": false
+      },
+      "title": "Gerar relatório Inativações",
+      "note": "Solicita a geração do segundo relatório.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_2f5bff3c",
+      "type": "click",
+      "position": {
+        "x": 3120.0,
+        "y": 80.0
+      },
+      "params": {
+        "selector": "(//*[normalize-space()='Fechar'])[last()]",
+        "selectorType": "xpath",
+        "bypassOnFailure": false
+      },
+      "title": "Fechar diálogo Excel processo",
+      "note": "Fecha o diálogo após solicitar os relatórios DADOS DO PROCESSO e Inativações.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_9b986bf7",
+      "type": "click",
       "position": {
         "x": 840.0,
         "y": 80.0
+      },
+      "params": {
+        "selector": "//*[normalize-space()='Usar outra conta' or normalize-space()='Use another account']",
+        "selectorType": "xpath",
+        "bypassOnFailure": true
+      },
+      "title": "Usar outra conta, se necessário",
+      "note": "Na tela de seleção de conta da Microsoft, escolhe “Usar outra conta”. Se a tela já exibir o campo de e-mail, continua sem falhar.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
+    },
+    {
+      "id": "node_1789417681118_1",
+      "type": "microsoft_login",
+      "position": {
+        "x": 1013.2363678630646,
+        "y": 80.50893518595235
       },
       "params": {
         "url": "https://bancopan.elaw.com.br",
@@ -93,200 +335,10 @@
         "resultVar": "loginMicrosoft"
       },
       "title": "Autenticar no Microsoft",
-      "note": "Usa a credencial de login do projeto e confirma o acesso pelo primeiro item visível Contencioso.",
-      "fieldMap": null
-    },
-    {
-      "id": "node_bbfc0ceb",
-      "type": "click",
-      "position": {
-        "x": 1030.0,
-        "y": 80.0
-      },
-      "params": {
-        "selector": "(//*[normalize-space()='Contencioso'])[1]",
-        "selectorType": "xpath"
-      },
-      "title": "Abrir menu Contencioso",
-      "note": "Clica no primeiro item visível Contencioso após o login.",
-      "fieldMap": null
-    },
-    {
-      "id": "node_87cbc51e",
-      "type": "click",
-      "position": {
-        "x": 1220.0,
-        "y": 80.0
-      },
-      "params": {
-        "selector": "(//*[normalize-space()='Pesquisar'])[1]",
-        "selectorType": "xpath"
-      },
-      "title": "Abrir pesquisa de processos",
-      "note": "No menu Contencioso, abre a opção Pesquisar para configurar os filtros do relatório.",
-      "fieldMap": null
-    },
-    {
-      "id": "node_8c49c39d",
-      "type": "html_list_select",
-      "position": {
-        "x": 1410.0,
-        "y": 80.0
-      },
-      "params": {
-        "triggerSelector": "//*[@id='tabSearchTab:comboStatus']",
-        "triggerSelectorType": "xpath",
-        "mode": "multiple",
-        "optionText": "Removido",
-        "matchType": "exact",
-        "bypassOnFailure": false,
-        "resultVar": "statusProcessoSelecionado",
-        "listContainerSelector": "//*[@id='tabSearchTab:comboStatus_panel']",
-        "listContainerSelectorType": "xpath",
-        "clearSelector": "",
-        "clearSelectorType": "xpath",
-        "optionTexts": [
-          "Removido"
-        ],
-        "clearCheckedBeforeSelect": true
-      },
-      "title": "Selecionar status Removido",
-      "note": "Usa o clear geral nativo do HTML List Select: limpa todos os checkboxes marcados exclusivamente dentro de listContainerSelector e depois seleciona somente Removido.",
-      "fieldMap": null
-    },
-    {
-      "id": "node_1301f2e9",
-      "type": "click",
-      "position": {
-        "x": 1600.0,
-        "y": 80.0
-      },
-      "params": {
-        "selector": "(//*[normalize-space()='Pesquisar'])[last()]",
-        "selectorType": "xpath"
-      },
-      "title": "Pesquisar processos removidos",
-      "note": "Executa a pesquisa após selecionar o status Removido. Usa a última ocorrência visível do texto para evitar o item Pesquisar do menu lateral.",
-      "fieldMap": null
-    },
-    {
-      "id": "node_629a2531",
-      "type": "element_present",
-      "position": {
-        "x": 1790.0,
-        "y": 80.0
-      },
-      "params": {
-        "selector": "(//*[normalize-space()='Excel processo'])[1]",
-        "selectorType": "xpath",
-        "resultVar": "excelProcessoVisivel"
-      },
-      "title": "Aguardar resultados da pesquisa",
-      "note": "Aguarda a ação Excel processo ficar disponível após o carregamento dos resultados.",
-      "fieldMap": null
-    },
-    {
-      "id": "node_46a426d0",
-      "type": "click",
-      "position": {
-        "x": 1980.0,
-        "y": 80.0
-      },
-      "params": {
-        "selector": "(//*[normalize-space()='Excel processo'])[1]",
-        "selectorType": "xpath"
-      },
-      "title": "Abrir Excel processo",
-      "note": "Abre o diálogo de geração do relatório de processos.",
-      "fieldMap": null
-    },
-    {
-      "id": "node_01131f86",
-      "type": "html_list_select",
-      "position": {
-        "x": 2170.0,
-        "y": 80.0
-      },
-      "params": {
-        "triggerSelector": "(//*[normalize-space()='Modelo Relatório']/following::*[contains(@class,'ui-selectonemenu')][1])",
-        "triggerSelectorType": "xpath",
-        "mode": "single",
-        "optionText": "DADOS DO PROCESSO",
-        "matchType": "exact",
-        "bypassOnFailure": false,
-        "resultVar": "modeloDadosProcessoSelecionado"
-      },
-      "title": "Selecionar modelo DADOS DO PROCESSO",
-      "note": "No diálogo Excel processo, abre o dropdown associado a Modelo Relatório e escolhe DADOS DO PROCESSO pelo texto visível.",
-      "fieldMap": null
-    },
-    {
-      "id": "node_121783c8",
-      "type": "click",
-      "position": {
-        "x": 2360.0,
-        "y": 80.0
-      },
-      "params": {
-        "selector": "(//*[normalize-space()='Gerar relatório'])[last()]",
-        "selectorType": "xpath",
-        "bypassOnFailure": false
-      },
-      "title": "Gerar relatório DADOS DO PROCESSO",
-      "note": "Solicita a geração do primeiro relatório após escolher o modelo.",
-      "fieldMap": null
-    },
-    {
-      "id": "node_ee62211c",
-      "type": "html_list_select",
-      "position": {
-        "x": 2550.0,
-        "y": 80.0
-      },
-      "params": {
-        "triggerSelector": "(//*[normalize-space()='Modelo Relatório']/following::*[contains(@class,'ui-selectonemenu')][1])",
-        "triggerSelectorType": "xpath",
-        "mode": "single",
-        "optionText": "Inativações",
-        "matchType": "exact",
-        "bypassOnFailure": false,
-        "resultVar": "modeloInativacoesSelecionado"
-      },
-      "title": "Selecionar modelo Inativações",
-      "note": "Mantém o diálogo aberto e troca o Modelo Relatório para Inativações.",
-      "fieldMap": null
-    },
-    {
-      "id": "node_a2fd5149",
-      "type": "click",
-      "position": {
-        "x": 2740.0,
-        "y": 80.0
-      },
-      "params": {
-        "selector": "(//*[normalize-space()='Gerar relatório'])[last()]",
-        "selectorType": "xpath",
-        "bypassOnFailure": false
-      },
-      "title": "Gerar relatório Inativações",
-      "note": "Solicita a geração do segundo relatório.",
-      "fieldMap": null
-    },
-    {
-      "id": "node_2f5bff3c",
-      "type": "click",
-      "position": {
-        "x": 2930.0,
-        "y": 80.0
-      },
-      "params": {
-        "selector": "(//*[normalize-space()='Fechar'])[last()]",
-        "selectorType": "xpath",
-        "bypassOnFailure": false
-      },
-      "title": "Fechar diálogo Excel processo",
-      "note": "Fecha o diálogo após solicitar os relatórios DADOS DO PROCESSO e Inativações.",
-      "fieldMap": null
+      "note": "Usa a credencial selecionada no editor, autentica no Microsoft e confirma o acesso quando o menu Contencioso estiver disponível.",
+      "fieldMap": null,
+      "resultExamples": {},
+      "resultTypes": {}
     }
   ],
   "edges": [
@@ -312,20 +364,6 @@
       "breakpoint": false
     },
     {
-      "id": "e_node_1789154298971_3",
-      "source": "node_42c6b39c",
-      "target": "node_1789154296529_2",
-      "sourceHandle": null,
-      "breakpoint": false
-    },
-    {
-      "id": "edge_7640c891",
-      "source": "node_1789154296529_2",
-      "target": "node_bbfc0ceb",
-      "sourceHandle": null,
-      "breakpoint": false
-    },
-    {
       "id": "edge_633a6404",
       "source": "node_bbfc0ceb",
       "target": "node_87cbc51e",
@@ -344,7 +382,7 @@
       "source": "node_8c49c39d",
       "target": "node_1301f2e9",
       "sourceHandle": null,
-      "breakpoint": true
+      "breakpoint": false
     },
     {
       "id": "edge_59f19a42",
@@ -392,6 +430,27 @@
       "id": "edge_4c3564a8",
       "source": "node_a2fd5149",
       "target": "node_2f5bff3c",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "edge_df16fd7f",
+      "source": "node_42c6b39c",
+      "target": "node_9b986bf7",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1789417686221_2",
+      "source": "node_9b986bf7",
+      "target": "node_1789417681118_1",
+      "sourceHandle": null,
+      "breakpoint": false
+    },
+    {
+      "id": "e_node_1789417687507_4",
+      "source": "node_1789417681118_1",
+      "target": "node_bbfc0ceb",
       "sourceHandle": null,
       "breakpoint": false
     }

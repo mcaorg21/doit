@@ -30,7 +30,7 @@ export const en = {
 
   // Panel tabs
   codePreviewTab: 'Code Preview',
-  runTab: 'Run',
+  logsTab: 'Logs',
   executionsTab: 'Executions',
   resizeHandleTitle: 'Drag to resize',
 
@@ -143,6 +143,8 @@ export const en = {
   fieldKindText: 'Text (fill)',
   fieldKindSelect: 'Select (dropdown)',
   addFieldButton: '+ Add Field',
+  clearFieldFirstLabel: 'Clear first',
+  simulateTypingLabel: 'Simulate typing',
   noneYetHint: 'None yet — add one below.',
   removeTitle: 'Remove',
   addGenericButton: '+ Add',
@@ -156,7 +158,7 @@ export const en = {
   languageToggleTitle: 'Switch app language',
 
   // Project list page
-  appName: 'Auto-mation',
+  appName: 'DCFlow',
   projectsTitle: 'Projects',
   newProject: '+ New Project',
   newProjectModalTitle: 'New Project',

@@ -1,9 +1,9 @@
 {
-  "id": "wf_7b38c6f0",
+  "id": "wf_ac5d38a9",
   "projectId": "proj_fd45658d",
-  "name": "Extracao PAN - Relatório 1 — Dados do processo",
-  "createdAt": "2026-09-10T14:35:03.608695Z",
-  "updatedAt": "2026-09-16T22:00:58.237817Z",
+  "name": "Extracao PAN - Relatório 2 — Inativações",
+  "createdAt": "2026-09-16T21:50:37.296856Z",
+  "updatedAt": "2026-09-16T21:51:24.639079Z",
   "nodes": [
     {
       "id": "node_25d8baa9",
@@ -445,7 +445,7 @@
       "breakpoint": false
     }
   ],
-  "published": true,
+  "published": false,
   "folderId": "fold_4443d374",
   "startNodeId": "node_b491f5d1",
   "hasError": false

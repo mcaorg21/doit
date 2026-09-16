@@ -7,6 +7,8 @@ interface FieldRow {
   selectorType: string
   kind: 'text' | 'select'
   value: string
+  clearFirst?: boolean
+  simulateTyping?: boolean
 }
 
 const SELECTOR_TYPE_OPTIONS = [
@@ -18,7 +20,7 @@ const SELECTOR_TYPE_OPTIONS = [
 ]
 
 function emptyRow(): FieldRow {
-  return { selector: '', selectorType: 'css', kind: 'text', value: '' }
+  return { selector: '', selectorType: 'css', kind: 'text', value: '', clearFirst: false, simulateTyping: false }
 }
 
 // Renders a repeatable list of {selector, selectorType, kind, value} rows, stored
@@ -89,6 +91,26 @@ export default function FieldListField({ spec, value, onChange }: FieldProps) {
             value={row.value}
             onChange={(e) => updateRow(i, { value: e.target.value })}
           />
+          {row.kind === 'text' && (
+            <div className="field-list-row-checkboxes">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={row.clearFirst ?? false}
+                  onChange={(e) => updateRow(i, { clearFirst: e.target.checked })}
+                />{' '}
+                {t('clearFieldFirstLabel')}
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={row.simulateTyping ?? false}
+                  onChange={(e) => updateRow(i, { simulateTyping: e.target.checked })}
+                />{' '}
+                {t('simulateTypingLabel')}
+              </label>
+            </div>
+          )}
         </div>
       ))}
 

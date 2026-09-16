@@ -89,3 +89,34 @@ def test_unattended_run_with_no_error_stays_untouched(monkeypatch):
     asyncio.run(runner._stream_output(handle))
 
     assert calls == []
+
+
+# --- the dedicated Error node's marker (app/nodes/error.py) ----------------
+#
+# Unlike NODE_ERROR_MARKER above (an ordinary node crashing, gated on
+# `unattended`), WORKFLOW_MARK_ERROR_MARKER always unpublishes + flags the
+# workflow — the Error node means it every time it's reached, no matter how
+# the run was started.
+
+
+def test_error_node_marker_unpublishes_on_a_manual_run(monkeypatch):
+    calls = []
+    monkeypatch.setattr(workflow_store, "set_published", lambda p, w, v: calls.append(("set_published", v)))
+    monkeypatch.setattr(workflow_store, "set_error_state", lambda p, w, v: calls.append(("set_error_state", v)))
+
+    handle = _make_handle(unattended=False, lines=[b'__WORKFLOW_MARK_ERROR__{"nodeId": "n1", "message": "boom"}\n'])
+    asyncio.run(runner._stream_output(handle))
+
+    assert calls == [("set_published", False), ("set_error_state", True)]
+
+
+def test_error_node_marker_unpublishes_on_an_unattended_run(monkeypatch):
+    calls = []
+    monkeypatch.setattr(workflow_store, "get_workflow", lambda p, w: SimpleNamespace(published=True))
+    monkeypatch.setattr(workflow_store, "set_published", lambda p, w, v: calls.append(("set_published", v)))
+    monkeypatch.setattr(workflow_store, "set_error_state", lambda p, w, v: calls.append(("set_error_state", v)))
+
+    handle = _make_handle(unattended=True, lines=[b'__WORKFLOW_MARK_ERROR__{"nodeId": "n1", "message": "boom"}\n'])
+    asyncio.run(runner._stream_output(handle))
+
+    assert calls == [("set_published", False), ("set_error_state", True)]

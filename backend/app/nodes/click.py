@@ -1,13 +1,13 @@
 from app.codegen.context import CodegenContext
 from app.codegen.template_utils import resolve_selector
 from app.nodes.base import NodeSpec, ParamField
-from app.nodes.common import selector_field, selector_type_field
+from app.nodes.common import selector_field, selector_type_field, timeout_field, timeout_ms_kwarg
 from app.nodes.registry import register
 
 
 def codegen_click(ctx: CodegenContext) -> str:
     selector = resolve_selector(ctx)
-    click_stmt = f"{ctx.target_var}.locator({selector}).click()"
+    click_stmt = f"{ctx.target_var}.locator({selector}).click({timeout_ms_kwarg(ctx.params)})"
     success_print = f'print(f"[{ctx.node_label}] clicked " + {selector})'
     if not bool(ctx.params.get("bypassOnFailure")):
         return f"{click_stmt}\n{success_print}"
@@ -30,6 +30,7 @@ register(
         params=[
             selector_field(placeholder="button[type=submit]"),
             selector_type_field(),
+            timeout_field(),
             ParamField(
                 key="bypassOnFailure",
                 label="Bypass — continue the run even if this click fails",

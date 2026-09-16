@@ -32,6 +32,7 @@ import {
   LuLogIn,
   LuListTree,
   LuCode,
+  LuOctagonAlert,
 } from 'react-icons/lu'
 
 // One specific, deliberately-picked icon per node type — Lucide for general/functional
@@ -68,6 +69,7 @@ const ICONS: Record<string, IconType> = {
   'log-in': LuLogIn, // Login
   'list-select': LuListTree, // Select List HTML
   code: LuCode, // Execute Script (JS)
+  'octagon-alert': LuOctagonAlert, // Error
 }
 
 // LuSplit's glyph reads top-to-bottom (a path forking upward) — the canvas flows

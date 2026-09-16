@@ -29,6 +29,7 @@ export interface FlowCanvasHandle {
 }
 
 interface Props {
+  children?: React.ReactNode
   nodes: Node<FlowNodeData>[]
   edges: Edge<FlowEdgeData>[]
   onNodesChange: (changes: NodeChange<Node<FlowNodeData>>[]) => void
@@ -50,6 +51,7 @@ interface Props {
 
 function FlowCanvasInner(
   {
+    children,
     nodes,
     edges,
     onNodesChange,
@@ -176,6 +178,7 @@ function FlowCanvasInner(
           </ControlButton>
         </Controls>
       </ReactFlow>
+      {children}
     </div>
   )
 }

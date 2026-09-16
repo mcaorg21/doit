@@ -13,6 +13,12 @@
   font-weight: 600;
 }
 
+.app-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
 .language-toggle {
   position: fixed;
   bottom: 12px;
@@ -151,6 +157,14 @@
   max-width: 880px;
   margin: 0 auto;
   padding: 24px 20px;
+}
+
+/* Wider than the default .container — the Workflows page's toolbar-tabs pill (6
+   items, longer in Portuguese: "Execuções", "Credenciais", "Importar Python (IA)")
+   plus the separate "+ Novo Workflow" button need more than 880px to stay on one
+   row instead of the button wrapping onto its own line underneath. */
+.container-wide {
+  max-width: 1200px;
 }
 
 .page-header {
@@ -589,6 +603,19 @@
   min-width: 0;
 }
 
+.field-list-row-checkboxes {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.field-list-row-checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Editor layout */
 .editor-page {
   display: flex;
@@ -765,7 +792,7 @@
 
 /* A node stopped at a live breakpoint (Pause node or a connector's breakpoint) —
    still pulses, unlike a plain failed node's static ring, since it's not broken,
-   just waiting on you (see RunPanel.tsx's NODE_PAUSED_MARKER). */
+   just waiting on you (see useWorkflowRun.ts's NODE_PAUSED_MARKER). */
 .node-paused {
   animation: node-paused-pulse 1.1s ease-in-out infinite;
 }
@@ -784,6 +811,138 @@
   background: var(--bg);
   position: relative;
 }
+
+/* The n8n-style floating run control — a big centered pill over the canvas instead of
+   a button row buried in a tab you have to switch to. See RunFloatingControls.tsx. */
+.run-float {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: min(92%, 440px);
+  outline: none;
+}
+
+.run-float-status {
+  font: 600 13px var(--sans);
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.run-float-status.success {
+  color: var(--success);
+}
+
+.run-float-status.error {
+  color: var(--danger);
+}
+
+.run-float-status.cancelled {
+  color: var(--text-muted);
+}
+
+.run-float-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.run-float-pill {
+  font: 600 14px var(--sans);
+  padding: 12px 26px;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.run-float-pill:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.run-float-pill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.run-float-stop {
+  font: 600 13px var(--sans);
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--danger);
+  background: var(--surface);
+  color: var(--danger);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.run-float-stop:hover {
+  background: var(--danger);
+  color: white;
+}
+
+.run-float-secondary {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.run-float-secondary .btn {
+  background: var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.run-float-clipboard-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.run-float-clipboard-box {
+  width: min(420px, 90vw);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.run-float-clipboard-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.run-float-clipboard-box-content {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  padding: 8px 10px;
+  max-height: 200px;
+  overflow: auto;
+}
+
 
 .side-panel {
   background: var(--surface);
@@ -808,6 +967,42 @@
 
 .resize-handle:hover {
   background: var(--accent-bg);
+}
+
+/* The Workflows page's row of utility actions (Import, Executions, Backup,
+   Credentials, Import Python (AI), New Folder) — a single segmented pill instead of
+   a row of separate bordered buttons, so it reads as one cohesive toolbar. "+ New
+   Workflow" stays outside it as the one primary, visually distinct CTA. */
+.toolbar-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  flex-wrap: wrap;
+}
+
+.toolbar-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font: 500 13px var(--sans);
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.toolbar-tab:hover {
+  background: var(--bg);
+  color: var(--text);
 }
 
 .panel-tabs {

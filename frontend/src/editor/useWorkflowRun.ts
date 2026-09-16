@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Edge, Node } from '@xyflow/react'
-import { LuClipboard, LuSearch } from 'react-icons/lu'
 import { workflowsApi } from '../api/workflows'
 import { runsApi } from '../api/runs'
 import { toWFEdges, toWFNodes } from './convert'
@@ -19,12 +18,12 @@ interface Props {
   onNodePaused: (nodeId: string | null) => void
 }
 
-interface LogEntry {
+export interface LogEntry {
   text: string
   level: string
 }
 
-const STATUS_LABELS: Record<RunStatus, string> = {
+export const RUN_STATUS_LABELS: Record<RunStatus, string> = {
   running: 'Running…',
   success: '✓ Finished successfully',
   error: '✗ Run failed',
@@ -183,7 +182,7 @@ const INSPECTOR_JS =
 // Quick-start snippets for the pdb command line, one per action-style node type — picking
 // one fills the input with a generic call the user then edits in place (the placeholder,
 // when there is one, is pre-selected so typing immediately replaces it).
-const PDB_SNIPPETS: { label: string; template: string; placeholder?: string }[] = [
+export const PDB_SNIPPETS: { label: string; template: string; placeholder?: string }[] = [
   { label: 'Navigate', template: 'page.goto("https://example.com")', placeholder: '"https://example.com"' },
   { label: 'Fill Input', template: 'page.locator("#selector").fill("value")', placeholder: '"#selector"' },
   {
@@ -203,7 +202,22 @@ const PDB_SNIPPETS: { label: string; template: string; placeholder?: string }[] 
 // evaluate() to also cover the page as it stands right now.
 const INSPECTOR_COMMAND = `page.add_init_script("""${INSPECTOR_JS}"""); page.evaluate("""${INSPECTOR_JS}""")`
 
-export default function RunPanel({ projectId, workflowId, nodes, edges, startNodeId, onNodeExecuting, onNodeFailed, onNodePaused }: Props) {
+// Owns every bit of state/logic for driving a real run — extracted out of what used to be
+// RunPanel's own component body so it can be instantiated ONCE at the EditorPage level and
+// keep running (WebSocket, logs, pdb session) across bottom-panel tab switches, instead of
+// being torn down whenever the user clicked away from the "Run" tab. The floating controls
+// over the canvas (RunFloatingControls) and the Logs tab (LogsPanel) both just render
+// slices of what this returns.
+export function useWorkflowRun({
+  projectId,
+  workflowId,
+  nodes,
+  edges,
+  startNodeId,
+  onNodeExecuting,
+  onNodeFailed,
+  onNodePaused,
+}: Props) {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [status, setStatus] = useState<RunStatus | null>(null)
   const [running, setRunning] = useState(false)
@@ -403,199 +417,29 @@ export default function RunPanel({ projectId, workflowId, nodes, edges, startNod
     handleStop()
   }
 
-  return (
-    <div tabIndex={0} onKeyDown={handleLogAreaKeyDown} style={{ outline: 'none' }}>
-      <button className="btn btn-primary btn-sm" onClick={handleRun} disabled={running || nodes.length === 0}>
-        {running ? 'Running…' : '▶ Run'}
-      </button>
-      {running && (
-        <button className="btn btn-sm" onClick={handleStop} style={{ marginLeft: 8 }} title="Stop (Ctrl+C)">
-          ⏹ Stop
-        </button>
-      )}
-      {running && (
-        <button className="btn btn-sm" onClick={handleContinue} style={{ marginLeft: 8 }}>
-          ⏵ Continue past breakpoint
-        </button>
-      )}
-      {running && (
-        <button
-          className="btn btn-sm"
-          onClick={handleActivateInspector}
-          style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4 }}
-          title="Inspect elements — hover any element in the Chrome window to see its details"
-        >
-          <LuSearch size={13} />
-          Inspector
-        </button>
-      )}
-      {running && (
-        <button
-          className="btn btn-sm"
-          onClick={toggleClipboardBar}
-          style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4, position: 'relative' }}
-          title="View the current clipboard content"
-        >
-          <LuClipboard size={13} />
-          Clipboard
-          {clipboardHasNew && !clipboardOpen && (
-            <span
-              style={{
-                position: 'absolute',
-                top: -2,
-                right: -2,
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: 'var(--success)',
-              }}
-            />
-          )}
-        </button>
-      )}
-
-      {clipboardOpen && (
-        <div
-          style={{
-            marginTop: 8,
-            border: '1px solid var(--border)',
-            borderRadius: 6,
-            background: 'var(--surface)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '4px 8px',
-              borderBottom: '1px solid var(--border)',
-              fontSize: 12,
-              color: 'var(--text-muted)',
-            }}
-          >
-            <span>Clipboard</span>
-            <button className="icon-btn" title="Close" onClick={() => setClipboardOpen(false)}>
-              ✕
-            </button>
-          </div>
-          <pre
-            style={{
-              margin: 0,
-              fontFamily: 'var(--mono)',
-              fontSize: 12,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-all',
-              padding: '8px 10px',
-              maxHeight: 200,
-              overflow: 'auto',
-            }}
-          >
-            {clipboardText || '(empty, or this tab doesn’t have permission/focus to read it yet)'}
-          </pre>
-        </div>
-      )}
-
-      {running && (
-        <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 6 }}>
-          Click into this panel and press Ctrl+C to stop execution (when nothing is selected). Every node runs
-          inside a try/except — if the log stops advancing, it's likely paused (either an explicit breakpoint,
-          or an error in the last node); click "Continue", or type a pdb command below (n, s, p &lt;expr&gt;, l, c,
-          ...).
-        </div>
-      )}
-
-      {running && (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-            <select
-              value=""
-              onChange={(e) => {
-                const snippet = PDB_SNIPPETS.find((s) => s.label === e.target.value)
-                if (snippet) insertSnippet(snippet)
-                e.target.value = ''
-              }}
-              title="Insert a starting point for a common action, then edit the selector/value in place"
-              style={{
-                fontSize: 11,
-                padding: '2px 4px',
-                border: '1px solid var(--border)',
-                borderRadius: 4,
-                background: 'var(--bg)',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <option value="">Insert command…</option>
-              {PDB_SNIPPETS.map((s) => (
-                <option key={s.label} value={s.label}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input
-              ref={pdbInputRef}
-              value={pdbCommand}
-              onChange={(e) => setPdbCommand(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSendPdbCommand()
-              }}
-              placeholder="pdb command, e.g. p item"
-              style={{
-                flex: 1,
-                fontFamily: 'var(--mono)',
-                fontSize: 13,
-                padding: '6px 8px',
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-                background: 'var(--bg)',
-                color: 'var(--text)',
-              }}
-            />
-            <button className="btn btn-sm" onClick={handleSendPdbCommand}>
-              Send
-            </button>
-          </div>
-        </div>
-      )}
-
-      {status && <div className={`run-status ${status}`}>{STATUS_LABELS[status]}</div>}
-      {error && <div className="error-banner">{error}</div>}
-
-      <div style={{ marginTop: 8 }}>
-        {logs.map((log, i) => (
-          <div key={i} className={`log-line ${log.level === 'error' ? 'error' : ''}`}>
-            {log.text}
-          </div>
-        ))}
-      </div>
-
-      {inspectorActive && (
-        <div className="modal-overlay" onClick={() => setInspectorActive(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <LuSearch size={18} />
-              Modo inspecionador ativado
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
-              Passe o mouse sobre qualquer elemento na janela do Chrome para ver seus detalhes (CSS Selector,
-              XPath, Full XPath, id, name, class, tamanho, atributos, texto). <strong>Clique</strong> no elemento
-              para congelar a caixinha no lugar — ela vira selecionável, então dá pra arrastar o mouse e copiar
-              (Ctrl+C) só a linha que você quer, em vez do bloco inteiro. Clique no "x" ou aperte{' '}
-              <strong>Esc</strong> pra descongelar e voltar a passar o mouse livremente. Prefere copiar tudo de
-              uma vez? Pressione <strong>C</strong> (funciona tanto passando o mouse quanto com a caixinha
-              congelada) e depois clique em "Clipboard" aqui em cima para ver o que foi copiado. Continua ativo
-              mesmo se a página navegar.
-            </p>
-            <div className="modal-actions">
-              <button className="btn btn-primary" onClick={() => setInspectorActive(false)}>
-                Ok
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  return {
+    logs,
+    status,
+    running,
+    error,
+    pdbCommand,
+    setPdbCommand,
+    inspectorActive,
+    setInspectorActive,
+    clipboardOpen,
+    clipboardText,
+    clipboardHasNew,
+    toggleClipboardBar,
+    pdbInputRef,
+    canRun: nodes.length > 0,
+    handleRun,
+    handleStop,
+    handleContinue,
+    handleActivateInspector,
+    handleSendPdbCommand,
+    insertSnippet,
+    handleLogAreaKeyDown,
+  }
 }
+
+export type WorkflowRun = ReturnType<typeof useWorkflowRun>

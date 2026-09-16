@@ -58,11 +58,23 @@ def test_node_registered_with_bypass_param():
     assert field.default is False
 
 
+def test_node_registered_with_timeout_param():
+    spec = NODE_REGISTRY["click"]
+    field = next(p for p in spec.params if p.key == "timeout")
+    assert field.type == "number"
+    assert field.default == 30
+
+
+def test_custom_timeout_is_converted_to_milliseconds():
+    fragment = codegen_click(_ctx({"selector": "#real", "selectorType": "css", "timeout": 5}))
+    assert "page.locator('#real').click(timeout=5000)" in fragment.splitlines()[0]
+
+
 def test_bypass_off_is_flat_and_still_the_original_two_lines():
     fragment = codegen_click(_ctx({"selector": "#real", "selectorType": "css"}))
     lines = fragment.splitlines()
     assert lines == [
-        "page.locator('#real').click()",
+        "page.locator('#real').click(timeout=30000)",
         'print(f"[Click] clicked " + \'#real\')',
     ]
     for line in lines:
@@ -70,13 +82,17 @@ def test_bypass_off_is_flat_and_still_the_original_two_lines():
 
 
 def test_bypass_off_raises_on_missing_element(page):
-    fragment = codegen_click(_ctx({"selector": "#missing", "selectorType": "css"}))
+    # Explicit timeout param (not just the page's set_default_timeout(500)) since the
+    # generated click() now always passes its own timeout= kwarg, which overrides it.
+    fragment = codegen_click(_ctx({"selector": "#missing", "selectorType": "css", "timeout": 0.5}))
     with pytest.raises(Exception):
         _exec_fragment(page, fragment)
 
 
 def test_bypass_on_swallows_failure_and_keeps_going(page):
-    fragment = codegen_click(_ctx({"selector": "#missing", "selectorType": "css", "bypassOnFailure": True}))
+    fragment = codegen_click(
+        _ctx({"selector": "#missing", "selectorType": "css", "bypassOnFailure": True, "timeout": 0.5})
+    )
     _exec_fragment(page, fragment)  # must NOT raise
 
 

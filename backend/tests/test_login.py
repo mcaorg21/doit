@@ -24,7 +24,7 @@ from playwright.sync_api import sync_playwright
 
 from app.codegen.context import CodegenContext, CodegenError
 from app.codegen.engine import HEADER, generate_script
-from app.config import cookies_dir
+from app.config import cookies_dir_for_credential
 from app.models.credential import CredentialCreate
 from app.models.project import ProjectCreate
 from app.models.workflow import Position, WFEdge, WFNode
@@ -111,13 +111,23 @@ def page(browser):
 
 
 @pytest.fixture()
-def cookies_path(project):
-    d = cookies_dir(project.id, WORKFLOW_ID)
-    if d.exists():
-        shutil.rmtree(d)
-    yield d
-    if d.exists():
-        shutil.rmtree(d)
+def cookies_path_for(project):
+    """Login's cookie jar is now keyed by CREDENTIAL, not by this workflow (see
+    app/nodes/login.py) — a fixture factory since different tests use different
+    credentials (login_credential, a locally-created bad_cred, ...)."""
+    created = []
+
+    def _for(credential_id: str):
+        d = cookies_dir_for_credential(project.id, credential_id)
+        if d.exists():
+            shutil.rmtree(d)
+        created.append(d)
+        return d
+
+    yield _for
+    for d in created:
+        if d.exists():
+            shutil.rmtree(d)
 
 
 @pytest.fixture()
@@ -141,13 +151,13 @@ def totp_credential(project):
     credential_store.delete_credential(project.id, cred.id)
 
 
-def _ctx(project_id: str, params: dict) -> CodegenContext:
+def _ctx(project_id: str, params: dict, workflow_id: str = WORKFLOW_ID) -> CodegenContext:
     return CodegenContext(
         node_id="test_node",
         params=params,
         in_loop=False,
         project_id=project_id,
-        workflow_id=WORKFLOW_ID,
+        workflow_id=workflow_id,
         target_var="page",
         node_label="Login",
     )
@@ -198,8 +208,8 @@ def test_node_registered_with_expected_shape():
         "submitSelector",
         "confirmSelector",
         "has2FA",
-        "cookiesFilename",
     } <= param_keys
+    assert "cookiesFilename" not in param_keys  # cookie storage is now tied to the credential, not a filename
 
 
 def test_get_node_catalog_includes_login():
@@ -260,7 +270,8 @@ def test_not_demoable_live():
 # --- real functional behavior ----------------------------------------------
 
 
-def test_first_run_fills_form_and_saves_cookies(project, page, login_credential, cookies_path):
+def test_first_run_fills_form_and_saves_cookies(project, page, login_credential, cookies_path_for):
+    cookies_path = cookies_path_for(login_credential.id)
     fragment = codegen_login(_ctx(project.id, _base_params(login_credential, resultVar="r")))
     ns = _exec_fragment(page, fragment)
 
@@ -273,7 +284,44 @@ def test_first_run_fills_form_and_saves_cookies(project, page, login_credential,
     assert any(c["name"] == "session" and c["value"] == "valid" for c in data)
 
 
-def test_second_run_skips_form_using_saved_cookies(project, browser, page, login_credential, cookies_path):
+def test_node_registered_with_typing_option_params():
+    spec = NODE_REGISTRY["login"]
+    param_keys = {p.key for p in spec.params}
+    assert {"clearFirst", "simulateTyping"} <= param_keys
+
+
+def test_codegen_includes_clear_and_press_sequentially_for_every_field(project, login_credential, totp_credential):
+    fragment = codegen_login(
+        _ctx(
+            project.id,
+            _base_params(
+                login_credential,
+                has2FA=True,
+                twoFaCodeSelector="#code",
+                totpCredentialId=totp_credential.id,
+                clearFirst=True,
+                simulateTyping=True,
+            ),
+        )
+    )
+    assert fragment.count(".clear()") == 3  # username, password, 2FA code
+    assert fragment.count(".press_sequentially(") == 3
+    assert ".fill(" not in fragment
+
+
+def test_clear_first_and_simulate_typing_still_log_in_successfully(project, page, login_credential, cookies_path_for):
+    cookies_path_for(login_credential.id)
+    fragment = codegen_login(
+        _ctx(project.id, _base_params(login_credential, resultVar="r", clearFirst=True, simulateTyping=True))
+    )
+    ns = _exec_fragment(page, fragment)
+
+    assert page.locator("#dashboard").is_visible()
+    assert ns["r"] == {"alreadyLoggedIn": False}
+
+
+def test_second_run_skips_form_using_saved_cookies(project, browser, page, login_credential, cookies_path_for):
+    cookies_path_for(login_credential.id)
     # First run: real login, saves cookies to disk.
     first_fragment = codegen_login(_ctx(project.id, _base_params(login_credential)))
     _exec_fragment(page, first_fragment)
@@ -293,10 +341,34 @@ def test_second_run_skips_form_using_saved_cookies(project, browser, page, login
         fresh_page.close()
 
 
-def test_wrong_password_times_out_without_saving_cookies(project, page, cookies_path):
+def test_session_is_shared_with_a_different_workflow_using_the_same_credential(
+    project, browser, page, login_credential, cookies_path_for
+):
+    cookies_path_for(login_credential.id)
+    # Logged in from WORKFLOW_ID...
+    first_fragment = codegen_login(_ctx(project.id, _base_params(login_credential)))
+    _exec_fragment(page, first_fragment)
+
+    # ...picked up by a Login node in a COMPLETELY DIFFERENT workflow, same credential —
+    # this is the whole point: no shared workflow needed, just the same credential.
+    fresh_page = browser.new_page()
+    fresh_page.route(LOGIN_URL, _route_handler(LOGIN_FORM_HTML))
+    try:
+        other_fragment = codegen_login(
+            _ctx(project.id, _base_params(login_credential, resultVar="r2"), workflow_id="__a_totally_different_workflow__")
+        )
+        ns = _exec_fragment(fresh_page, other_fragment)
+        assert ns["r2"] == {"alreadyLoggedIn": True}
+        assert fresh_page.locator("#user").count() == 0  # the login FORM never rendered at all
+    finally:
+        fresh_page.close()
+
+
+def test_wrong_password_times_out_without_saving_cookies(project, page, cookies_path_for):
     bad_cred = credential_store.create_credential(
         project.id, CredentialCreate(name="bad", type="login", value="alice:wrong-password")
     )
+    cookies_path = cookies_path_for(bad_cred.id)
     try:
         fragment = codegen_login(_ctx(project.id, _base_params(bad_cred, confirmTimeout=2)))
         with pytest.raises(Exception):
@@ -306,7 +378,8 @@ def test_wrong_password_times_out_without_saving_cookies(project, page, cookies_
         credential_store.delete_credential(project.id, bad_cred.id)
 
 
-def test_2fa_flow(project, page, login_credential, totp_credential, cookies_path):
+def test_2fa_flow(project, page, login_credential, totp_credential, cookies_path_for):
+    cookies_path = cookies_path_for(login_credential.id)
     fragment = codegen_login(
         _ctx(
             project.id,

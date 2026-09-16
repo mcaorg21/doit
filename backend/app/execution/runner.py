@@ -12,6 +12,7 @@ from app.storage.ids import gen_id
 
 NODE_ERROR_MARKER = "__NODE_ERROR__"
 NODE_RESULT_MARKER = "__NODE_RESULT__"
+WORKFLOW_MARK_ERROR_MARKER = "__WORKFLOW_MARK_ERROR__"
 
 
 def _now() -> datetime:
@@ -156,6 +157,18 @@ async def _stream_output(handle: RunHandle) -> None:
                 if workflow.published:
                     workflow_store.set_published(handle.project_id, handle.workflow_id, False)
                     workflow_store.set_error_state(handle.project_id, handle.workflow_id, True)
+            except Exception as exc:
+                print(f"[runner] failed to unpublish workflow '{handle.workflow_id}': {exc}")
+        elif text.startswith(WORKFLOW_MARK_ERROR_MARKER):
+            # The dedicated Error node (app/nodes/error.py) means this every time it's
+            # reached — unlike the branch above (which only auto-unpublishes for an
+            # unattended run reacting to SOME node crashing), this always unpublishes +
+            # flags the workflow, regardless of how the run was started.
+            try:
+                from app.storage import workflow_store
+
+                workflow_store.set_published(handle.project_id, handle.workflow_id, False)
+                workflow_store.set_error_state(handle.project_id, handle.workflow_id, True)
             except Exception as exc:
                 print(f"[runner] failed to unpublish workflow '{handle.workflow_id}': {exc}")
         elif text.startswith(NODE_RESULT_MARKER):

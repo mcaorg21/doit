@@ -1,6 +1,12 @@
 import { api } from './client'
 import type { Credential } from '../types/workflow'
 
+export interface CredentialCookiesStatus {
+  exists: boolean
+  count: number | null
+  savedAt: string | null
+}
+
 export const credentialsApi = {
   list: (projectId: string) => api.get<Credential[]>(`/api/projects/${projectId}/credentials`),
   create: (projectId: string, name: string, type: string, value: string) =>
@@ -9,4 +15,8 @@ export const credentialsApi = {
     api.put<Credential>(`/api/projects/${projectId}/credentials/${credentialId}`, { name, type, value }),
   remove: (projectId: string, credentialId: string) =>
     api.delete<void>(`/api/projects/${projectId}/credentials/${credentialId}`),
+  cookiesStatus: (projectId: string, credentialId: string) =>
+    api.get<CredentialCookiesStatus>(`/api/projects/${projectId}/credentials/${credentialId}/cookies`),
+  clearCookies: (projectId: string, credentialId: string) =>
+    api.delete<void>(`/api/projects/${projectId}/credentials/${credentialId}/cookies`),
 }

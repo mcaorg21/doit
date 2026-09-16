@@ -6,9 +6,9 @@ from app.codegen.template_utils import (
     resolve_selector,
     validate_identifier,
 )
-from app.config import cookies_dir
+from app.config import cookies_dir_for_credential
 from app.nodes.base import NodeSpec, ParamField
-from app.nodes.common import SELECTOR_TYPE_OPTIONS
+from app.nodes.common import SELECTOR_TYPE_OPTIONS, fill_lines, typing_option_fields
 from app.nodes.registry import register
 
 
@@ -32,21 +32,23 @@ def codegen_login(ctx: CodegenContext) -> str:
     except (TypeError, ValueError):
         confirm_timeout_ms = 15000
 
-    cookies_dir_literal = repr(str(cookies_dir(ctx.project_id, ctx.workflow_id)))
-    filename_raw = (params.get("cookiesFilename") or "cookies.json").strip() or "cookies.json"
-    filename_expr = render_template_expr(filename_raw, ctx)
+    # Keyed by the credential (already validated above by resolve_credential_pair),
+    # not by this workflow — any OTHER workflow using the same Login Credential shares
+    # this same cookie jar, so logging in once lets every workflow that needs this
+    # account skip the login form (a plain Load Cookies node pointed at the same
+    # credential works too, see app/nodes/load_cookies.py).
+    credential_id = (params.get("credentialId") or "").strip()
+    cookies_dir_literal = repr(str(cookies_dir_for_credential(ctx.project_id, credential_id)))
 
     has_2fa = bool(params.get("has2FA"))
+    clear_first = bool(params.get("clearFirst"))
+    simulate_typing = bool(params.get("simulateTyping"))
     result_var_raw = (params.get("resultVar") or "").strip()
     var = validate_identifier(result_var_raw, ctx, "Result Variable") if result_var_raw else None
 
     lines = [
-        # Same shape as Save Cookies/Load Cookies' own storage (see app/nodes/
-        # save_cookies.py, app/nodes/load_cookies.py) — a Login node's cookie jar is
-        # interchangeable with a standalone Load Cookies/Save Cookies pair on the
-        # SAME workflow, addressed by the same filename.
         f"_login_ck_dir = {cookies_dir_literal}",
-        f"_login_ck_path = os.path.join(_login_ck_dir, {filename_expr})",
+        "_login_ck_path = os.path.join(_login_ck_dir, 'cookies.json')",
         "if os.path.exists(_login_ck_path):",
         "    _login_ck_data = json.loads(open(_login_ck_path, encoding='utf-8').read())",
         "    page.context.add_cookies(_login_ck_data)",
@@ -61,8 +63,8 @@ def codegen_login(ctx: CodegenContext) -> str:
         "    pass",
         "if not _login_already_ok:",
         f'    print("[{ctx.node_label}] not logged in — filling the login form")',
-        f"    page.locator({username_selector}).fill({login_expr})",
-        f"    page.locator({password_selector}).fill({password_expr})",
+        *(f"    {line}" for line in fill_lines(f"page.locator({username_selector})", login_expr, clear_first, simulate_typing)),
+        *(f"    {line}" for line in fill_lines(f"page.locator({password_selector})", password_expr, clear_first, simulate_typing)),
         f"    page.locator({submit_selector}).click()",
     ]
 
@@ -72,7 +74,7 @@ def codegen_login(ctx: CodegenContext) -> str:
         lines += [
             "    import pyotp",
             f"    _login_totp_code = pyotp.TOTP({totp_secret_expr}).now()",
-            f"    page.locator({code_selector}).fill(_login_totp_code)",
+            *(f"    {line}" for line in fill_lines(f"page.locator({code_selector})", "_login_totp_code", clear_first, simulate_typing)),
         ]
         two_fa_submit_raw = (params.get("twoFaSubmitSelector") or "").strip()
         if two_fa_submit_raw:
@@ -105,8 +107,10 @@ register(
             "fills username/password from a credential, submits, optionally handles a TOTP 2FA step, waits "
             "for the confirmation element to prove it worked, then saves fresh cookies for next time. Needs "
             "an open_browser earlier in the flow. Doesn't handle captchas — if the login form has one, add a "
-            "2Captcha node between filling the password and clicking submit. Uses the same cookies storage "
-            "as the standalone Save Cookies/Load Cookies nodes (same filename = same jar)."
+            "2Captcha node between filling the password and clicking submit. The cookie jar is tied to the "
+            "Login Credential itself (not to this workflow) — any other workflow using the same credential, "
+            "via its own Login node or a Save Cookies/Load Cookies node pointed at that credential, shares "
+            "the same saved session."
         ),
         example='Logs into https://app.example.com using a stored credential, then saves the session',
         icon="log-in",
@@ -147,6 +151,7 @@ register(
                 default=15,
                 placeholder="15",
             ),
+            *typing_option_fields(),
             ParamField(key="has2FA", label="Site has TOTP 2FA", type="boolean", default=False),
             ParamField(
                 key="totpCredentialId",
@@ -184,14 +189,6 @@ register(
                 default="css",
                 options=SELECTOR_TYPE_OPTIONS,
                 visibleWhen={"key": "has2FA", "equals": True},
-            ),
-            ParamField(
-                key="cookiesFilename",
-                label="Cookies Filename",
-                type="text",
-                default="cookies.json",
-                placeholder="cookies.json",
-                supportsTemplate=True,
             ),
             ParamField(
                 key="resultVar",

@@ -10,6 +10,51 @@ interface Props {
   onClose: () => void
 }
 
+// Shows, for a "login"-type credential, whether a Login/Microsoft Login node (or a
+// Save Cookies/Load Cookies node pointed at it) has a saved session — see
+// backend/app/api/credentials.py's .../cookies endpoints and app/nodes/login.py.
+function CookiesStatusLine({ projectId, credentialId }: { projectId: string; credentialId: string }) {
+  const queryClient = useQueryClient()
+  const queryKey = ['credentialCookies', projectId, credentialId]
+
+  const { data } = useQuery({
+    queryKey,
+    queryFn: () => credentialsApi.cookiesStatus(projectId, credentialId),
+  })
+
+  const clearMutation = useMutation({
+    mutationFn: () => credentialsApi.clearCookies(projectId, credentialId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+  })
+
+  if (!data) return null
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, fontSize: 11, color: 'var(--text-muted)' }}>
+      <span>🍪</span>
+      {data.exists ? (
+        <>
+          <span>
+            Linked cookie file saved{data.count != null ? ` — ${data.count} cookie(s)` : ''}
+            {data.savedAt ? `, ${new Date(data.savedAt).toLocaleString()}` : ''}
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            style={{ padding: '1px 6px', fontSize: 11 }}
+            disabled={clearMutation.isPending}
+            onClick={() => clearMutation.mutate()}
+          >
+            {clearMutation.isPending ? 'Clearing…' : 'Clear session'}
+          </button>
+        </>
+      ) : (
+        <span>No linked cookie file yet — a Login/Microsoft Login node using this credential will create one</span>
+      )}
+    </div>
+  )
+}
+
 const TYPE_PRESETS = ['2captcha', '2captcha_browser', 'openai', 'anthropic', 'totp', 'login']
 const CUSTOM_TYPE = '__custom__'
 
@@ -128,6 +173,7 @@ export default function CredentialsManager({ projectId, onClose }: Props) {
                       {revealed.has(c.id) ? c.value : '•'.repeat(Math.min(c.value.length, 20)) || '(empty)'}
                     </span>
                   </div>
+                  {c.type === 'login' && <CookiesStatusLine projectId={projectId} credentialId={c.id} />}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <button className="icon-btn" title={revealed.has(c.id) ? 'Hide value' : 'Show value'} onClick={() => toggleReveal(c.id)}>

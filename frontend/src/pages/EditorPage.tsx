@@ -20,7 +20,9 @@ import FlowCanvas, { type FlowCanvasHandle } from '../editor/FlowCanvas'
 import NodePalette from '../editor/NodePalette'
 import NodeConfigPanel from '../editor/NodeConfigPanel'
 import CodePreviewPanel from '../editor/CodePreviewPanel'
-import RunPanel from '../editor/RunPanel'
+import LogsPanel from '../editor/LogsPanel'
+import RunFloatingControls from '../editor/RunFloatingControls'
+import { useWorkflowRun } from '../editor/useWorkflowRun'
 import ExecutionsPanel from '../editor/ExecutionsPanel'
 import { toWFEdges, toWFNodes, wfEdgeToFlowEdge, wfNodeToFlowNode } from '../editor/convert'
 import { getUpstreamVariables, getUpstreamFieldMapOptions, type VariableSource } from '../editor/graph'
@@ -275,14 +277,22 @@ export default function EditorPage() {
 
   // Autosave: once the workflow is loaded, any pending edit gets written a couple
   // seconds after the user stops touching the graph — the debounce is what keeps this
-  // from firing on every keystroke/drag frame instead of once per pause.
+  // from firing on every keystroke/drag frame instead of once per pause. Paused
+  // entirely while an AI session is building (see `building`): that PUT would
+  // full-replace nodes/edges from this tab's own snapshot, which can race an MCP tool
+  // call (add_node/connect_nodes/...) writing directly to the same workflow file —
+  // whichever write lands on disk last wins, so an in-flight autosave from a
+  // one-message-old snapshot could silently drop a node/edge the AI just added.
+  // Skipping autosave here leaves the MCP server as the sole writer during a build;
+  // once `building` clears, any edit still marked dirty gets picked up by the normal
+  // debounce again.
   useEffect(() => {
-    if (!loaded || !dirty) return
+    if (!loaded || !dirty || building) return
     const timer = setTimeout(() => {
       saveMutation.mutate()
     }, 2000)
     return () => clearTimeout(timer)
-  }, [nodes, edges, name, startNodeId, dirty, loaded])
+  }, [nodes, edges, name, startNodeId, dirty, loaded, building])
 
   // Snapshots the current graph onto the undo stack *before* a mutation is applied.
   // Discrete actions (add/delete/connect) always get their own snapshot; continuous
@@ -859,6 +869,7 @@ export default function EditorPage() {
     setLaunchMenuOpen(false)
     try {
       const result = await launchApi.claudeDesktop()
+      if (result.launched) setBuilding(true)
       if (result.notify) {
         setLaunchResult({
           title: 'Claude Desktop',
@@ -912,10 +923,28 @@ export default function EditorPage() {
     requestAnimationFrame(() => flowCanvasRef.current?.fitView())
   }, [recordHistory, markDirty, startNodeId])
 
+  // Instantiated once here (not inside a tab-only-rendered panel) so a run's
+  // WebSocket/log state survives switching between the Code Preview/Logs/Executions
+  // tabs — see RunFloatingControls (the canvas overlay) and LogsPanel (the tab).
+  const run = useWorkflowRun({
+    projectId: projectId!,
+    workflowId: workflowId!,
+    nodes,
+    edges,
+    startNodeId,
+    onNodeExecuting: handleNodeExecuting,
+    onNodeFailed: handleNodeFailed,
+    onNodePaused: handleNodePaused,
+  })
+
   return (
     <div className="editor-page">
       <div className="topbar">
-        <Link to={`/projects/${projectId}`} viewTransition className="breadcrumb">
+        <Link
+          to={workflow?.folderId ? `/projects/${projectId}?folder=${workflow.folderId}` : `/projects/${projectId}`}
+          viewTransition
+          className="breadcrumb"
+        >
           ← {t('workflowsLabel')}
         </Link>
         <input
@@ -929,8 +958,10 @@ export default function EditorPage() {
           onBlur={() => {
             // The rest of the graph relies on the 2s debounce, but leaving this field
             // (clicking elsewhere, navigating away) shouldn't have to race it — save
-            // immediately once the user is done editing the name specifically.
-            if (dirty) saveMutation.mutate()
+            // immediately once the user is done editing the name specifically. Still
+            // deferred while `building` for the same reason the debounce is paused
+            // above — this PUT would race an in-flight MCP write the same way.
+            if (dirty && !building) saveMutation.mutate()
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') e.currentTarget.blur()
@@ -1122,7 +1153,9 @@ export default function EditorPage() {
           startNodeId={startNodeId}
           onSetStartNode={handleSetStartNode}
           onArrangeNodes={handleArrangeNodes}
-        />
+        >
+          <RunFloatingControls run={run} />
+        </FlowCanvas>
 
         <div className="side-panel">
           <NodeConfigPanel
@@ -1149,7 +1182,7 @@ export default function EditorPage() {
               {t('codePreviewTab')}
             </button>
             <button className={`panel-tab ${activeTab === 'run' ? 'active' : ''}`} onClick={() => setActiveTab('run')}>
-              {t('runTab')}
+              {t('logsTab')}
             </button>
             <button
               className={`panel-tab ${activeTab === 'executions' ? 'active' : ''}`}
@@ -1168,18 +1201,7 @@ export default function EditorPage() {
                 startNodeId={startNodeId}
               />
             )}
-            {activeTab === 'run' && projectId && workflowId && (
-              <RunPanel
-                projectId={projectId}
-                workflowId={workflowId}
-                nodes={nodes}
-                edges={edges}
-                startNodeId={startNodeId}
-                onNodeExecuting={handleNodeExecuting}
-                onNodeFailed={handleNodeFailed}
-                onNodePaused={handleNodePaused}
-              />
-            )}
+            {activeTab === 'run' && <LogsPanel run={run} />}
             {activeTab === 'executions' && projectId && workflowId && (
               <ExecutionsPanel projectId={projectId} workflowId={workflowId} />
             )}

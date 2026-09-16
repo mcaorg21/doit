@@ -58,7 +58,7 @@ export default function ProjectListPage() {
   return (
     <div>
       <div className="topbar">
-        <h1>{t('appName')}</h1>
+        <img src="/logo/logo_original.png" alt={t('appName')} className="app-logo" />
       </div>
       <div className="container">
         <div className="page-header">

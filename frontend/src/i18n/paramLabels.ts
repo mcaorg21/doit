@@ -56,7 +56,11 @@ export const paramLabelsPt: Record<string, string> = {
   Fields: 'Campos',
   Clicks: 'Cliques',
   'Trigger Selector (opens the menu)': 'Seletor do Gatilho (abre o menu)',
+  'Trigger Selector (opens the dropdown)': 'Seletor do Gatilho (abre o dropdown)',
   'Trigger Selector Type': 'Tipo do Seletor do Gatilho',
+  'Search Input Selector': 'Seletor do Input de Busca',
+  'Search Input Selector Type': 'Tipo do Seletor do Input de Busca',
+  'Search Text': 'Texto da Busca',
   'Clear Selector (optional — clicked before selecting)': 'Seletor de Limpar (opcional — clicado antes de selecionar)',
   'Clear Selector Type': 'Tipo do Seletor de Limpar',
   Mode: 'Modo',
@@ -95,6 +99,11 @@ export const paramLabelsPt: Record<string, string> = {
   'Overwrite if a file with this name already exists': 'Sobrescrever se já existir um arquivo com este nome',
   "Skip if missing (don't error when there's no saved cookies file yet)":
     'Pular se não existir (não dá erro quando ainda não há arquivo de cookies salvo)',
+  'Credential (optional — shares the jar with a Login node using this same credential)':
+    'Credencial (opcional — compartilha o jar com um node Login que usa essa mesma credencial)',
+  'Credential (optional — loads the jar a Login node using this same credential saved)':
+    'Credencial (opcional — carrega o jar que um node Login usando essa mesma credencial salvou)',
+  'Filename (ignored when a Credential is selected)': 'Nome do Arquivo (ignorado quando uma Credencial é selecionada)',
   'Login Page URL': 'URL da Página de Login',
   'Login Credential (username + password)': 'Credencial de Login (usuário + senha)',
   'Username Field Selector Type': 'Tipo do Seletor do Campo de Usuário',
@@ -120,6 +129,10 @@ export const paramLabelsPt: Record<string, string> = {
   'Step Timeout (seconds)': 'Tempo Limite por Etapa (segundos)',
   'Original Python (verbatim)': 'Python Original (literal)',
   "Why this couldn't be mapped": 'Por que isso não pôde ser mapeado',
+  'Clear the field first': 'Limpar o campo antes',
+  'Simulate typing (character by character — needed by some JS-driven inputs)':
+    'Simular digitação (caractere por caractere — necessário em alguns campos controlados por JS)',
+  'Error Message': 'Mensagem de Erro',
 }
 
 export const paramOptionsPt: Record<string, string> = {

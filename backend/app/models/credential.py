@@ -30,3 +30,14 @@ class CredentialUpdate(BaseModel):
     name: str
     type: str
     value: str
+
+
+class CredentialCookiesStatus(BaseModel):
+    """Read-only, computed live from the filesystem (see app/config.py::
+    cookies_dir_for_credential) — deliberately NOT a field on Credential itself, so it
+    never gets written into credentials.json by credential_store's save-the-whole-
+    object persistence."""
+
+    exists: bool
+    count: int | None = None
+    savedAt: datetime | None = None

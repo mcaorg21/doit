@@ -538,7 +538,7 @@ async def demo_node(
     note: str | None = None,
 ) -> DemoNodeResult:
     """Runs one step FOR REAL against the live session's browser (goto/fill/click/
-    hover/select_option/wait/element_present/get_text/execute_script/html_list_select/
+    hover/select_option/wait/element_present/get_text/execute_script/html_list_select/searchable_dropdown_select/
     http_request-without-autoLoop/download_file/save_cookies only — loop/if/
     browser_2captcha aren't demoable, use add_node instead; Save Files/Get File/Load
     Cookies/Login aren't demoable either, same reason — use add_node for those too

@@ -41,8 +41,19 @@ def temp_files_dir(project_id: str, workflow_id: str) -> Path:
 
 
 def cookies_dir(project_id: str, workflow_id: str) -> Path:
-    """Where Save Cookies/Load Cookies nodes read and write — deliberately NOT nested
-    under a per-run _PROCESS_ID folder like temp_files_dir above: cookies are meant to
-    persist ACROSS runs (log in once, skip the login flow on every run after), the
-    opposite goal of temp_files' per-execution isolation."""
+    """Where Save Cookies/Load Cookies nodes read and write by default (no credential
+    selected) — deliberately NOT nested under a per-run _PROCESS_ID folder like
+    temp_files_dir above: cookies are meant to persist ACROSS runs (log in once, skip
+    the login flow on every run after), the opposite goal of temp_files' per-execution
+    isolation."""
     return project_dir(project_id) / "cookies" / workflow_id
+
+
+def cookies_dir_for_credential(project_id: str, credential_id: str) -> Path:
+    """Where Login/Microsoft Login always persist their session, and where Save
+    Cookies/Load Cookies persist it too when a credential is selected — keyed by the
+    CREDENTIAL rather than by one workflow, so every workflow in the project that uses
+    the same login credential shares the same cookie jar: log in once in workflow A,
+    and workflow B's Load Cookies (or its own Login node) picks up the same session
+    without logging in again."""
+    return project_dir(project_id) / "cookies" / "by-credential" / credential_id

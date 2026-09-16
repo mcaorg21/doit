@@ -101,6 +101,12 @@ export const nodeCatalogPt: Record<string, NodeCatalogText> = {
       'Pra menus HTML customizados que não são um <select> de verdade — um elemento gatilho que você clica pra revelar um painel de itens <li>, escolhidos pelo TEXTO visível em vez de um seletor frágil de posição/índice. O modo Dropdown clica uma opção (o menu se fecha sozinho, igual o comportamento do próprio site); o modo Checkbox pode primeiro limpar todo checkbox nativo ou ARIA marcado dentro do painel configurado, depois clica várias opções em sequência sem reabrir o menu entre elas. Um texto ambíguo (mais de um elemento na página contém ele) falha com o erro claro do próprio Playwright em vez de adivinhar — use \'Seletor do Container da Lista\' pra restringir a busca só ao painel do menu quando isso acontecer.',
     example: "Abre o menu 'Status' e clica na opção 'Aprovado'",
   },
+  searchable_dropdown_select: {
+    label: 'Selecionar Dropdown com Busca',
+    description:
+      'Seleciona uma opção em um dropdown pesquisável customizado: clica no campo, espera o input de busca visível, digita o texto desejado e confirma com Enter. Os seletores do gatilho e do input são independentes para funcionar com diferentes bibliotecas de interface.',
+    example: "Abre o dropdown de modelo, digita 'DADOS DO PROCESSO' e confirma com Enter",
+  },
   wait: {
     label: 'Esperar',
     description: 'Pausa a execução por uma duração fixa ou até um elemento aparecer na página.',
@@ -115,8 +121,8 @@ export const nodeCatalogPt: Record<string, NodeCatalogText> = {
   get_text: {
     label: 'Pegar Texto',
     description:
-      'Lê o texto visível de um elemento que bate com um seletor (ID/Classe/CSS/XPath/XPath Completo) e guarda numa variável, pronta pra referenciar em outro lugar como {{nomeVar}} ou alimentar um node Loop.',
-    example: "Lê o texto de '#preco' na variável 'preco'",
+      'Espera um elemento que bate com um seletor (ID/Classe/CSS/XPath/XPath Completo) aparecer, depois lê o texto visível dele e guarda numa variável, pronta pra referenciar em outro lugar como {{nomeVar}} ou alimentar um node Loop. A espera explícita (com Timeout configurável) protege contra um site lento/instável onde o elemento ainda não renderizou.',
+    example: "Espera '#preco' aparecer, depois lê o texto dele na variável 'preco'",
   },
   execute_script: {
     label: 'Executar Script (JS)',
@@ -135,6 +141,12 @@ export const nodeCatalogPt: Record<string, NodeCatalogText> = {
     description:
       'Cai no pdb (pdb.set_trace()) bem aqui, pausando o script. Mesmo mecanismo de ativar um breakpoint num conector, mas como um node explícito — use o botão Continuar do painel Run ou digite um comando pdb pra retomar.',
     example: 'Para a execução aqui pra você inspecionar a página com pdb',
+  },
+  error: {
+    label: 'Erro',
+    description:
+      'Falha a execução de propósito bem aqui: despublica este workflow e marca com um estado de erro vermelho — mostrado tanto no botão Publicar deste workflow quanto na linha dele na lista de workflows — depois levanta uma exceção, então a execução para neste node igual pararia em qualquer outra falha. Diferente de uma falha comum (que só despublica automaticamente numa execução não-assistida por Agenda/Webhook), este node sempre marca o workflow como quebrado, não importa como a execução foi iniciada. Use pra capturar de propósito um caso inesperado/inválido, ex: no fim de um ramo de um node SE.',
+    example: "Falha com 'Status de conta inesperado', despublicando este workflow",
   },
   two_captcha: {
     label: '2Captcha',
@@ -175,25 +187,25 @@ export const nodeCatalogPt: Record<string, NodeCatalogText> = {
   save_cookies: {
     label: 'Salvar Cookies',
     description:
-      'Salva os cookies do contexto atual do navegador (sessões de login, etc.) em data/projects/<projeto>/cookies/<este workflow>/<nome do arquivo> — persiste entre execuções, então um node Carregar Cookies posterior (nesta execução ou numa futura) pode pular o fluxo de login inteiro. Precisa de um Abrir Navegador antes no fluxo. Diferente do Salvar Arquivos/Baixar Arquivo, isso NÃO é isolado por execução — salvar sobrescreve o que já estava lá, de propósito.',
-    example: "Salva os cookies da sessão de login atual em 'cookies.json'",
+      'Salva os cookies do contexto atual do navegador (sessões de login, etc.) — persiste entre execuções, então um node Carregar Cookies posterior (nesta execução ou numa futura) pode pular o fluxo de login inteiro. Precisa de um Abrir Navegador antes no fluxo. Diferente do Salvar Arquivos/Baixar Arquivo, isso NÃO é isolado por execução — salvar sobrescreve o que já estava lá, de propósito. Escolha uma Credencial pra salvar no MESMO jar compartilhado que um node Login/Login Microsoft (ou o Salvar Cookies de outro workflow) usa pra essa credencial — qualquer outro workflow pode depois carregar via Carregar Cookies apontando pra mesma credencial. Deixe em branco pra salvar no jar próprio deste workflow por nome de arquivo, como antes.',
+    example: 'Salva os cookies da sessão de login atual, compartilhado por credencial ou restrito a este workflow',
   },
   load_cookies: {
     label: 'Carregar Cookies',
     description:
-      'Carrega cookies escritos antes por um node Salvar Cookies (mesmo workflow, qualquer execução anterior) no contexto atual do navegador — coloque logo após o Abrir Navegador e antes de navegar, pra o site ver os cookies de sessão já na primeira requisição. Na primeiríssima execução (ainda sem arquivo de cookies) ele só pula o carregamento e registra isso no log, a menos que "Pular se não existir" esteja desligado. Precisa de um Abrir Navegador antes no fluxo.',
-    example: "Carrega 'cookies.json' de uma execução anterior pra pular o login de novo",
+      'Carrega cookies escritos antes por um node Salvar Cookies, ou por um node Login/Login Microsoft, no contexto atual do navegador — coloque logo após o Abrir Navegador e antes de navegar, pra o site ver os cookies de sessão já na primeira requisição. Na primeiríssima execução (ainda sem arquivo de cookies) ele só pula o carregamento e registra isso no log, a menos que "Pular se não existir" esteja desligado. Precisa de um Abrir Navegador antes no fluxo. Escolha uma Credencial pra carregar o jar compartilhado que um node Login/Login Microsoft (ou o Salvar Cookies de outro workflow) salvou pra essa credencial — é isso que permite um workflow DIFERENTE reaproveitar uma sessão sem ter seu próprio node Login. Deixe em branco pra carregar do jar próprio deste workflow por nome de arquivo, como antes.',
+    example: 'Carrega uma sessão salva antes, compartilhada por credencial ou restrita a este workflow',
   },
   login: {
     label: 'Login',
     description:
-      'Um fluxo de login completo num único node: carrega primeiro qualquer cookie salvo numa execução anterior e verifica se o elemento de confirmação já está lá (pula o formulário inteiro se sim); senão preenche usuário/senha de uma credencial, envia, opcionalmente lida com uma etapa de 2FA TOTP, espera o elemento de confirmação pra provar que funcionou, depois salva cookies novos pra próxima vez. Precisa de um Abrir Navegador antes no fluxo. Não lida com captchas — se o formulário de login tiver um, adicione um node 2Captcha entre preencher a senha e clicar em enviar. Usa o mesmo armazenamento de cookies dos nodes independentes Salvar Cookies/Carregar Cookies (mesmo nome de arquivo = mesmo jar).',
+      'Um fluxo de login completo num único node: carrega primeiro qualquer cookie salvo numa execução anterior e verifica se o elemento de confirmação já está lá (pula o formulário inteiro se sim); senão preenche usuário/senha de uma credencial, envia, opcionalmente lida com uma etapa de 2FA TOTP, espera o elemento de confirmação pra provar que funcionou, depois salva cookies novos pra próxima vez. Precisa de um Abrir Navegador antes no fluxo. Não lida com captchas — se o formulário de login tiver um, adicione um node 2Captcha entre preencher a senha e clicar em enviar. O jar de cookies é vinculado à própria Credencial de Login (não a este workflow) — qualquer outro workflow que use a mesma credencial, seja pelo próprio node Login ou por um node Salvar Cookies/Carregar Cookies apontando pra essa credencial, compartilha a mesma sessão salva.',
     example: 'Faz login em https://app.exemplo.com usando uma credencial guardada, depois salva a sessão',
   },
   microsoft_login: {
     label: 'Login Microsoft',
     description:
-      'Entra pelas páginas de usuário/senha em duas etapas da Microsoft usando uma credencial de login do projeto, depois salva cookies pra execuções futuras. Use um seletor de confirmação que só exista dentro do app de destino.',
+      'Entra pelas páginas de usuário/senha em duas etapas da Microsoft usando uma credencial de login do projeto, depois salva cookies pra execuções futuras. Use um seletor de confirmação que só exista dentro do app de destino. O jar de cookies é vinculado à própria credencial (não a este workflow) — qualquer outro workflow que use a mesma credencial compartilha a mesma sessão salva.',
     example: "Entra numa página de login Microsoft/Office 365 (usuário + senha, 'permanecer conectado' opcional)",
   },
   unknown: {

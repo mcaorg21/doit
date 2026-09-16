@@ -31,7 +31,7 @@ export const pt: Record<keyof typeof en, string> = {
 
   // Panel tabs
   codePreviewTab: 'Pré-visualização do Código',
-  runTab: 'Executar',
+  logsTab: 'Logs',
   executionsTab: 'Execuções',
   resizeHandleTitle: 'Arraste para redimensionar',
 
@@ -144,6 +144,8 @@ export const pt: Record<keyof typeof en, string> = {
   fieldKindText: 'Texto (preencher)',
   fieldKindSelect: 'Select (dropdown)',
   addFieldButton: '+ Adicionar Campo',
+  clearFieldFirstLabel: 'Limpar antes',
+  simulateTypingLabel: 'Simular digitação',
   noneYetHint: 'Nenhum ainda — adicione um abaixo.',
   removeTitle: 'Remover',
   addGenericButton: '+ Adicionar',
@@ -157,7 +159,7 @@ export const pt: Record<keyof typeof en, string> = {
   languageToggleTitle: 'Trocar idioma do app',
 
   // Project list page
-  appName: 'Auto-mation',
+  appName: 'DCFlow',
   projectsTitle: 'Projetos',
   newProject: '+ Novo Projeto',
   newProjectModalTitle: 'Novo Projeto',

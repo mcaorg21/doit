@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { LuFileUp, LuHistory, LuDatabase, LuKeyRound, LuSparkles, LuFolderPlus } from 'react-icons/lu'
 import { projectsApi } from '../api/projects'
 import { workflowsApi } from '../api/workflows'
 import { foldersApi } from '../api/folders'
@@ -219,7 +220,7 @@ export default function WorkflowListPage() {
           size={Math.max(8, projectName.length)}
         />
       </div>
-      <div className="container">
+      <div className="container container-wide">
         <div className="page-header" style={{ flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
             <span
@@ -244,36 +245,44 @@ export default function WorkflowListPage() {
               </span>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-sm" onClick={() => fileInputRef.current?.click()}>
-              {t('import')}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/json"
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) handleImportFile(file)
-                e.target.value = ''
-              }}
-            />
-            <Link to={`/projects/${projectId}/executions`} viewTransition className="btn btn-sm">
-              {t('executionsTab')}
-            </Link>
-            <Link to={`/projects/${projectId}/backup`} viewTransition className="btn btn-sm">
-              {t('backup')}
-            </Link>
-            <button className="btn btn-sm" onClick={() => setShowCredentials(true)}>
-              {t('credentials')}
-            </button>
-            <button className="btn btn-sm" onClick={() => setShowPythonImport(true)}>
-              {t('importPythonAi')}
-            </button>
-            <button className="btn btn-sm" onClick={() => setShowNewFolder(true)}>
-              {t('newFolder')}
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div className="toolbar-tabs">
+              <button className="toolbar-tab" onClick={() => fileInputRef.current?.click()}>
+                <LuFileUp size={14} />
+                {t('import')}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleImportFile(file)
+                  e.target.value = ''
+                }}
+              />
+              <Link to={`/projects/${projectId}/executions`} viewTransition className="toolbar-tab">
+                <LuHistory size={14} />
+                {t('executionsTab')}
+              </Link>
+              <Link to={`/projects/${projectId}/backup`} viewTransition className="toolbar-tab">
+                <LuDatabase size={14} />
+                {t('backup')}
+              </Link>
+              <button className="toolbar-tab" onClick={() => setShowCredentials(true)}>
+                <LuKeyRound size={14} />
+                {t('credentials')}
+              </button>
+              <button className="toolbar-tab" onClick={() => setShowPythonImport(true)}>
+                <LuSparkles size={14} />
+                {t('importPythonAi')}
+              </button>
+              <button className="toolbar-tab" onClick={() => setShowNewFolder(true)}>
+                <LuFolderPlus size={14} />
+                {t('newFolder')}
+              </button>
+            </div>
             <button className="btn btn-primary" onClick={() => setShowNewWorkflow(true)}>
               {t('newWorkflow')}
             </button>

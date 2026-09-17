@@ -12,6 +12,8 @@ export interface FlowNodeData {
   fieldMap?: string[]
   resultExamples?: Record<string, unknown>
   resultTypes?: Record<string, string>
+  maxAttempts?: number
+  retryDelaySeconds?: number
   [key: string]: unknown
 }
 

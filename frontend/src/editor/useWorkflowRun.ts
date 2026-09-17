@@ -23,11 +23,15 @@ export interface LogEntry {
   level: string
 }
 
-export const RUN_STATUS_LABELS: Record<RunStatus, string> = {
-  running: 'Running…',
-  success: '✓ Finished successfully',
-  error: '✗ Run failed',
-  cancelled: '⏹ Stopped',
+// Maps a RunStatus to its i18n key (see en.ts/pt.ts) — kept here as the single
+// source of truth for which key goes with which status; RunFloatingControls looks
+// the actual text up via t() since this module isn't a component and can't call
+// useLanguage() itself.
+export const RUN_STATUS_KEYS: Record<RunStatus, 'runStatusRunning' | 'runStatusSuccess' | 'runStatusError' | 'runStatusCancelled'> = {
+  running: 'runStatusRunning',
+  success: 'runStatusSuccess',
+  error: 'runStatusError',
+  cancelled: 'runStatusCancelled',
 }
 
 // Every node's generated code prints this (see engine.py) right before that node's own

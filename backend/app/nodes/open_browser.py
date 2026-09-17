@@ -15,8 +15,11 @@ def codegen_open_browser(ctx: CodegenContext) -> str:
     headless = bool(params.get("headless", False))
     channel = params.get("browserChannel", "chrome")
     profile = _profile_name(ctx)
-    # Auto-open Chrome DevTools for a debugging run (Pause node or a breakpoint
-    # somewhere in the workflow). Playwright's launch()/launch_persistent_context()
+    # Auto-open Chrome DevTools — only true for a live/voice-guided build session
+    # (app/mcp/live_sessions.py sets has_breakpoints explicitly); a real run
+    # ("Run workflow", a schedule/webhook trigger, ...) never does, even if the
+    # workflow has a Pause node or a breakpoint on a connector — DevTools popping up
+    # uninvited there wasn't wanted. Playwright's launch()/launch_persistent_context()
     # have no `devtools` kwarg (that's a Puppeteer-ism) — the actual mechanism is the
     # underlying Chromium flag, passed through `args`.
     devtools = ctx.has_breakpoints and channel == "chrome" and not headless
@@ -70,11 +73,7 @@ register(
         type="open_browser",
         label="Open Browser",
         category="browser",
-        description=(
-            "Launches Chrome via Playwright and creates a new page. If the workflow has a Pause "
-            "node or a breakpoint on any connector, DevTools opens automatically so you can "
-            "inspect elements while it's paused."
-        ),
+        description="Launches Chrome via Playwright and creates a new page.",
         example='Launches Chrome (visible) and opens a blank page',
         icon="chrome",
         opens_block=True,

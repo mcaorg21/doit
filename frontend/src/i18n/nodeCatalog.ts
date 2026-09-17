@@ -36,8 +36,7 @@ export const nodeCatalogPt: Record<string, NodeCatalogText> = {
   },
   open_browser: {
     label: 'Abrir Navegador',
-    description:
-      'Abre o Chrome via Playwright e cria uma nova página. Se o workflow tiver um node Pausa ou um breakpoint em algum conector, o DevTools abre automaticamente pra você inspecionar elementos enquanto está pausado.',
+    description: 'Abre o Chrome via Playwright e cria uma nova página.',
     example: 'Abre o Chrome (visível) e uma página em branco',
   },
   browser_2captcha: {

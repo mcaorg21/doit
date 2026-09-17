@@ -28,9 +28,13 @@ class CodegenContext:
     by Switch Frame. Navigate always uses "page" directly since navigation isn't
     frame-scoped."""
     has_breakpoints: bool = False
-    """True when the workflow has a Pause node or a breakpoint on any connector —
-    Open Browser uses this to auto-open Chrome DevTools, since a debugging run is the
-    one time you actually want it up without being asked each time."""
+    """Open Browser uses this to auto-open Chrome DevTools. Left False (the default)
+    for every real run generate_script() produces — including "Run workflow" and a
+    scheduled/webhook trigger — even when the workflow has a Pause node or a
+    breakpoint on a connector; DevTools popping up uninvited wasn't wanted there. Only
+    app/mcp/live_sessions.py's bootstrap sets this True, since a live/voice-guided
+    build session is always paused waiting on the next MCP step, and a human is
+    already watching that browser window to inspect elements."""
     node_label: str = ""
     """The node's title if the user set one, else its id — use this (not node_id)
     whenever referring to the node in a user-facing message, e.g. a CodegenError."""

@@ -146,19 +146,28 @@ async def _stream_output(handle: RunHandle) -> None:
         text = raw_line.decode(errors="replace").rstrip("\n")
         line = LogLine(ts=_now(), level="info", text=text)
         handle.record.logLines.append(line)
-        if text.startswith(NODE_ERROR_MARKER) and handle.unattended:
-            # Only unattended (Schedule/Webhook) runs auto-unpublish + flag the error —
-            # a manual or MCP live-session run has a human already watching it fail,
-            # who doesn't need the workflow yanked out from under them mid-debug.
-            try:
-                from app.storage import workflow_store
+        if text.startswith(NODE_ERROR_MARKER):
+            # A node just dropped into breakpoint() and will likely sit there a long
+            # while (or forever, unattended) — reflect that as "error" in Executions
+            # right away instead of leaving it stuck on "Running..." until someone
+            # eventually continues/stops it. Overwritten below with the real outcome
+            # once the process actually exits (e.g. continuing past this and finishing
+            # cleanly correctly flips it back to "success").
+            handle.record.status = RunStatus.error
+            if handle.unattended:
+                # Only unattended (Schedule/Webhook) runs auto-unpublish + flag the
+                # workflow itself — a manual or MCP live-session run has a human
+                # already watching it fail, who doesn't need the workflow yanked out
+                # from under them mid-debug.
+                try:
+                    from app.storage import workflow_store
 
-                workflow = workflow_store.get_workflow(handle.project_id, handle.workflow_id)
-                if workflow.published:
-                    workflow_store.set_published(handle.project_id, handle.workflow_id, False)
-                    workflow_store.set_error_state(handle.project_id, handle.workflow_id, True)
-            except Exception as exc:
-                print(f"[runner] failed to unpublish workflow '{handle.workflow_id}': {exc}")
+                    workflow = workflow_store.get_workflow(handle.project_id, handle.workflow_id)
+                    if workflow.published:
+                        workflow_store.set_published(handle.project_id, handle.workflow_id, False)
+                        workflow_store.set_error_state(handle.project_id, handle.workflow_id, True)
+                except Exception as exc:
+                    print(f"[runner] failed to unpublish workflow '{handle.workflow_id}': {exc}")
         elif text.startswith(WORKFLOW_MARK_ERROR_MARKER):
             # The dedicated Error node (app/nodes/error.py) means this every time it's
             # reached — unlike the branch above (which only auto-unpublishes for an

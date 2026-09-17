@@ -15,6 +15,8 @@ interface Props {
   onChangeParam: (key: string, value: unknown) => void
   onChangeMeta: (key: 'title' | 'note', value: string) => void
   onChangeResultType: (paramKey: string, resultType: string) => void
+  onChangeMaxAttempts: (value: number) => void
+  onChangeRetryDelay: (value: number) => void
   onDeleteNode: () => void
   upstreamVariables: VariableSource[]
   onPreviewVariable: (source: VariableSource) => Promise<unknown>
@@ -111,6 +113,8 @@ export default function NodeConfigPanel({
   onChangeParam,
   onChangeMeta,
   onChangeResultType,
+  onChangeMaxAttempts,
+  onChangeRetryDelay,
   onDeleteNode,
   upstreamVariables,
   onPreviewVariable,
@@ -184,6 +188,36 @@ export default function NodeConfigPanel({
           </>
         )}
       </div>
+      {spec.retryable && (
+        <div className="field">
+          <label>{t('maxAttemptsFieldLabel')}</label>
+          <select
+            value={node.data.maxAttempts ?? 1}
+            onChange={(e) => onChangeMaxAttempts(Number(e.target.value))}
+          >
+            {[1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          <span className="hint">{t('maxAttemptsHint')}</span>
+        </div>
+      )}
+      {spec.retryable && (node.data.maxAttempts ?? 1) > 1 && (
+        <div className="field">
+          <label>{t('retryDelayFieldLabel')}</label>
+          <input
+            type="number"
+            min={0}
+            max={60}
+            step={1}
+            value={node.data.retryDelaySeconds ?? 0}
+            onChange={(e) => onChangeRetryDelay(Number(e.target.value))}
+          />
+          <span className="hint">{t('retryDelayHint')}</span>
+        </div>
+      )}
       <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '12px 0' }} />
 
       {spec.params.map((paramSpec) => {

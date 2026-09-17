@@ -21,6 +21,8 @@ export interface WFNode {
   fieldMap?: string[] | null
   resultExamples?: Record<string, unknown>
   resultTypes?: Record<string, string>
+  maxAttempts?: number
+  retryDelaySeconds?: number
 }
 
 export interface WFEdge {

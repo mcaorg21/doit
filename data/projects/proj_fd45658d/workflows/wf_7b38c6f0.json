@@ -3,7 +3,7 @@
   "projectId": "proj_fd45658d",
   "name": "Extracao PAN - Relatório 1 — Dados do processo",
   "createdAt": "2026-09-10T14:35:03.608695Z",
-  "updatedAt": "2026-09-16T22:00:58.237817Z",
+  "updatedAt": "2026-09-17T21:42:29.780488Z",
   "nodes": [
     {
       "id": "node_25d8baa9",
@@ -20,7 +20,9 @@
       "note": null,
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_b491f5d1",
@@ -31,13 +33,15 @@
       },
       "params": {
         "mode": "cron",
-        "cronExpression": "30 7 * * *"
+        "cronExpression": "44 8 * * *"
       },
       "title": "Executar diariamente às 07:30",
       "note": "Agendamento diário conforme as notas da rotina; confirmar no app se o scheduler usa America/Sao_Paulo.",
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_bbfc0ceb",
@@ -54,7 +58,9 @@
       "note": "Clica no primeiro item visível Contencioso após o login.",
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_87cbc51e",
@@ -71,7 +77,9 @@
       "note": "No menu Contencioso, abre a opção Pesquisar para configurar os filtros do relatório.",
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_8c49c39d",
@@ -108,7 +116,9 @@
           "failed": []
         }
       },
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_1301f2e9",
@@ -123,11 +133,13 @@
         "timeout": 15,
         "bypassOnFailure": true
       },
-      "title": "Pesquisar processos adicionando removidos",
+      "title": "Pesquisar processos",
       "note": "Executa a pesquisa pelo botão de formulário, evitando o item Pesquisar do menu lateral.",
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_1789417681118_1",
@@ -165,7 +177,9 @@
           "alreadyLoggedIn": true
         }
       },
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_2524634a",
@@ -182,17 +196,19 @@
       "note": "Dá tempo para a navegação/atualização assíncrona concluir após o clique em Pesquisar.",
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_23529f7f",
       "type": "click",
       "position": {
-        "x": 1790.0,
+        "x": 1600.0,
         "y": 80.0
       },
       "params": {
-        "selector": "//*[contains(translate(normalize-space(.), 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'EXCEL PROCESSO') and not(.//*[contains(translate(normalize-space(.), 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 'EXCEL PROCESSO')])]",
+        "selector": "//*[@id=\"btnExcel\"]",
         "selectorType": "xpath",
         "timeout": 15,
         "bypassOnFailure": false
@@ -201,13 +217,15 @@
       "note": "Após o carregamento dos resultados, abre a opção Excel processo para escolher o modelo do relatório.",
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_3cbbc5f8",
       "type": "click",
       "position": {
-        "x": 2360.0,
+        "x": 2170.0,
         "y": 80.0
       },
       "params": {
@@ -220,13 +238,15 @@
       "note": "Confirma a geração do primeiro relatório após selecionar o modelo DADOS DO PROCESSO.",
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_a1fbab07",
       "type": "switch_frame",
       "position": {
-        "x": 1980.0,
+        "x": 1790.0,
         "y": 80.0
       },
       "params": {
@@ -237,13 +257,15 @@
       "note": "Após abrir Excel processo, entra no iframe visível que contém o formulário de seleção do modelo.",
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_1629c434",
       "type": "searchable_dropdown_select",
       "position": {
-        "x": 2170.0,
+        "x": 1980.0,
         "y": 80.0
       },
       "params": {
@@ -263,14 +285,16 @@
       "resultExamples": {
         "resultVar": "DADOS DO PROCESSO"
       },
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 2,
+      "retryDelaySeconds": 2.0
     },
     {
       "id": "node_1789571889603_7",
       "type": "wait",
       "position": {
-        "x": 1600.0,
-        "y": 80.0
+        "x": 80.0,
+        "y": 210.0
       },
       "params": {
         "waitType": "time",
@@ -280,14 +304,16 @@
       "note": "Dá tempo para a navegação/atualização assíncrona concluir após o clique em Pesquisar.",
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_1789575702021_21",
       "type": "get_text",
       "position": {
-        "x": 2554.3179061220894,
-        "y": 87.01559174262839
+        "x": 2360.0,
+        "y": 80.0
       },
       "params": {
         "selector": "/html/body/div[1]/div/form/div[2]/table[2]/tbody/tr[1]/td",
@@ -300,14 +326,16 @@
       "resultExamples": {
         "resultVar": "Sua solicitação foi enviada com sucesso! Será encaminhado um email para o endereço abaixo assim que for gerado o relatório ou você pode verificar dentro de alguns minutos no seu perfil, dentro da opção Minhas Solicitações de Relatórios!"
       },
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_1789575757897_24",
       "type": "if",
       "position": {
-        "x": 2695.5928611337104,
-        "y": 88.18731292408684
+        "x": 2550.0,
+        "y": 80.0
       },
       "params": {
         "value1": "{{resultado_pedido}}",
@@ -319,14 +347,16 @@
       "note": null,
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     },
     {
       "id": "node_1789576824784_1",
       "type": "error",
       "position": {
-        "x": 2837.87289277621,
-        "y": 97.91710467005842
+        "x": 2696.0,
+        "y": 216.0
       },
       "params": {
         "message": "Não houve sucesso na geracao do relatorio 1 PAN"
@@ -335,7 +365,9 @@
       "note": null,
       "fieldMap": null,
       "resultExamples": {},
-      "resultTypes": {}
+      "resultTypes": {},
+      "maxAttempts": 1,
+      "retryDelaySeconds": 0.0
     }
   ],
   "edges": [
@@ -358,7 +390,7 @@
       "source": "node_87cbc51e",
       "target": "node_8c49c39d",
       "sourceHandle": null,
-      "breakpoint": false
+      "breakpoint": true
     },
     {
       "id": "e_node_1789417687507_4",
@@ -410,20 +442,6 @@
       "breakpoint": false
     },
     {
-      "id": "e_node_1789571894475_8",
-      "source": "node_1301f2e9",
-      "target": "node_1789571889603_7",
-      "sourceHandle": null,
-      "breakpoint": false
-    },
-    {
-      "id": "e_node_1789571897570_10",
-      "source": "node_1789571889603_7",
-      "target": "node_23529f7f",
-      "sourceHandle": null,
-      "breakpoint": false
-    },
-    {
       "id": "e_node_1789575705064_22",
       "source": "node_3cbbc5f8",
       "target": "node_1789575702021_21",
@@ -443,10 +461,17 @@
       "target": "node_1789576824784_1",
       "sourceHandle": "false",
       "breakpoint": false
+    },
+    {
+      "id": "e_node_1789677201523_1",
+      "source": "node_1301f2e9",
+      "target": "node_23529f7f",
+      "sourceHandle": null,
+      "breakpoint": false
     }
   ],
-  "published": true,
+  "published": false,
   "folderId": "fold_4443d374",
   "startNodeId": "node_b491f5d1",
-  "hasError": false
+  "hasError": true
 }

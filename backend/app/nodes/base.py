@@ -102,6 +102,12 @@ class NodeSpec:
             "example": self.example,
             "icon": self.icon,
             "isBranch": self.is_branch,
+            # Whether the "Retry Attempts" control (see WFNode.maxAttempts) does
+            # anything for this node type — mirrors engine.py's own should_wrap check.
+            # A callable opens_block (only http_request today) reads as retryable,
+            # matching its default/common config (auto-loop off); it's a harmless
+            # no-op in the instance where a user's params make it open a block instead.
+            "retryable": self.opens_block is not True and self.type != "pause" and self.category != "trigger",
             "params": [
                 {
                     "key": p.key,

@@ -14,6 +14,8 @@ export function toWFNodes(nodes: Node<FlowNodeData>[]): WFNode[] {
     fieldMap: n.data.fieldMap,
     resultExamples: n.data.resultExamples,
     resultTypes: n.data.resultTypes,
+    maxAttempts: n.data.maxAttempts,
+    retryDelaySeconds: n.data.retryDelaySeconds,
   }))
 }
 
@@ -50,6 +52,8 @@ export function wfNodeToFlowNode(n: WFNode, nodeTypesByType: Map<string, NodeTyp
       fieldMap: n.fieldMap ?? undefined,
       resultExamples: n.resultExamples ?? undefined,
       resultTypes: n.resultTypes ?? undefined,
+      maxAttempts: n.maxAttempts ?? undefined,
+      retryDelaySeconds: n.retryDelaySeconds ?? undefined,
     },
   }
 }

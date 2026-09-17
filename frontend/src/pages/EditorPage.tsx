@@ -182,6 +182,8 @@ export default function EditorPage() {
               fieldMap: n.fieldMap ?? undefined,
               resultExamples: n.resultExamples ?? undefined,
               resultTypes: n.resultTypes ?? undefined,
+              maxAttempts: n.maxAttempts ?? undefined,
+              retryDelaySeconds: n.retryDelaySeconds ?? undefined,
             },
           }
         }),
@@ -618,6 +620,28 @@ export default function EditorPage() {
           ? { ...n, data: { ...n.data, resultTypes: { ...n.data.resultTypes, [paramKey]: resultType } } }
           : n,
       ),
+    )
+    markDirty()
+  }
+
+  // How many times to retry this node's action before treating it as a real failure
+  // — same flat-field pattern as title/note, just its own setter since onChangeMeta
+  // is string-typed and this is a number (see NodeConfigPanel's Retry Attempts field,
+  // shown only when the node type is actually retryable).
+  function handleChangeMaxAttempts(value: number) {
+    if (!selectedNodeId) return
+    recordHistory(false)
+    setNodes((prev) => prev.map((n) => (n.id === selectedNodeId ? { ...n, data: { ...n.data, maxAttempts: value } } : n)))
+    markDirty()
+  }
+
+  // Wait between a failed attempt and the next retry — only meaningful once
+  // maxAttempts > 1, same flat-field pattern otherwise.
+  function handleChangeRetryDelay(value: number) {
+    if (!selectedNodeId) return
+    recordHistory(false)
+    setNodes((prev) =>
+      prev.map((n) => (n.id === selectedNodeId ? { ...n, data: { ...n.data, retryDelaySeconds: value } } : n)),
     )
     markDirty()
   }
@@ -1164,6 +1188,8 @@ export default function EditorPage() {
             onChangeParam={handleChangeParam}
             onChangeMeta={handleChangeNodeMeta}
             onChangeResultType={handleChangeResultType}
+            onChangeMaxAttempts={handleChangeMaxAttempts}
+            onChangeRetryDelay={handleChangeRetryDelay}
             onDeleteNode={handleDeleteNode}
             upstreamVariables={upstreamVariables}
             onPreviewVariable={handlePreviewVariable}

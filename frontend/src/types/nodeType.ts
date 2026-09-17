@@ -43,5 +43,6 @@ export interface NodeTypeSpec {
   example?: string | null
   icon: string | null
   isBranch: boolean
+  retryable: boolean
   params: ParamFieldSpec[]
 }

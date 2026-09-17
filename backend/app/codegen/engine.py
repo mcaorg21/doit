@@ -7,6 +7,7 @@ import json
 import os
 import re
 import requests
+import time
 import uuid
 from datetime import datetime
 from playwright.sync_api import sync_playwright
@@ -164,6 +165,61 @@ def _indent_fragment(fragment: str, level: int) -> str:
     return "\n".join(lines)
 
 
+def _wrap_with_retry(
+    fragment: str,
+    result_capture: str | None,
+    node_id: str,
+    node_label: str,
+    max_attempts: int,
+    retry_delay_seconds: float,
+) -> str:
+    """Wraps a non-block node's fragment in try/except so a failure drops into pdb at
+    the exact node that broke — see the "should_wrap" caller in render() above for
+    which nodes this applies to. `max_attempts` (WFNode.maxAttempts, clamped [1, 5])
+    lets the SAME action be tried again a few times first (with `retry_delay_seconds`,
+    clamped [0, 60], slept between tries via time.sleep — see HEADER's `import time`)
+    before treating it as a real failure; only the final attempt's exception reaches
+    __NODE_ERROR__/breakpoint(). 1 attempt (the default) reproduces the exact
+    single try/except this app generated before retries existed, byte for byte."""
+    error_prefix = repr(f"Tratar erro no node {node_label}: ")
+    error_marker = repr(f"__NODE_ERROR__{node_id}")
+    try_body = _indent_fragment(fragment, 1)
+    if result_capture:
+        # Inside the try body, after the node's own fragment, so it only runs once
+        # the variable actually exists — appending it outside/after the try/except
+        # would crash with a NameError once execution resumes past a caught
+        # exception, since the assignment never happened.
+        try_body += "\n" + _indent_fragment(result_capture, 1)
+
+    attempts = min(5, max(1, int(max_attempts or 1)))
+    if attempts == 1:
+        return (
+            "try:\n"
+            f"{try_body}\n"
+            "except Exception as _e:\n"
+            f"    print({error_marker})\n"
+            f"    print({error_prefix} + str(_e))\n"
+            "    breakpoint()"
+        )
+
+    delay = min(60, max(0, float(retry_delay_seconds or 0)))
+    sleep_line = f"        time.sleep({delay:g})\n" if delay > 0 else ""
+    retry_body = (
+        "try:\n"
+        f"{try_body}\n"
+        "    break\n"
+        "except Exception as _e:\n"
+        f"    if _attempt < {attempts}:\n"
+        f'        print(f"[{node_label}] attempt {{_attempt}}/{attempts} failed, retrying \u2014 " + str(_e))\n'
+        f"{sleep_line}"
+        "        continue\n"
+        f"    print({error_marker})\n"
+        f"    print({error_prefix} + str(_e))\n"
+        "    breakpoint()"
+    )
+    return f"for _attempt in range(1, {attempts + 1}):\n" + _indent_fragment(retry_body, 1)
+
+
 def _validate_and_index(
     nodes: list[WFNode], edges: list[WFEdge]
 ) -> tuple[dict[str, WFNode], dict[str, list[WFEdge]], dict[str, int]]:
@@ -275,7 +331,6 @@ def generate_script(
         roots = [chosen]
 
     visited: set[str] = set()
-    has_breakpoints = any(n.type == "pause" for n in nodes) or any(e.breakpoint for e in edges)
 
     def render(
         node_id: str,
@@ -301,7 +356,6 @@ def generate_script(
             workflow_id=workflow_id,
             browser_var=browser_var,
             target_var=target_var,
-            has_breakpoints=has_breakpoints,
             node_label=_node_label(node),
         )
         fragment = spec.codegen(ctx)
@@ -329,22 +383,13 @@ def generate_script(
         # actually has a producesVariable param filled in (the common case is None).
         result_capture = None if preview_node_id is not None else _result_capture_lines(node, spec)
         if should_wrap:
-            error_prefix = repr(f"Tratar erro no node {ctx.node_label}: ")
-            error_marker = repr(f"__NODE_ERROR__{node.id}")
-            try_body = _indent_fragment(fragment, 1)
-            if result_capture:
-                # Inside the try body, after the node's own fragment, so it only runs
-                # once the variable actually exists — appending it outside/after the
-                # try/except would crash with a NameError once execution resumes past
-                # a caught exception, since the assignment never happened.
-                try_body += "\n" + _indent_fragment(result_capture, 1)
-            wrapped = (
-                "try:\n"
-                f"{try_body}\n"
-                "except Exception as _e:\n"
-                f"    print({error_marker})\n"
-                f"    print({error_prefix} + str(_e))\n"
-                "    breakpoint()"
+            wrapped = _wrap_with_retry(
+                fragment=fragment,
+                result_capture=result_capture,
+                node_id=node.id,
+                node_label=ctx.node_label,
+                max_attempts=node.maxAttempts,
+                retry_delay_seconds=node.retryDelaySeconds,
             )
             lines.append(_indent_fragment(wrapped, indent))
         else:

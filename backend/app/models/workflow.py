@@ -36,6 +36,18 @@ class WFNode(BaseModel):
     producesVariable param(s), keyed the same way as resultExamples — lets the
     editor offer object-path suggestions for a downstream field even before this
     node has ever actually been run. Purely a UI hint; never read by codegen."""
+    maxAttempts: int = 1
+    """How many times to try this node's action before treating it as a real failure
+    (the usual __NODE_ERROR__/breakpoint()) — clamped to [1, 5] at codegen time
+    (see app/codegen/engine.py). 1 (the default) means no retry, identical generated
+    code to before this field existed. Only applies to nodes the engine actually
+    wraps in try/except (NodeSpec.to_public_dict's "retryable" — excludes
+    block-opening nodes like Loop/If/browser_2captcha/Open Browser, Pause, and
+    trigger-category nodes); harmless but a no-op if set on one of those."""
+    retryDelaySeconds: float = 0
+    """How long to wait (time.sleep) between one failed attempt and the next — only
+    meaningful when maxAttempts > 1, clamped to [0, 60] at codegen time. 0 (the
+    default) retries immediately, same as before this field existed."""
 
 
 class WFEdge(BaseModel):

@@ -1,6 +1,7 @@
 import { LuClipboard, LuSearch } from 'react-icons/lu'
 import type { WorkflowRun } from './useWorkflowRun'
-import { RUN_STATUS_LABELS } from './useWorkflowRun'
+import { RUN_STATUS_KEYS } from './useWorkflowRun'
+import { useLanguage } from '../i18n/LanguageContext'
 
 interface Props {
   run: WorkflowRun
@@ -13,6 +14,7 @@ interface Props {
 // its Ctrl+C-to-stop hint) lives in the Logs tab instead (see LogsPanel) — this
 // overlay stays limited to starting/stopping a run and its quick side-actions.
 export default function RunFloatingControls({ run }: Props) {
+  const { t } = useLanguage()
   const {
     running,
     status,
@@ -32,7 +34,7 @@ export default function RunFloatingControls({ run }: Props) {
 
   return (
     <div className="run-float">
-      {status && <div className={`run-float-status ${status}`}>{RUN_STATUS_LABELS[status]}</div>}
+      {status && <div className={`run-float-status ${status}`}>{t(RUN_STATUS_KEYS[status])}</div>}
       {error && <div className="error-banner" style={{ marginBottom: 6 }}>{error}</div>}
 
       <div className="run-float-main">
@@ -40,13 +42,13 @@ export default function RunFloatingControls({ run }: Props) {
           className="run-float-pill"
           onClick={handleRun}
           disabled={running || !canRun}
-          title={canRun ? undefined : 'Add at least one node first'}
+          title={canRun ? undefined : t('runNeedsANodeTitle')}
         >
-          {running ? RUN_STATUS_LABELS.running : '▶ Run workflow'}
+          {running ? t(RUN_STATUS_KEYS.running) : t('runWorkflowButton')}
         </button>
         {running && (
-          <button className="run-float-stop" onClick={handleStop} title="Stop (Ctrl+C)">
-            ⏹ Stop
+          <button className="run-float-stop" onClick={handleStop} title={t('stopButtonTitle')}>
+            {t('stopButton')}
           </button>
         )}
       </div>
@@ -54,25 +56,25 @@ export default function RunFloatingControls({ run }: Props) {
       {running && (
         <div className="run-float-secondary">
           <button className="btn btn-sm" onClick={handleContinue}>
-            ⏵ Continue past breakpoint
+            {t('continuePastBreakpointButton')}
           </button>
           <button
             className="btn btn-sm"
             onClick={handleActivateInspector}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-            title="Inspect elements — hover any element in the Chrome window to see its details"
+            title={t('inspectorButtonTitle')}
           >
             <LuSearch size={13} />
-            Inspector
+            {t('inspectorButton')}
           </button>
           <button
             className="btn btn-sm"
             onClick={toggleClipboardBar}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 4, position: 'relative' }}
-            title="View the current clipboard content"
+            title={t('clipboardButtonTitle')}
           >
             <LuClipboard size={13} />
-            Clipboard
+            {t('clipboardButton')}
             {clipboardHasNew && !clipboardOpen && <span className="run-float-clipboard-dot" />}
           </button>
         </div>
@@ -81,14 +83,12 @@ export default function RunFloatingControls({ run }: Props) {
       {clipboardOpen && (
         <div className="run-float-clipboard-box">
           <div className="run-float-clipboard-box-header">
-            <span>Clipboard</span>
-            <button className="icon-btn" title="Close" onClick={() => toggleClipboardBar()}>
+            <span>{t('clipboardButton')}</span>
+            <button className="icon-btn" title={t('closeButtonTitle')} onClick={() => toggleClipboardBar()}>
               ✕
             </button>
           </div>
-          <pre className="run-float-clipboard-box-content">
-            {clipboardText || '(empty, or this tab doesn’t have permission/focus to read it yet)'}
-          </pre>
+          <pre className="run-float-clipboard-box-content">{clipboardText || t('clipboardEmptyHint')}</pre>
         </div>
       )}
 

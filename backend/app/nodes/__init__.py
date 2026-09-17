@@ -20,6 +20,7 @@ from app.nodes import (  # noqa: F401,E402
     searchable_dropdown_select,
     wait,
     element_present,
+    element_if,
     get_text,
     execute_script,
     if_node,

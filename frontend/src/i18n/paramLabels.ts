@@ -133,6 +133,8 @@ export const paramLabelsPt: Record<string, string> = {
   'Simulate typing (character by character — needed by some JS-driven inputs)':
     'Simular digitação (caractere por caractere — necessário em alguns campos controlados por JS)',
   'Error Message': 'Mensagem de Erro',
+  Check: 'Verificar',
+  'Attribute Name': 'Nome do Atributo',
 }
 
 export const paramOptionsPt: Record<string, string> = {
@@ -198,4 +200,8 @@ export const paramOptionsPt: Record<string, string> = {
   // Save Files
   zip: 'ZIP (funciona pra qualquer tipo de arquivo)',
   pdf: 'PDF (junta páginas PDF num só PDF)',
+  // Element Condition
+  presence: 'Só Presença (encontrado / não encontrado)',
+  text: 'O Texto Dele',
+  attribute: 'Um Atributo',
 }

@@ -12,6 +12,7 @@ import {
   LuCalendarClock,
   LuScanSearch,
   LuScanText,
+  LuSearchCheck,
   LuSplit,
   LuPause,
   LuFrame,
@@ -50,6 +51,7 @@ const ICONS: Record<string, IconType> = {
   schedule: LuCalendarClock, // Schedule Trigger
   webhook: LuWebhook, // Webhook Trigger
   'scan-search': LuScanSearch, // Element Present?
+  'search-check': LuSearchCheck, // Element Condition
   'scan-text': LuScanText, // Get Text
   split: LuSplit, // IF
   pause: LuPause, // Pause (debugger)

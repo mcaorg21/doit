@@ -392,6 +392,19 @@ def generate_script(
                 retry_delay_seconds=node.retryDelaySeconds,
             )
             lines.append(_indent_fragment(wrapped, indent))
+        elif opens_for_wrap and result_capture:
+            # A block-opening fragment's last line is the header that opens the block
+            # (e.g. Element Condition's "if ...:") — appending result_capture straight
+            # after the full fragment would land it right after that header at the same
+            # indent as the header itself, an IndentationError (Python expects an
+            # indented block, not a same-level statement, right after a "...:" line).
+            # The variable being captured is already assigned earlier in the fragment
+            # (before the header), so it's safe and correct to capture it there too,
+            # ahead of the header, rather than inside either branch.
+            frag_lines = fragment.splitlines()
+            lines.append(_indent_fragment("\n".join(frag_lines[:-1]), indent))
+            lines.append(_indent_fragment(result_capture, indent))
+            lines.append(_indent_fragment(frag_lines[-1], indent))
         else:
             lines.append(_indent_fragment(fragment, indent))
             if result_capture:

@@ -117,6 +117,12 @@ export const nodeCatalogPt: Record<string, NodeCatalogText> = {
       'Verifica se um elemento que bate com um seletor existe atualmente na página (ex: pra detectar se o login deu certo), guardando Verdadeiro/Falso numa variável pra um node SE decidir o caminho depois.',
     example: "Verifica se '#logged-in-badge' existe, guardando Verdadeiro/Falso em 'logado'",
   },
+  element_if: {
+    label: 'Condição do Elemento',
+    description:
+      'Junta o Elemento Presente? com o SE num só passo: procura um elemento e, só se ele estiver lá, já verifica uma condição sobre ele (o texto dele ou um atributo) — o ramo verdadeiro só dispara quando o elemento existe E a condição bate. Evita ter que encadear um Elemento Presente? separado antes de um SE só pra checar algo sobre o que foi encontrado.',
+    example: "Se '.status-badge' está presente e o texto dele contém 'Aprovado', segue o caminho verdadeiro, senão o falso",
+  },
   get_text: {
     label: 'Pegar Texto',
     description:

@@ -824,7 +824,10 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  max-width: min(92%, 440px);
+  /* Wide enough for the 3 secondary buttons (Continue past breakpoint/Inspector/
+     Clipboard) to stay on one row even with Portuguese's longer labels — 440px
+     wrapped them into an uneven 2-then-1 split. */
+  max-width: min(94%, 640px);
   outline: none;
 }
 

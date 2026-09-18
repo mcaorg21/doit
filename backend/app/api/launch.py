@@ -167,6 +167,13 @@ def _initial_prompt(
         f"CONTINUE a partir do que ja esta la, nao recrie o workflow do zero. So comece do zero se o "
         f"workflow estiver genuinamente vazio (sem nodes e sem notes)."
     ]
+    parts.append(
+        f"Tambem chame list_workflow_notes(project_id={project_id!r}) pra ver o que ja foi aprendido/"
+        "documentado em OUTROS workflows deste MESMO projeto (login parecido, seletores, particularidades "
+        "de dados, etc). Se algo la for relevante pro que voce vai construir/editar aqui, reaproveite em vez "
+        "de redescobrir do zero — e diga explicitamente no seu resumo final de qual(is) workflow(s) voce "
+        "aproveitou algo, citando o nome dele(s)."
+    )
     if language == "en":
         parts.append(
             "The editor's UI language is currently set to English — when you set a custom `title` or `note` "

@@ -22,6 +22,17 @@ def test_initial_prompt_without_instruction_is_unchanged_in_spirit():
     assert "ask_human_voice" not in prompt  # only mentioned for voice-guided sessions
 
 
+def test_initial_prompt_tells_agent_to_check_sibling_workflows_in_order():
+    # Added so an agent building/editing one workflow reuses what a prior session
+    # already documented in a SIBLING workflow's notes (same project) instead of
+    # rediscovering login flows/selectors/data quirks from scratch each time.
+    prompt = launch._initial_prompt("proj_1", "wf_1")
+    assert prompt is not None
+    assert "list_workflow_notes(project_id='proj_1')" in prompt
+    assert prompt.index("get_workflow") < prompt.index("list_workflow_notes")
+    assert prompt.index("list_workflow_notes") < prompt.index("write_workflow_notes")
+
+
 def test_initial_prompt_returns_none_without_both_ids():
     assert launch._initial_prompt(None, None) is None
     assert launch._initial_prompt("proj_1", None) is None

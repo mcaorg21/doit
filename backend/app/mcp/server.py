@@ -277,6 +277,27 @@ def list_workflows(project_id: str) -> list[dict]:
 
 
 @mcp.tool()
+def list_workflow_notes(project_id: str) -> list[dict]:
+    """Lists every OTHER workflow's `notes` in this project (skipping ones with
+    empty notes) — call this before starting real work on a workflow to see what's
+    already been learned/documented elsewhere in this SAME project (a similar login
+    flow, selectors, data quirks, gotchas). Returns [{workflowId, name, notes}]. If
+    anything here is relevant to what you're about to build or edit, reuse it
+    instead of rediscovering it from scratch — and say explicitly, by name, which
+    workflow(s) you drew from in your own write_workflow_notes summary."""
+    try:
+        workflows = workflow_store.list_workflows(project_id)
+    except HTTPException as exc:
+        raise ValueError(str(exc.detail)) from exc
+    result = []
+    for w in workflows:
+        notes = workflow_store.get_workflow_notes(project_id, w.id).strip()
+        if notes:
+            result.append({"workflowId": w.id, "name": w.name, "notes": notes})
+    return result
+
+
+@mcp.tool()
 def get_workflow(project_id: str, workflow_id: str) -> WorkflowWithNotes:
     """Returns a workflow's current nodes and edges, plus its `notes` field — call
     this before editing an existing workflow further (e.g. in a new conversation, or

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LuFileUp, LuHistory, LuDatabase, LuKeyRound, LuSparkles, LuFolderPlus, LuPlay } from 'react-icons/lu'
+import { LuFileUp, LuHistory, LuDatabase, LuKeyRound, LuSparkles, LuFolderPlus, LuPlay, LuCalendarClock, LuWebhook, LuHand } from 'react-icons/lu'
 import { projectsApi } from '../api/projects'
 import { workflowsApi } from '../api/workflows'
 import { foldersApi } from '../api/folders'
@@ -15,6 +15,23 @@ import type { Folder, Workflow } from '../types/workflow'
 function flattenFolders(folders: Folder[], parentId: string | null = null, depth = 0): { folder: Folder; depth: number }[] {
   const children = folders.filter((f) => f.parentId === parentId)
   return children.flatMap((f) => [{ folder: f, depth }, ...flattenFolders(folders, f.id, depth + 1)])
+}
+
+// A workflow's trigger is whichever trigger node type it contains, if any — a valid
+// graph has at most one (schedule_trigger and webhook_trigger are both "category":
+// "trigger" node types, and only one may be the no-incoming-edge root). No trigger
+// node at all just means it only ever runs manually (the Run button, here or in the
+// editor), never on its own.
+const TRIGGER_KINDS = {
+  schedule_trigger: { Icon: LuCalendarClock, labelKey: 'triggerScheduled' } as const,
+  webhook_trigger: { Icon: LuWebhook, labelKey: 'triggerWebhook' } as const,
+  manual: { Icon: LuHand, labelKey: 'triggerManual' } as const,
+}
+
+function workflowTriggerKind(w: Workflow): keyof typeof TRIGGER_KINDS {
+  if (w.nodes.some((n) => n.type === 'schedule_trigger')) return 'schedule_trigger'
+  if (w.nodes.some((n) => n.type === 'webhook_trigger')) return 'webhook_trigger'
+  return 'manual'
 }
 
 export default function WorkflowListPage() {
@@ -388,6 +405,20 @@ export default function WorkflowListPage() {
                         {runFeedback.message}
                       </span>
                     )}
+                  </div>
+                  <div
+                    className="list-item-meta"
+                    style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}
+                  >
+                    {(() => {
+                      const { Icon, labelKey } = TRIGGER_KINDS[workflowTriggerKind(w)]
+                      return (
+                        <>
+                          <Icon size={12} />
+                          {t(labelKey)}
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
               </Link>

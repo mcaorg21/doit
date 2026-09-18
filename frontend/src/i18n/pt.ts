@@ -17,6 +17,10 @@ export const pt: Record<keyof typeof en, string> = {
   notesButtonTitle: 'Notes — um guia em markdown deste workflow, também lido pelo Claude/Codex via o conector MCP',
   voiceButtonTitle: 'Construir por voz — dite uma instrução e continue no Claude ou no Codex',
   launchButtonTitle: 'Continuar este workflow no Claude ou no Codex',
+  pullExperienceCheckboxLabel: 'Pegar experiência de outro workflow',
+  noSiblingWorkflowsHint: 'Ainda não há outros workflows neste projeto.',
+  experienceNotAvailableOnDesktop:
+    'Pegar experiência de outro workflow ainda não está disponível para o Claude Desktop — use um dos botões de Terminal.',
   claudeLabel: 'Claude',
   codexLabel: 'Codex',
   openInTerminal: 'Abrir no Terminal',

@@ -861,6 +861,8 @@ export default function EditorPage() {
   // between the click and that round-trip finishing, which reads as "the button did
   // nothing" (confirmed live: a click can take ~10s to produce any visible change).
   const launchMenuRef = useRef<HTMLDivElement>(null)
+  const [referenceWorkflowsEnabled, setReferenceWorkflowsEnabled] = useState(false)
+  const [selectedReferenceWorkflowIds, setSelectedReferenceWorkflowIds] = useState<string[]>([])
 
   useEffect(() => {
     if (!launchMenuOpen) return
@@ -873,12 +875,27 @@ export default function EditorPage() {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [launchMenuOpen])
 
+  // Only fetched once the checkbox is actually on — most launches don't need this
+  // list at all, no reason to pull every sibling workflow just for opening the menu.
+  const siblingWorkflowsQuery = useQuery({
+    queryKey: ['workflows', projectId],
+    queryFn: () => workflowsApi.list(projectId!),
+    enabled: !!projectId && referenceWorkflowsEnabled,
+  })
+  const siblingWorkflows = (siblingWorkflowsQuery.data ?? []).filter((w) => w.id !== workflowId)
+
+  function toggleReferenceWorkflow(id: string) {
+    setSelectedReferenceWorkflowIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
   async function handleLaunchTerminal(provider: CliProvider, instruction?: string) {
     setLaunchMenuOpen(false)
     setLaunchPending(true)
     const title = provider === 'codex' ? 'Terminal (Codex)' : 'Terminal (Claude Code)'
+    const referenceWorkflowIds =
+      referenceWorkflowsEnabled && selectedReferenceWorkflowIds.length > 0 ? selectedReferenceWorkflowIds : undefined
     try {
-      const result = await launchApi.terminal(provider, projectId, workflowId, instruction, language)
+      const result = await launchApi.terminal(provider, projectId, workflowId, instruction, language, referenceWorkflowIds)
       if (result.launched) setBuilding(true)
       if (result.notify) {
         setLaunchResult({
@@ -900,6 +917,13 @@ export default function EditorPage() {
 
   async function handleLaunchClaudeDesktop() {
     setLaunchMenuOpen(false)
+    // Claude Desktop has no way to receive an initial prompt at all (no CLI arg,
+    // no known URI scheme) — unlike the Terminal buttons, so a reference-workflow
+    // pick here would silently go nowhere instead of actually being used.
+    if (referenceWorkflowsEnabled && selectedReferenceWorkflowIds.length > 0) {
+      setLaunchResult({ title: 'Claude Desktop', detail: t('experienceNotAvailableOnDesktop'), ok: false })
+      return
+    }
     setLaunchPending(true)
     try {
       const result = await launchApi.claudeDesktop()
@@ -1103,6 +1127,54 @@ export default function EditorPage() {
             </button>
             {launchMenuOpen && (
               <div className="launch-menu">
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 12,
+                    padding: '4px 2px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={referenceWorkflowsEnabled}
+                    onChange={(e) => {
+                      setReferenceWorkflowsEnabled(e.target.checked)
+                      if (!e.target.checked) setSelectedReferenceWorkflowIds([])
+                    }}
+                  />
+                  {t('pullExperienceCheckboxLabel')}
+                </label>
+                {referenceWorkflowsEnabled && (
+                  <div style={{ maxHeight: 140, overflowY: 'auto', marginBottom: 6 }}>
+                    {siblingWorkflowsQuery.isLoading && (
+                      <div className="hint" style={{ padding: '2px 4px' }}>
+                        {t('loadingEllipsis')}
+                      </div>
+                    )}
+                    {!siblingWorkflowsQuery.isLoading && siblingWorkflows.length === 0 && (
+                      <div className="hint" style={{ padding: '2px 4px' }}>
+                        {t('noSiblingWorkflowsHint')}
+                      </div>
+                    )}
+                    {siblingWorkflows.map((w) => (
+                      <label
+                        key={w.id}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '2px 4px', cursor: 'pointer' }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedReferenceWorkflowIds.includes(w.id)}
+                          onChange={() => toggleReferenceWorkflow(w.id)}
+                        />
+                        {w.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <div className="launch-menu-divider" />
                 <div className="launch-menu-label">{t('claudeLabel')}</div>
                 <button className="launch-menu-item" onClick={() => handleLaunchTerminal('claude')}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="#D97757">

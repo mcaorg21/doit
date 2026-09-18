@@ -16,6 +16,10 @@ export const en = {
   notesButtonTitle: "Notes — a markdown guide for this workflow, also read by Claude/Codex via the MCP connector",
   voiceButtonTitle: 'Build by voice — dictate an instruction and continue in Claude or Codex',
   launchButtonTitle: 'Continue this workflow in Claude or Codex',
+  pullExperienceCheckboxLabel: 'Pull in experience from another workflow',
+  noSiblingWorkflowsHint: 'No other workflows in this project yet.',
+  experienceNotAvailableOnDesktop:
+    "Pulling in experience from another workflow isn't available for Claude Desktop yet — use one of the Terminal buttons instead.",
   claudeLabel: 'Claude',
   codexLabel: 'Codex',
   openInTerminal: 'Open in Terminal',

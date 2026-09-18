@@ -21,6 +21,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.config import REPO_ROOT
+from app.storage import workflow_store
 
 router = APIRouter(prefix="/api/launch", tags=["launch"])
 
@@ -60,6 +61,12 @@ class LaunchTerminalRequest(BaseModel):
     """The editor's current UI language (see frontend/src/i18n/), passed through so
     the agent writes node titles/notes in the same language the human is looking at
     the app in — see _initial_prompt."""
+    referenceWorkflowIds: list[str] | None = None
+    """Sibling workflow(s) (same project) the human explicitly picked, via the
+    "Pegar experiência de outro workflow" checkbox in the editor's launch menu, as
+    known-good prior art to reuse — their notes get embedded directly into the
+    initial prompt (see _initial_prompt) rather than left for the agent to discover
+    on its own via list_workflow_notes."""
 
 
 class LaunchResult(BaseModel):
@@ -154,8 +161,38 @@ def _validate_id(value: str | None, label: str) -> str | None:
     return value
 
 
+def _reference_workflows_block(project_id: str, reference_workflow_ids: list[str]) -> str | None:
+    """Builds an explicit "use THESE specific sibling workflows" prompt block from
+    human-picked ids (the "Pegar experiência de outro workflow" checkbox) — embeds
+    their notes directly rather than leaving discovery to list_workflow_notes, since
+    the human already did that judgment call. Silently skips an id that no longer
+    resolves (deleted/typo) instead of failing the whole launch over it."""
+    sections = []
+    for wf_id in reference_workflow_ids:
+        try:
+            wf = workflow_store.get_workflow(project_id, wf_id)
+        except HTTPException:
+            continue
+        notes = workflow_store.get_workflow_notes(project_id, wf_id).strip()
+        if not notes:
+            continue
+        sections.append(f"### {wf.name} (workflow_id={wf_id})\n{notes}")
+    if not sections:
+        return None
+    return (
+        "O usuario pediu explicitamente pra voce aproveitar a experiencia documentada no(s) "
+        "workflow(s) abaixo deste MESMO projeto antes de comecar — reaproveite os "
+        "padroes/seletores/particularidades relevantes de la em vez de redescobrir do zero:\n\n"
+        + "\n\n".join(sections)
+    )
+
+
 def _initial_prompt(
-    project_id: str | None, workflow_id: str | None, instruction: str | None = None, language: str | None = None
+    project_id: str | None,
+    workflow_id: str | None,
+    instruction: str | None = None,
+    language: str | None = None,
+    reference_workflow_ids: list[str] | None = None,
 ) -> str | None:
     if not (project_id and workflow_id):
         return None
@@ -174,6 +211,10 @@ def _initial_prompt(
         "de redescobrir do zero — e diga explicitamente no seu resumo final de qual(is) workflow(s) voce "
         "aproveitou algo, citando o nome dele(s)."
     )
+    if reference_workflow_ids:
+        reference_block = _reference_workflows_block(project_id, reference_workflow_ids)
+        if reference_block:
+            parts.append(reference_block)
     if language == "en":
         parts.append(
             "The editor's UI language is currently set to English — when you set a custom `title` or `note` "
@@ -247,11 +288,12 @@ def _write_launch_script(provider: CliProvider, prompt: str | None) -> str:
 def launch_terminal(payload: LaunchTerminalRequest):
     project_id = _validate_id(payload.projectId, "projectId")
     workflow_id = _validate_id(payload.workflowId, "workflowId")
+    reference_workflow_ids = [_validate_id(wf_id, "referenceWorkflowIds") for wf_id in (payload.referenceWorkflowIds or [])]
     provider = payload.provider
 
     mcp_ok, mcp_detail = _ensure_mcp_registered(provider)
 
-    prompt = _initial_prompt(project_id, workflow_id, payload.instruction, payload.language)
+    prompt = _initial_prompt(project_id, workflow_id, payload.instruction, payload.language, reference_workflow_ids)
     try:
         script_path = _write_launch_script(provider, prompt)
         # os.startfile (ShellExecute) opens the .bat the same way double-clicking it

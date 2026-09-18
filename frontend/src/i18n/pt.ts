@@ -7,6 +7,8 @@ export const pt: Record<keyof typeof en, string> = {
   workflowNamePlaceholder: 'Nome do workflow',
   buildingBannerTitle: 'Uma sessão de terminal (Claude/Codex) está trabalhando neste workflow',
   buildingLabel: 'Construindo...',
+  launchingBannerTitle: 'Abrindo o terminal e checando o registro do servidor MCP — isso pode levar alguns segundos',
+  launchingLabel: 'Conectando...',
   dismiss: 'Dispensar',
   saving: 'Salvando…',
   unsavedChanges: 'Alterações não salvas',

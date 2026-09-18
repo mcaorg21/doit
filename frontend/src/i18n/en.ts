@@ -6,6 +6,8 @@ export const en = {
   workflowNamePlaceholder: 'Workflow name',
   buildingBannerTitle: 'A terminal session (Claude/Codex) is working on this workflow',
   buildingLabel: 'Building...',
+  launchingBannerTitle: 'Opening the terminal and checking the MCP server registration — this can take a few seconds',
+  launchingLabel: 'Connecting...',
   dismiss: 'Dismiss',
   saving: 'Saving…',
   unsavedChanges: 'Unsaved changes',

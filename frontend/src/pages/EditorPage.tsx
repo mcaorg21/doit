@@ -854,6 +854,12 @@ export default function EditorPage() {
 
   const [launchResult, setLaunchResult] = useState<{ title: string; detail: string; ok: boolean } | null>(null)
   const [launchMenuOpen, setLaunchMenuOpen] = useState(false)
+  const [launchPending, setLaunchPending] = useState(false)
+  // Separate from `building`: the backend shells out to `claude mcp list`/`add`
+  // (or `codex mcp ...`) synchronously before it even opens the terminal, which can
+  // take several real seconds — without this, the topbar shows nothing at all
+  // between the click and that round-trip finishing, which reads as "the button did
+  // nothing" (confirmed live: a click can take ~10s to produce any visible change).
   const launchMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -869,6 +875,7 @@ export default function EditorPage() {
 
   async function handleLaunchTerminal(provider: CliProvider, instruction?: string) {
     setLaunchMenuOpen(false)
+    setLaunchPending(true)
     const title = provider === 'codex' ? 'Terminal (Codex)' : 'Terminal (Claude Code)'
     try {
       const result = await launchApi.terminal(provider, projectId, workflowId, instruction, language)
@@ -886,11 +893,14 @@ export default function EditorPage() {
         detail: err instanceof ApiError || err instanceof Error ? err.message : 'Failed to open terminal',
         ok: false,
       })
+    } finally {
+      setLaunchPending(false)
     }
   }
 
   async function handleLaunchClaudeDesktop() {
     setLaunchMenuOpen(false)
+    setLaunchPending(true)
     try {
       const result = await launchApi.claudeDesktop()
       if (result.launched) setBuilding(true)
@@ -907,6 +917,8 @@ export default function EditorPage() {
         detail: err instanceof ApiError || err instanceof Error ? err.message : 'Failed to open Claude Desktop',
         ok: false,
       })
+    } finally {
+      setLaunchPending(false)
     }
   }
 
@@ -993,6 +1005,12 @@ export default function EditorPage() {
           size={Math.max(8, name.length)}
         />
         <div className="topbar-right">
+          {launchPending && !building && (
+            <span className="building-banner" title={t('launchingBannerTitle')}>
+              <span className="voice-recording-dot" style={{ background: 'var(--accent)' }} />
+              {t('launchingLabel')}
+            </span>
+          )}
           {building && (
             <span className="building-banner" title={t('buildingBannerTitle')}>
               <span className="voice-recording-dot" style={{ background: 'var(--accent)' }} />

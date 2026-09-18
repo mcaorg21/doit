@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LuFileUp, LuHistory, LuDatabase, LuKeyRound, LuSparkles, LuFolderPlus } from 'react-icons/lu'
+import { LuFileUp, LuHistory, LuDatabase, LuKeyRound, LuSparkles, LuFolderPlus, LuPlay } from 'react-icons/lu'
 import { projectsApi } from '../api/projects'
 import { workflowsApi } from '../api/workflows'
 import { foldersApi } from '../api/folders'
@@ -39,6 +39,7 @@ export default function WorkflowListPage() {
   const [importError, setImportError] = useState<string | null>(null)
   const [showCredentials, setShowCredentials] = useState(false)
   const [showPythonImport, setShowPythonImport] = useState(false)
+  const [runFeedback, setRunFeedback] = useState<{ workflowId: string; ok: boolean; message: string } | null>(null)
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -136,6 +137,26 @@ export default function WorkflowListPage() {
     mutationFn: (workflowId: string) => workflowsApi.duplicate(projectId!, workflowId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows', projectId] })
+    },
+  })
+
+  // Runs a workflow straight from the list, using whatever's already saved (no
+  // canvas open here to pull unsaved edits from, unlike the editor's own Run
+  // button) — the POST only starts the run and returns its id; the run itself
+  // happens server-side, so "Executions" (already in the toolbar) is where to
+  // actually watch it progress.
+  const runMutation = useMutation({
+    mutationFn: (w: Workflow) => workflowsApi.run(projectId!, w.id, w.nodes, w.edges, w.startNodeId),
+    onSuccess: (_data, w) => {
+      setRunFeedback({ workflowId: w.id, ok: true, message: t('runStartedMessage') })
+      setTimeout(() => setRunFeedback((f) => (f?.workflowId === w.id ? null : f)), 4000)
+    },
+    onError: (err: unknown, w) => {
+      setRunFeedback({
+        workflowId: w.id,
+        ok: false,
+        message: err instanceof Error ? err.message : t('runFailedToStartMessage'),
+      })
     },
   })
 
@@ -362,10 +383,26 @@ export default function WorkflowListPage() {
                   <div className="list-item-meta">
                     {w.nodes.length} {w.nodes.length === 1 ? t('nodeWord') : t('nodesWord')} · {t('updatedPrefix')}{' '}
                     {new Date(w.updatedAt).toLocaleString()}
+                    {runFeedback?.workflowId === w.id && (
+                      <span style={{ marginLeft: 8, color: runFeedback.ok ? 'var(--success)' : 'var(--danger)' }}>
+                        {runFeedback.message}
+                      </span>
+                    )}
                   </div>
                 </div>
               </Link>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  className="icon-btn"
+                  title={t('runWorkflowRowTitle')}
+                  disabled={runMutation.isPending && runMutation.variables?.id === w.id}
+                  onClick={() => {
+                    setRunFeedback(null)
+                    runMutation.mutate(w)
+                  }}
+                >
+                  <LuPlay size={14} />
+                </button>
                 <span
                   title={w.hasError ? t('errorPublishedStatus') : w.published ? t('publishedStatus') : t('notPublishedStatus')}
                   style={{

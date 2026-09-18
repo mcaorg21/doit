@@ -135,6 +135,8 @@ export const paramLabelsPt: Record<string, string> = {
   'Error Message': 'Mensagem de Erro',
   Check: 'Verificar',
   'Attribute Name': 'Nome do Atributo',
+  'Reuse saved Microsoft session': 'Reaproveitar sessão salva da Microsoft',
+  'Reuse saved session': 'Reaproveitar sessão salva',
 }
 
 export const paramOptionsPt: Record<string, string> = {

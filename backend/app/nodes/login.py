@@ -43,13 +43,14 @@ def codegen_login(ctx: CodegenContext) -> str:
     has_2fa = bool(params.get("has2FA"))
     clear_first = bool(params.get("clearFirst"))
     simulate_typing = bool(params.get("simulateTyping"))
+    reuse_saved_session = params.get("reuseSavedSession", True) is not False
     result_var_raw = (params.get("resultVar") or "").strip()
     var = validate_identifier(result_var_raw, ctx, "Result Variable") if result_var_raw else None
 
     lines = [
         f"_login_ck_dir = {cookies_dir_literal}",
         "_login_ck_path = os.path.join(_login_ck_dir, 'cookies.json')",
-        "if os.path.exists(_login_ck_path):",
+        f"if {reuse_saved_session!r} and os.path.exists(_login_ck_path):",
         "    _login_ck_data = json.loads(open(_login_ck_path, encoding='utf-8').read())",
         "    page.context.add_cookies(_login_ck_data)",
         f'    print(f"[{ctx.node_label}] loaded {{len(_login_ck_data)}} cookie(s), checking if still logged in...")',
@@ -102,15 +103,16 @@ register(
         label="Login",
         category="browser",
         description=(
-            "A complete login flow in one node: loads any cookies saved from a previous run first and checks "
-            "whether the confirmation element is already there (skips the form entirely if so); otherwise "
-            "fills username/password from a credential, submits, optionally handles a TOTP 2FA step, waits "
-            "for the confirmation element to prove it worked, then saves fresh cookies for next time. Needs "
-            "an open_browser earlier in the flow. Doesn't handle captchas — if the login form has one, add a "
-            "2Captcha node between filling the password and clicking submit. The cookie jar is tied to the "
-            "Login Credential itself (not to this workflow) — any other workflow using the same credential, "
-            "via its own Login node or a Save Cookies/Load Cookies node pointed at that credential, shares "
-            "the same saved session."
+            "A complete login flow in one node: unless 'Reuse saved session' is turned off, loads any cookies "
+            "saved from a previous run first and checks whether the confirmation element is already there "
+            "(skips the form entirely if so); otherwise fills username/password from a credential, submits, "
+            "optionally handles a TOTP 2FA step, waits for the confirmation element to prove it worked, then "
+            "saves fresh cookies for next time — saving happens whenever a real login just succeeded, "
+            "regardless of that toggle. Needs an open_browser earlier in the flow. Doesn't handle captchas — "
+            "if the login form has one, add a 2Captcha node between filling the password and clicking submit. "
+            "The cookie jar is tied to the Login Credential itself (not to this workflow) — any other "
+            "workflow using the same credential, via its own Login node or a Save Cookies/Load Cookies node "
+            "pointed at that credential, shares the same saved session."
         ),
         example='Logs into https://app.example.com using a stored credential, then saves the session',
         icon="log-in",
@@ -151,6 +153,7 @@ register(
                 default=15,
                 placeholder="15",
             ),
+            ParamField(key="reuseSavedSession", label="Reuse saved session", type="boolean", default=True),
             *typing_option_fields(),
             ParamField(key="has2FA", label="Site has TOTP 2FA", type="boolean", default=False),
             ParamField(

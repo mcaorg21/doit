@@ -208,7 +208,11 @@ def test_node_registered_with_expected_shape():
         "submitSelector",
         "confirmSelector",
         "has2FA",
+        "reuseSavedSession",
     } <= param_keys
+    reuse_field = next(p for p in spec.params if p.key == "reuseSavedSession")
+    assert reuse_field.type == "boolean"
+    assert reuse_field.default is True
     assert "cookiesFilename" not in param_keys  # cookie storage is now tied to the credential, not a filename
 
 
@@ -337,6 +341,30 @@ def test_second_run_skips_form_using_saved_cookies(project, browser, page, login
         assert ns["r2"] == {"alreadyLoggedIn": True}
         assert fresh_page.locator("#dashboard").is_visible()
         assert fresh_page.locator("#user").count() == 0  # the login FORM never rendered at all
+    finally:
+        fresh_page.close()
+
+
+def test_reuse_saved_session_false_forces_a_fresh_login_despite_saved_cookies(
+    project, browser, page, login_credential, cookies_path_for
+):
+    # Mirrors microsoft_login's reuseSavedSession toggle (app/nodes/microsoft_login.py)
+    # — added here for consistency after a user noticed the plain Login node had no
+    # way to force a fresh login even when a saved (possibly stale) session exists.
+    cookies_path_for(login_credential.id)
+    first_fragment = codegen_login(_ctx(project.id, _base_params(login_credential)))
+    _exec_fragment(page, first_fragment)
+
+    fresh_page = browser.new_page()
+    fresh_page.route(LOGIN_URL, _route_handler(LOGIN_FORM_HTML))
+    try:
+        second_fragment = codegen_login(
+            _ctx(project.id, _base_params(login_credential, resultVar="r2", reuseSavedSession=False))
+        )
+        ns = _exec_fragment(fresh_page, second_fragment)
+        assert ns["r2"] == {"alreadyLoggedIn": False}
+        assert fresh_page.locator("#user").count() == 1  # the login FORM DID render this time
+        assert fresh_page.locator("#dashboard").is_visible()  # still logs in for real and succeeds
     finally:
         fresh_page.close()
 

@@ -337,28 +337,51 @@ def _apply_layout(nodes: list[WFNode]) -> None:
         node.position = Position(x=LAYOUT_STEP_X * i, y=LAYOUT_Y)
 
 
-def downgrade_node_if_missing_credential(node: WFNode, catalog: list[dict]) -> str | None:
-    """MCP-only safety net (not used by reconstruct_workflow): an external MCP client
-    has no list_credentials tool and no way to know a real credential id, so any
-    credentialType-tagged param it fills in (or leaves null, per STRUCTURAL_RULES)
-    can never resolve — generate_script's resolve_credential_value would raise
-    CodegenError on it (required=True on both two_captcha and browser_2captcha's
-    credentialId field; see app/codegen/template_utils.py:40-57). Downgrades the node
-    to the same "unknown" placeholder mechanism used for unmapped types instead of
-    letting that happen. Mutates `node` in place. Returns a warning string, or None
-    if the node didn't need a credential."""
+def downgrade_node_if_missing_credential(node: WFNode, catalog: list[dict], project_id: str | None = None) -> str | None:
+    """MCP-only safety net (not used by reconstruct_workflow): a credentialType-tagged
+    param (e.g. microsoft_login's credentialId) left empty, or pointing at an id that
+    doesn't actually exist in this project, can never resolve — generate_script's
+    resolve_credential_value would raise CodegenError on it (required=True on every
+    credentialId field; see app/codegen/template_utils.py:40-57). An MCP client can
+    look up a real id via the list_credentials tool first, so this only downgrades
+    when that wasn't done (or the id it supplied doesn't check out) — a node whose
+    credential field(s) already hold a real, existing credential id passes through
+    unchanged. Downgrades to the same "unknown" placeholder mechanism used for
+    unmapped types when a downgrade IS needed. Mutates `node` in place. Returns a
+    warning string, or None if the node didn't need a credential (or already has a
+    valid one)."""
     spec = {s["type"]: s for s in catalog}.get(node.type)
     if spec is None:
         return None
     cred_fields = [p for p in spec["params"] if p.get("credentialType")]
     if not cred_fields:
         return None
+
+    missing_field = None
+    for field in cred_fields:
+        value = (node.params.get(field["key"]) or "").strip()
+        if not value:
+            missing_field = field
+            break
+        if project_id is not None:
+            from fastapi import HTTPException
+
+            from app.storage import credential_store
+
+            try:
+                credential_store.get_credential(project_id, value)
+            except HTTPException:
+                missing_field = field
+                break
+    if missing_field is None:
+        return None
+
     original_type, original_params = node.type, dict(node.params)
     node.type = "unknown"
     node.params = {
         "code": _stringify_unmapped(original_type, original_params),
         "sourceHint": (
-            f"Needs a '{cred_fields[0]['credentialType']}' credential — pick one in the "
+            f"Needs a '{missing_field['credentialType']}' credential — pick one in the "
             f"editor, then replace this placeholder with a real '{original_type}' node"
         ),
     }

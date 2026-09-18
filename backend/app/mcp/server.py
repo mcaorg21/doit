@@ -52,7 +52,7 @@ from app.services.workflow_reconstructor import (
     build_node_catalog,
     downgrade_node_if_missing_credential,
 )
-from app.storage import folder_store, project_store, workflow_store
+from app.storage import credential_store, folder_store, project_store, workflow_store
 from app.storage.ids import gen_id
 
 NODE_START_MARKER = "__NODE_START__"
@@ -133,14 +133,17 @@ _MCP_NOTES = [
     "function + NodeSpec registration + a frontend icon), just not something this "
     "MCP server's tools can do themselves. Only fall back to type=\"unknown\" once "
     "the human has declined or a new node isn't worth it for a one-off step.",
-    "credentialId-type fields (see credentialType on a param in the catalog) cannot "
-    "be filled by you — there is no credential-listing tool. If a step genuinely "
-    "needs one of these node types (two_captcha, browser_2captcha, login, microsoft_login, totp), "
-    "add_node will automatically turn it into an 'unknown' placeholder with a note "
-    "instead of failing; check needsHumanAttention on the result rather than trying "
-    "to work around it yourself. login specifically also can't be demoed live at all "
-    "(see the next note) — always author it with add_node, then tell the human to "
-    "pick its credential in the editor before the workflow can actually run.",
+    "credentialId-type fields (see credentialType on a param in the catalog) need a "
+    "real credential id — call list_credentials(project_id) (returns id/name/type "
+    "ONLY, never the secret value) and pass the matching one's `id`. If a step "
+    "genuinely needs one of these node types (two_captcha, browser_2captcha, login, "
+    "microsoft_login, totp) and nothing in list_credentials matches, tell the human "
+    "to create that credential first (Credentials button on the project page) — "
+    "add_node will turn the node into an 'unknown' placeholder with a note instead "
+    "of failing outright if you add it without a valid id anyway; check "
+    "needsHumanAttention on the result rather than guessing an id. login "
+    "specifically also can't be demoed live at all (see the next note) — always "
+    "author it with add_node.",
     "start_live_session/demo_node execute a step for real only while you're actively "
     "building it, one step at a time — for an already-saved workflow, run_workflow "
     "runs the WHOLE thing end to end unattended and reports whether it still works, "
@@ -236,6 +239,23 @@ def list_projects() -> list[dict]:
 
 
 @mcp.tool()
+def list_credentials(project_id: str) -> list[dict]:
+    """Lists this project's credentials as {id, name, type} — NEVER the secret
+    value itself (login/password, API key, ...), which this tool deliberately never
+    exposes. Use this to find the right credential for a credentialType-tagged
+    param (see a node type's params in get_node_catalog, e.g. microsoft_login's
+    credentialId) by matching `type` and/or `name`, then pass its `id` as that
+    param's value in add_node. If nothing here matches what a step needs, tell the
+    human to create the credential first (Credentials button on the project page)
+    rather than guessing an id or leaving the field empty."""
+    try:
+        creds = credential_store.list_credentials(project_id)
+    except HTTPException as exc:
+        raise ValueError(str(exc.detail)) from exc
+    return [{"id": c.id, "name": c.name, "type": c.type} for c in creds]
+
+
+@mcp.tool()
 def list_folders(project_id: str) -> list[dict]:
     """Lists a project's folders, so create_workflow's folder_id can place the new
     workflow somewhere other than the project root."""
@@ -299,10 +319,12 @@ async def add_node(
     new node type built for it first (normal in this project; it's a source change
     on the backend, not something this tool can do). Only use type="unknown" with
     params={"code": "...", "sourceHint": "..."} as the fallback once that's been
-    asked/declined. If the result's needsHumanAttention is true (type ended up
-    "unknown", possibly because it needed a credential this server can't provide),
-    stop chaining further steps that depend on this node's output and tell the human
-    it needs manual setup in the editor."""
+    asked/declined. For a node type with a credentialType-tagged param (e.g.
+    microsoft_login's credentialId), call list_credentials(project_id) first and
+    pass a real credential's `id` as that param's value — only falls back to an
+    'unknown' placeholder if no matching credential exists yet (needsHumanAttention
+    will be true; tell the human to create one, then stop chaining further steps
+    that depend on this node's output)."""
     workflow = _get_workflow(project_id, workflow_id)
     catalog = build_node_catalog()
     clean_params = _clean_params(type, params, catalog)
@@ -315,7 +337,7 @@ async def add_node(
         title=title,
         note=note,
     )
-    downgrade_note = downgrade_node_if_missing_credential(new_node, catalog)
+    downgrade_note = downgrade_node_if_missing_credential(new_node, catalog, project_id)
 
     workflow.nodes.append(new_node)
     _save(project_id, workflow_id, workflow)

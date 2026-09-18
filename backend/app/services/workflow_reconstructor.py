@@ -152,32 +152,41 @@ def build_node_catalog() -> list[dict]:
     return [spec.to_public_dict() for spec in NODE_REGISTRY.values()]
 
 
-STRUCTURAL_RULES = (
-    "Structural rules (violating these makes the workflow unusable):\n"
-    "- Exactly one root node (a node with no incoming edge) — every other node "
-    "must be reachable from it.\n"
-    "- At most one incoming edge per node — branches never merge back together.\n"
-    "- Only a node of type \"if\" may have two outgoing edges, and they must set "
-    "`sourceHandle` to exactly \"true\" and \"false\" respectively. Every other "
-    "node has at most one outgoing edge.\n"
-    "- No cycles.\n"
-    "- Use the real node types that open a block for anything that actually opens "
-    "a nested scope in the source — `open_browser` for launching the browser, "
-    "`loop` for iterating a list, `if` for a conditional, `http_request` (with "
-    "autoLoop) for looping over an API result — their nested body becomes the "
-    "downstream node chain via edges, never inlined as one big snippet.\n"
-    "- Reserve \"unknown\" strictly for self-contained, straight-line code with "
-    "no loop/if/with of its own — the builder has no way to know an `unknown` "
-    "fragment needs children nested inside it.\n"
-    "- For an `unknown` node, put the ORIGINAL source lines verbatim in "
-    "`params.code`, and a short phrase in `params.sourceHint` explaining why it "
-    "didn't map to anything.\n"
-    "- For any field whose schema entry has a non-null `credentialType` (e.g. an "
-    "API-key picker), leave it empty/null and add a `note` telling the user to "
-    "pick a credential — you cannot know which project credential to reference.\n"
-    "- Only emit `params` keys that exist in that node type's schema above.\n"
-    "- Do not include a `position` field at all — it's computed separately.\n"
-)
+def _structural_rules() -> str:
+    # Computed fresh per call (not frozen at import time) so a newly-registered
+    # branching node type (e.g. element_if, added alongside "if") shows up here
+    # automatically instead of leaving this text silently stale/wrong — see
+    # NodeSpec.is_branch (app/nodes/base.py) for what qualifies.
+    branch_types = sorted(t for t, spec in NODE_REGISTRY.items() if spec.is_branch)
+    branch_list = ", ".join(f'"{t}"' for t in branch_types) or "none currently registered"
+    return (
+        "Structural rules (violating these makes the workflow unusable):\n"
+        "- Exactly one root node (a node with no incoming edge) — every other node "
+        "must be reachable from it.\n"
+        "- At most one incoming edge per node — branches never merge back together.\n"
+        f"- Only a branching node (currently: {branch_list} — the authoritative check "
+        "is `isBranch: true` on that type's entry in get_node_catalog()'s node types) "
+        "may have two outgoing edges, and they must set `sourceHandle` to exactly "
+        "\"true\" and \"false\" respectively. Every other node has at most one "
+        "outgoing edge.\n"
+        "- No cycles.\n"
+        "- Use the real node types that open a block for anything that actually opens "
+        "a nested scope in the source — `open_browser` for launching the browser, "
+        "`loop` for iterating a list, `if` for a conditional, `http_request` (with "
+        "autoLoop) for looping over an API result — their nested body becomes the "
+        "downstream node chain via edges, never inlined as one big snippet.\n"
+        "- Reserve \"unknown\" strictly for self-contained, straight-line code with "
+        "no loop/if/with of its own — the builder has no way to know an `unknown` "
+        "fragment needs children nested inside it.\n"
+        "- For an `unknown` node, put the ORIGINAL source lines verbatim in "
+        "`params.code`, and a short phrase in `params.sourceHint` explaining why it "
+        "didn't map to anything.\n"
+        "- For any field whose schema entry has a non-null `credentialType` (e.g. an "
+        "API-key picker), leave it empty/null and add a `note` telling the user to "
+        "pick a credential — you cannot know which project credential to reference.\n"
+        "- Only emit `params` keys that exist in that node type's schema above.\n"
+        "- Do not include a `position` field at all — it's computed separately.\n"
+    )
 
 
 def _build_system_prompt(catalog: list[dict]) -> str:
@@ -189,7 +198,7 @@ def _build_system_prompt(catalog: list[dict]) -> str:
         "anything that doesn't fit — see rules below). Each entry's `params` "
         "describes the exact keys you may set for that node type:\n\n"
         f"{json.dumps(catalog, indent=2)}\n\n"
-        f"{STRUCTURAL_RULES}\n"
+        f"{_structural_rules()}\n"
         "Output format — respond with ONLY a JSON object shaped exactly like this "
         "example (no prose, no markdown fences):\n\n"
         f"{json.dumps(_EXAMPLE_OUTPUT, indent=2)}"

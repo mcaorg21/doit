@@ -48,7 +48,7 @@ from app.nodes.registry import NODE_REGISTRY
 from app.services.workflow_reconstructor import (
     LAYOUT_STEP_X,
     LAYOUT_Y,
-    STRUCTURAL_RULES,
+    _structural_rules,
     build_node_catalog,
     downgrade_node_if_missing_credential,
 )
@@ -99,7 +99,20 @@ mcp = FastMCP(
         "progress on it — CONTINUE from what's there instead of rebuilding from "
         "scratch, even if the task you were given sounds like a fresh 'build X' "
         "request; treat it as the next step on top of the existing work. Only start "
-        "from zero if the workflow is genuinely empty (no nodes, no notes). In a VOICE-GUIDED "
+        "from zero if the workflow is genuinely empty (no nodes, no notes). At the "
+        "START of a build/edit session, if the final objective for THIS session "
+        "isn't already clear — either spelled out in `notes` as a goal/end result "
+        "(not just quirks/validation steps), or unambiguous from the instruction you "
+        "were given — ASK the human what the final objective for this session is "
+        "(via ask_human_voice in a voice-guided session, otherwise just ask directly) "
+        "before you start adding/editing nodes, rather than guessing and building the "
+        "wrong thing. Once you have that objective, treat it as the actual target — "
+        "keep building toward it end-to-end (more nodes, branches, error handling) "
+        "rather than stopping once the one specific step you were first asked about "
+        "works; a workflow that only accomplishes part of the stated objective isn't "
+        "done yet. If you're genuinely unsure whether you've reached that goal, or "
+        "the next step is a judgment call, ask again rather than guessing you're "
+        "finished. In a VOICE-GUIDED "
         "session (the human dictated your starting instruction instead of typing "
         "it): after each step you finish, or whenever you're not sure what to do "
         "next, call ask_human_voice with a short question like \"E agora?\" and wait "
@@ -137,8 +150,11 @@ _MCP_NOTES = [
     "schedule/webhook. It's rejected up front if the workflow can reach a Pause node "
     "or a breakpointed connector — nothing unattended can click Continue past one of "
     "those, run it manually from the editor instead.",
-    "loop, if, and browser_2captcha nodes can't be demonstrated live (they open a "
-    "nested block) — author them with add_node/connect_nodes instead of demo_node. "
+    "Any branching node (e.g. if, element_if) or any node whose codegen opens a "
+    "nested block (e.g. loop, browser_2captcha) can't be demonstrated live — author "
+    "them with add_node/connect_nodes instead of demo_node. demo_node itself rejects "
+    "these with a clear error either way, so this is just a heads-up to skip straight "
+    "to add_node instead of trying demo_node first. "
     "Save Files, Get File, Load Cookies, Login, and Microsoft Login can't either, same reason (their "
     "fragments contain indented blocks even though they don't open one at the graph "
     "level) — Login is rejected explicitly for the credential reason above too. "
@@ -209,7 +225,7 @@ def get_node_catalog() -> NodeCatalogResponse:
     """Call this first. Returns every node type this app supports, its exact param
     schema, and the structural rules a workflow graph must follow (single root,
     branch-handle rules, no cycles, when to use "unknown", etc.)."""
-    return NodeCatalogResponse(nodeTypes=build_node_catalog(), structuralRules=STRUCTURAL_RULES, notes=_MCP_NOTES)
+    return NodeCatalogResponse(nodeTypes=build_node_catalog(), structuralRules=_structural_rules(), notes=_MCP_NOTES)
 
 
 @mcp.tool()

@@ -410,13 +410,14 @@ export default function WorkflowListPage() {
                     className="list-item-meta"
                     style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}
                   >
+                    {t('triggerTypeLabel')}:{' '}
                     {(() => {
                       const { Icon, labelKey } = TRIGGER_KINDS[workflowTriggerKind(w)]
                       return (
-                        <>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           <Icon size={12} />
                           {t(labelKey)}
-                        </>
+                        </span>
                       )
                     })()}
                   </div>

@@ -216,6 +216,7 @@ export const en = {
   noWorkflowsInProject: 'No workflows yet in this project.',
   renameFolderTitle: 'Rename folder',
   deleteFolderTitle: 'Delete folder',
+  triggerTypeLabel: 'Trigger Type',
   triggerScheduled: 'Scheduled',
   triggerWebhook: 'Webhook',
   triggerManual: 'Manual',

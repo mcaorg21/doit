@@ -217,6 +217,7 @@ export const pt: Record<keyof typeof en, string> = {
   noWorkflowsInProject: 'Nenhum workflow ainda neste projeto.',
   renameFolderTitle: 'Renomear pasta',
   deleteFolderTitle: 'Excluir pasta',
+  triggerTypeLabel: 'Tipo de Trigger',
   triggerScheduled: 'Agendado',
   triggerWebhook: 'Webhook',
   triggerManual: 'Manual',

@@ -863,6 +863,10 @@ export default function EditorPage() {
   const launchMenuRef = useRef<HTMLDivElement>(null)
   const [referenceWorkflowsEnabled, setReferenceWorkflowsEnabled] = useState(false)
   const [selectedReferenceWorkflowIds, setSelectedReferenceWorkflowIds] = useState<string[]>([])
+  const [referenceWorkflowsModalOpen, setReferenceWorkflowsModalOpen] = useState(false)
+  // Working copy edited inside the modal — only committed to selectedReferenceWorkflowIds
+  // on "Confirmar", so clicking outside/Cancelar leaves the prior selection untouched.
+  const [pendingReferenceWorkflowIds, setPendingReferenceWorkflowIds] = useState<string[]>([])
 
   useEffect(() => {
     if (!launchMenuOpen) return
@@ -875,17 +879,28 @@ export default function EditorPage() {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [launchMenuOpen])
 
-  // Only fetched once the checkbox is actually on — most launches don't need this
-  // list at all, no reason to pull every sibling workflow just for opening the menu.
+  // Only fetched once the picker modal is actually open — most launches don't need
+  // this list at all, no reason to pull every sibling workflow just for opening the menu.
   const siblingWorkflowsQuery = useQuery({
     queryKey: ['workflows', projectId],
     queryFn: () => workflowsApi.list(projectId!),
-    enabled: !!projectId && referenceWorkflowsEnabled,
+    enabled: !!projectId && referenceWorkflowsModalOpen,
   })
   const siblingWorkflows = (siblingWorkflowsQuery.data ?? []).filter((w) => w.id !== workflowId)
 
-  function toggleReferenceWorkflow(id: string) {
-    setSelectedReferenceWorkflowIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  function openReferenceWorkflowsModal() {
+    setPendingReferenceWorkflowIds(selectedReferenceWorkflowIds)
+    setReferenceWorkflowsModalOpen(true)
+  }
+
+  function togglePendingReferenceWorkflow(id: string) {
+    setPendingReferenceWorkflowIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  function confirmReferenceWorkflows() {
+    setSelectedReferenceWorkflowIds(pendingReferenceWorkflowIds)
+    setReferenceWorkflowsEnabled(pendingReferenceWorkflowIds.length > 0)
+    setReferenceWorkflowsModalOpen(false)
   }
 
   async function handleLaunchTerminal(provider: CliProvider, instruction?: string) {
@@ -1127,53 +1142,40 @@ export default function EditorPage() {
             </button>
             {launchMenuOpen && (
               <div className="launch-menu">
-                <label
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={openReferenceWorkflowsModal}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') openReferenceWorkflowsModal()
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 6,
+                    gap: 8,
                     fontSize: 12,
-                    padding: '4px 2px',
+                    padding: '6px 4px',
+                    borderRadius: 6,
                     cursor: 'pointer',
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={referenceWorkflowsEnabled}
-                    onChange={(e) => {
-                      setReferenceWorkflowsEnabled(e.target.checked)
-                      if (!e.target.checked) setSelectedReferenceWorkflowIds([])
-                    }}
-                  />
-                  {t('pullExperienceCheckboxLabel')}
-                </label>
-                {referenceWorkflowsEnabled && (
-                  <div style={{ maxHeight: 140, overflowY: 'auto', marginBottom: 6 }}>
-                    {siblingWorkflowsQuery.isLoading && (
-                      <div className="hint" style={{ padding: '2px 4px' }}>
-                        {t('loadingEllipsis')}
-                      </div>
-                    )}
-                    {!siblingWorkflowsQuery.isLoading && siblingWorkflows.length === 0 && (
-                      <div className="hint" style={{ padding: '2px 4px' }}>
-                        {t('noSiblingWorkflowsHint')}
-                      </div>
-                    )}
-                    {siblingWorkflows.map((w) => (
-                      <label
-                        key={w.id}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '2px 4px', cursor: 'pointer' }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedReferenceWorkflowIds.includes(w.id)}
-                          onChange={() => toggleReferenceWorkflow(w.id)}
-                        />
-                        {w.name}
-                      </label>
-                    ))}
-                  </div>
-                )}
+                  <input type="checkbox" checked={referenceWorkflowsEnabled} readOnly style={{ pointerEvents: 'none' }} />
+                  <span style={{ flex: 1 }}>{t('pullExperienceCheckboxLabel')}</span>
+                  {selectedReferenceWorkflowIds.length > 0 && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: 'white',
+                        background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+                        borderRadius: 10,
+                        padding: '1px 7px',
+                      }}
+                    >
+                      {selectedReferenceWorkflowIds.length}
+                    </span>
+                  )}
+                </div>
                 <div className="launch-menu-divider" />
                 <div className="launch-menu-label">{t('claudeLabel')}</div>
                 <button className="launch-menu-item" onClick={() => handleLaunchTerminal('claude')}>
@@ -1594,6 +1596,84 @@ export default function EditorPage() {
                 }}
               >
                 {t('send')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {referenceWorkflowsModalOpen && (
+        <div className="modal-overlay" onClick={() => setReferenceWorkflowsModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 480 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 9,
+                  background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="white">
+                  <path d="M12 2 L14.5 9.5 L22 12 L14.5 14.5 L12 22 L9.5 14.5 L2 12 L9.5 9.5 Z" />
+                </svg>
+              </div>
+              <h3 style={{ margin: 0 }}>{t('referenceWorkflowsModalTitle')}</h3>
+            </div>
+            <p className="hint" style={{ marginBottom: 14 }}>
+              {t('referenceWorkflowsModalDescription')}
+            </p>
+            <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {siblingWorkflowsQuery.isLoading && <p className="hint">{t('loadingEllipsis')}</p>}
+              {!siblingWorkflowsQuery.isLoading && siblingWorkflows.length === 0 && (
+                <p className="hint">{t('noSiblingWorkflowsHint')}</p>
+              )}
+              {siblingWorkflows.map((w) => {
+                const selected = pendingReferenceWorkflowIds.includes(w.id)
+                return (
+                  <div
+                    key={w.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => togglePendingReferenceWorkflow(w.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') togglePendingReferenceWorkflow(w.id)
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: `1px solid ${selected ? '#8B5CF6' : 'var(--border)'}`,
+                      background: selected ? 'rgba(139, 92, 246, 0.08)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input type="checkbox" checked={selected} readOnly style={{ pointerEvents: 'none' }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{w.name}</div>
+                      <div className="hint" style={{ fontSize: 11 }}>
+                        {w.nodes.length} {w.nodes.length === 1 ? t('nodeWord') : t('nodesWord')} · {t('updatedPrefix')}{' '}
+                        {new Date(w.updatedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setReferenceWorkflowsModalOpen(false)}>
+                {t('cancel')}
+              </button>
+              <button className="btn btn-primary" onClick={confirmReferenceWorkflows}>
+                {pendingReferenceWorkflowIds.length > 0
+                  ? t('useSelectedWorkflowsButton').replace('{n}', String(pendingReferenceWorkflowIds.length))
+                  : t('clearSelectionButton')}
               </button>
             </div>
           </div>

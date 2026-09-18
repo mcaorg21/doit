@@ -18,6 +18,11 @@ export const pt: Record<keyof typeof en, string> = {
   voiceButtonTitle: 'Construir por voz — dite uma instrução e continue no Claude ou no Codex',
   launchButtonTitle: 'Continuar este workflow no Claude ou no Codex',
   pullExperienceCheckboxLabel: 'Pegar experiência de outro workflow',
+  referenceWorkflowsModalTitle: 'Pegar experiência de outro workflow',
+  referenceWorkflowsModalDescription:
+    'Escolha quais outros workflows deste projeto a IA deve tratar como referência já validada — as notes deles entram direto no prompt inicial.',
+  useSelectedWorkflowsButton: 'Usar {n} selecionado(s)',
+  clearSelectionButton: 'Limpar seleção',
   noSiblingWorkflowsHint: 'Ainda não há outros workflows neste projeto.',
   experienceNotAvailableOnDesktop:
     'Pegar experiência de outro workflow ainda não está disponível para o Claude Desktop — use um dos botões de Terminal.',

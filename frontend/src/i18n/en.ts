@@ -17,6 +17,11 @@ export const en = {
   voiceButtonTitle: 'Build by voice — dictate an instruction and continue in Claude or Codex',
   launchButtonTitle: 'Continue this workflow in Claude or Codex',
   pullExperienceCheckboxLabel: 'Pull in experience from another workflow',
+  referenceWorkflowsModalTitle: 'Pull in experience from another workflow',
+  referenceWorkflowsModalDescription:
+    "Pick which of this project's other workflows the agent should treat as known-good prior art — their notes get included directly in the starting prompt.",
+  useSelectedWorkflowsButton: 'Use {n} selected',
+  clearSelectionButton: 'Clear selection',
   noSiblingWorkflowsHint: 'No other workflows in this project yet.',
   experienceNotAvailableOnDesktop:
     "Pulling in experience from another workflow isn't available for Claude Desktop yet — use one of the Terminal buttons instead.",

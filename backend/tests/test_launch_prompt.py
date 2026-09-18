@@ -52,7 +52,7 @@ def test_initial_prompt_returns_none_without_both_ids():
 # --- "Pegar experiência de outro workflow" (referenceWorkflowIds) ----------------
 
 
-def test_reference_workflows_block_embeds_name_and_notes(project):
+def test_reference_workflows_block_names_workflow_and_tells_agent_to_fetch_notes(project):
     ref = workflow_store.create_workflow(project.id, WorkflowCreate(name="Extração PAN - Relatório 1"))
     workflow_store.set_workflow_notes(project.id, ref.id, "Login usa #email/#senha, confirma em .dashboard.")
 
@@ -60,7 +60,12 @@ def test_reference_workflows_block_embeds_name_and_notes(project):
     assert block is not None
     assert "Extração PAN - Relatório 1" in block
     assert ref.id in block
-    assert "Login usa #email/#senha" in block
+    assert "get_workflow" in block
+    # The notes TEXT itself must never be embedded directly here — cmd.exe silently
+    # truncates any single .bat line at ~8191 chars, and a real workflow's notes can
+    # easily blow past that (confirmed live). The agent fetches it via MCP instead,
+    # which has no such limit.
+    assert "Login usa #email/#senha" not in block
 
 
 def test_reference_workflows_block_skips_workflow_with_no_notes(project):
@@ -79,8 +84,10 @@ def test_initial_prompt_includes_reference_block_after_list_workflow_notes(proje
 
     prompt = launch._initial_prompt(project.id, editing.id, reference_workflow_ids=[ref.id])
     assert prompt is not None
-    assert "Particularidade: paginação por cursor." in prompt
-    assert prompt.index("list_workflow_notes") < prompt.index("Particularidade: paginação por cursor.")
+    assert "Relatório 2" in prompt
+    assert ref.id in prompt
+    assert "Particularidade: paginação por cursor." not in prompt  # fetched via MCP, not embedded
+    assert prompt.index("list_workflow_notes") < prompt.index(ref.id)
 
 
 def test_initial_prompt_without_reference_workflows_has_no_extra_block():
@@ -151,6 +158,62 @@ def test_write_launch_script_embeds_sanitized_prompt_and_sets_codepage(tmp_path,
         os.remove(script_path)
 
 
+# --- cmd.exe's ~8191-char single-line limit (confirmed live, not just documented) --
+
+
+def test_write_launch_script_truncates_an_oversized_prompt(tmp_path, monkeypatch):
+    monkeypatch.setattr(launch, "REPO_ROOT", tmp_path)
+    huge_prompt = "x" * 20000
+    script_path = launch._write_launch_script("codex", huge_prompt)
+    content = open(script_path, encoding="utf-8").read()
+    try:
+        lines = [line for line in content.splitlines() if line.startswith("codex ")]
+        assert len(lines) == 1
+        assert len(lines[0]) <= launch._MAX_BATCH_LINE_LENGTH
+        assert "prompt truncado" in lines[0]
+    finally:
+        import os
+
+        os.remove(script_path)
+
+
+def test_write_launch_script_does_not_touch_a_normal_prompt(tmp_path, monkeypatch):
+    monkeypatch.setattr(launch, "REPO_ROOT", tmp_path)
+    script_path = launch._write_launch_script("claude", "instrucao curta")
+    content = open(script_path, encoding="utf-8").read()
+    try:
+        assert "prompt truncado" not in content
+        assert "instrucao curta" in content
+    finally:
+        import os
+
+        os.remove(script_path)
+
+
+def test_reference_workflow_with_huge_notes_never_blows_the_line_limit(project, tmp_path, monkeypatch):
+    # Regression test for the real bug: a genuinely huge notes doc (this project's
+    # actual multi-session notes were ~10KB) used to get embedded directly into the
+    # `codex "..."` line, silently corrupting the launch once cmd.exe truncated it
+    # past ~8191 chars. Now the reference block only names the workflow — this just
+    # confirms the whole pipeline (prompt build -> .bat write) stays safe regardless.
+    monkeypatch.setattr(launch, "REPO_ROOT", tmp_path)
+    ref = workflow_store.create_workflow(project.id, WorkflowCreate(name="Relatorio com notes enormes"))
+    workflow_store.set_workflow_notes(project.id, ref.id, "nota de sessao de construcao " * 500)
+    editing = workflow_store.create_workflow(project.id, WorkflowCreate(name="Relatorio novo"))
+
+    prompt = launch._initial_prompt(project.id, editing.id, reference_workflow_ids=[ref.id])
+    script_path = launch._write_launch_script("codex", prompt)
+    content = open(script_path, encoding="utf-8").read()
+    try:
+        lines = [line for line in content.splitlines() if line.startswith("codex ")]
+        assert len(lines) == 1
+        assert len(lines[0]) <= launch._MAX_BATCH_LINE_LENGTH
+    finally:
+        import os
+
+        os.remove(script_path)
+
+
 def test_launch_terminal_endpoint_accepts_instruction(monkeypatch):
     monkeypatch.setattr(launch, "_ensure_mcp_registered", lambda provider: (True, "MCP server already registered"))
     captured: dict = {}
@@ -179,7 +242,7 @@ def test_launch_terminal_endpoint_accepts_instruction(monkeypatch):
     assert "ask_human_voice" in captured["prompt"]
 
 
-def test_launch_terminal_endpoint_embeds_reference_workflow_notes(monkeypatch, project):
+def test_launch_terminal_endpoint_references_workflow_by_name_not_full_notes(monkeypatch, project):
     ref = workflow_store.create_workflow(project.id, WorkflowCreate(name="Extração PAN - Relatório 1"))
     workflow_store.set_workflow_notes(project.id, ref.id, "Seletor de login: #email / #senha")
     editing = workflow_store.create_workflow(project.id, WorkflowCreate(name="Extração PAN - Relatório 2"))
@@ -206,4 +269,6 @@ def test_launch_terminal_endpoint_embeds_reference_workflow_notes(monkeypatch, p
     )
     assert response.status_code == 200
     assert "Extração PAN - Relatório 1" in captured["prompt"]
-    assert "Seletor de login: #email / #senha" in captured["prompt"]
+    assert ref.id in captured["prompt"]
+    assert "Seletor de login: #email / #senha" not in captured["prompt"]
+    assert "get_workflow" in captured["prompt"]

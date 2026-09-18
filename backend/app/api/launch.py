@@ -163,27 +163,33 @@ def _validate_id(value: str | None, label: str) -> str | None:
 
 def _reference_workflows_block(project_id: str, reference_workflow_ids: list[str]) -> str | None:
     """Builds an explicit "use THESE specific sibling workflows" prompt block from
-    human-picked ids (the "Pegar experiência de outro workflow" checkbox) — embeds
-    their notes directly rather than leaving discovery to list_workflow_notes, since
-    the human already did that judgment call. Silently skips an id that no longer
-    resolves (deleted/typo) instead of failing the whole launch over it."""
-    sections = []
+    human-picked ids (the "Pegar experiência de outro workflow" checkbox) — names
+    them and tells the agent to fetch each one's notes itself via get_workflow,
+    rather than embedding the notes text directly here. cmd.exe truncates any
+    single line of a .bat file at ~8191 characters (confirmed live: a real
+    workflow's multi-session notes pushed the generated `codex "..."` line past
+    10,000 characters, silently corrupting the command) — the MCP call has no such
+    limit, since it goes over HTTP, not a Windows command line. Silently skips an
+    id that no longer resolves (deleted/typo) instead of failing the whole launch
+    over it."""
+    names = []
     for wf_id in reference_workflow_ids:
         try:
             wf = workflow_store.get_workflow(project_id, wf_id)
         except HTTPException:
             continue
-        notes = workflow_store.get_workflow_notes(project_id, wf_id).strip()
-        if not notes:
+        if not workflow_store.get_workflow_notes(project_id, wf_id).strip():
             continue
-        sections.append(f"### {wf.name} (workflow_id={wf_id})\n{notes}")
-    if not sections:
+        names.append(f"'{wf.name}' (workflow_id={wf_id})")
+    if not names:
         return None
     return (
         "O usuario pediu explicitamente pra voce aproveitar a experiencia documentada no(s) "
-        "workflow(s) abaixo deste MESMO projeto antes de comecar — reaproveite os "
-        "padroes/seletores/particularidades relevantes de la em vez de redescobrir do zero:\n\n"
-        + "\n\n".join(sections)
+        f"workflow(s) abaixo deste MESMO projeto (project_id={project_id}) antes de comecar: "
+        + ", ".join(names)
+        + ". Chame get_workflow(project_id, workflow_id) pra cada um deles, leia o campo `notes` "
+        "inteiro, e reaproveite os padroes/seletores/particularidades relevantes de la em vez de "
+        "redescobrir do zero."
     )
 
 
@@ -260,6 +266,16 @@ def _sanitize_for_batch_arg(text: str) -> str:
 
 _PROVIDER_LABELS: dict[CliProvider, str] = {"claude": "Claude Code", "codex": "Codex"}
 
+_MAX_BATCH_LINE_LENGTH = 8000
+"""cmd.exe silently truncates any single line of a .bat file at ~8191 characters —
+confirmed live: a real workflow's multi-session notes, embedded via an earlier
+version of _reference_workflows_block, pushed a generated `codex "..."` line past
+10,000 characters and corrupted the launch (the prompt got cut mid-string with no
+error at all). That specific case is fixed by not embedding notes text directly
+anymore, but this stays as the last line of defense for anything else that grows
+the prompt (several reference workflows, a long dictated instruction, ...) —
+comfortably under the real limit so a launch is never silently corrupted again."""
+
 
 def _write_launch_script(provider: CliProvider, prompt: str | None) -> str:
     """Writes a one-off .bat to the temp dir that cd's into the repo and starts the
@@ -267,7 +283,14 @@ def _write_launch_script(provider: CliProvider, prompt: str | None) -> str:
     shell string) is what makes embedding the prompt text safe. Left behind in TEMP
     after use, same as GENERATED_SCRIPTS_DIR's run scripts elsewhere in this app —
     small and harmless, not worth cleaning up."""
-    cli_cmd = f'{provider} "{_sanitize_for_batch_arg(prompt)}"' if prompt else provider
+    sanitized_prompt = _sanitize_for_batch_arg(prompt) if prompt else None
+    if sanitized_prompt is not None:
+        # f'{provider} "{sanitized_prompt}"' — account for the space + two quotes.
+        budget = _MAX_BATCH_LINE_LENGTH - len(provider) - 3
+        if len(sanitized_prompt) > budget:
+            suffix = " [prompt truncado por tamanho — chame get_workflow/list_workflow_notes pra ver o resto]"
+            sanitized_prompt = sanitized_prompt[: budget - len(suffix)] + suffix
+    cli_cmd = f'{provider} "{sanitized_prompt}"' if sanitized_prompt else provider
     lines = [
         "@echo off",
         # Dictated instructions can contain accented PT-BR characters; without this,

@@ -64,9 +64,11 @@ class LaunchTerminalRequest(BaseModel):
     referenceWorkflowIds: list[str] | None = None
     """Sibling workflow(s) (same project) the human explicitly picked, via the
     "Pegar experiência de outro workflow" checkbox in the editor's launch menu, as
-    known-good prior art to reuse — their notes get embedded directly into the
-    initial prompt (see _initial_prompt) rather than left for the agent to discover
-    on its own via list_workflow_notes."""
+    known-good prior art to reuse — named directly in the initial prompt (see
+    _initial_prompt/_reference_workflows_block) rather than left for the agent to
+    discover on its own via list_workflow_experiences. Only the name/id is embedded,
+    never the experience text itself — see _reference_workflows_block's docstring
+    for why."""
 
 
 class LaunchResult(BaseModel):
@@ -164,21 +166,23 @@ def _validate_id(value: str | None, label: str) -> str | None:
 def _reference_workflows_block(project_id: str, reference_workflow_ids: list[str]) -> str | None:
     """Builds an explicit "use THESE specific sibling workflows" prompt block from
     human-picked ids (the "Pegar experiência de outro workflow" checkbox) — names
-    them and tells the agent to fetch each one's notes itself via get_workflow,
-    rather than embedding the notes text directly here. cmd.exe truncates any
-    single line of a .bat file at ~8191 characters (confirmed live: a real
-    workflow's multi-session notes pushed the generated `codex "..."` line past
-    10,000 characters, silently corrupting the command) — the MCP call has no such
-    limit, since it goes over HTTP, not a Windows command line. Silently skips an
-    id that no longer resolves (deleted/typo) instead of failing the whole launch
-    over it."""
+    them and tells the agent to fetch each one's `experience` field itself via
+    get_workflow, rather than embedding that text directly here. cmd.exe truncates
+    any single line of a .bat file at ~8191 characters (confirmed live: a real
+    workflow's multi-session experience log pushed the generated `codex "..."` line
+    past 10,000 characters, silently corrupting the command) — the MCP call has no
+    such limit, since it goes over HTTP, not a Windows command line. Points at
+    `experience` specifically, not `notes` (Instruções) — the human picked these
+    workflows for their LEARNED patterns, not their (possibly unrelated) spec.
+    Silently skips an id that no longer resolves (deleted/typo), or that has no
+    experience logged yet, instead of failing the whole launch over it."""
     names = []
     for wf_id in reference_workflow_ids:
         try:
             wf = workflow_store.get_workflow(project_id, wf_id)
         except HTTPException:
             continue
-        if not workflow_store.get_workflow_notes(project_id, wf_id).strip():
+        if not workflow_store.get_workflow_experience(project_id, wf_id).strip():
             continue
         names.append(f"'{wf.name}' (workflow_id={wf_id})")
     if not names:
@@ -187,9 +191,9 @@ def _reference_workflows_block(project_id: str, reference_workflow_ids: list[str
         "O usuario pediu explicitamente pra voce aproveitar a experiencia documentada no(s) "
         f"workflow(s) abaixo deste MESMO projeto (project_id={project_id}) antes de comecar: "
         + ", ".join(names)
-        + ". Chame get_workflow(project_id, workflow_id) pra cada um deles, leia o campo `notes` "
-        "inteiro, e reaproveite os padroes/seletores/particularidades relevantes de la em vez de "
-        "redescobrir do zero."
+        + ". Chame get_workflow(project_id, workflow_id) pra cada um deles, leia o campo "
+        "`experience` inteiro, e reaproveite os padroes/seletores/particularidades relevantes "
+        "de la em vez de redescobrir do zero."
     )
 
 
@@ -205,14 +209,16 @@ def _initial_prompt(
     parts = [
         f"Continue editando o workflow (project_id={project_id}, workflow_id={workflow_id}) "
         f"no app auto-mation via o MCP '{_MCP_SERVER_NAME}' ({_MCP_URL}). SEMPRE comece chamando "
-        f"get_workflow — isso retorna os nodes/edges ja existentes e o campo `notes`. Se `notes` ja "
-        f"tiver conteudo, ou ja existirem nodes no workflow, uma sessao anterior ja avancou nele: "
-        f"CONTINUE a partir do que ja esta la, nao recrie o workflow do zero. So comece do zero se o "
-        f"workflow estiver genuinamente vazio (sem nodes e sem notes)."
+        f"get_workflow — isso retorna os nodes/edges ja existentes, o campo `notes` (instrucoes "
+        f"escritas pelo humano) e o campo `experience` (o que sessoes anteriores ja aprenderam "
+        f"construindo isso). Se `notes` ou `experience` ja tiverem conteudo, ou ja existirem nodes "
+        f"no workflow, uma sessao anterior ja avancou nele: CONTINUE a partir do que ja esta la, "
+        f"nao recrie o workflow do zero. So comece do zero se o workflow estiver genuinamente vazio "
+        f"(sem nodes, sem notes, sem experience)."
     ]
     parts.append(
-        f"Tambem chame list_workflow_notes(project_id={project_id!r}) pra ver o que ja foi aprendido/"
-        "documentado em OUTROS workflows deste MESMO projeto (login parecido, seletores, particularidades "
+        f"Tambem chame list_workflow_experiences(project_id={project_id!r}) pra ver o que ja foi "
+        "aprendido em OUTROS workflows deste MESMO projeto (login parecido, seletores, particularidades "
         "de dados, etc). Se algo la for relevante pro que voce vai construir/editar aqui, reaproveite em vez "
         "de redescobrir do zero — e diga explicitamente no seu resumo final de qual(is) workflow(s) voce "
         "aproveitou algo, citando o nome dele(s)."
@@ -245,10 +251,10 @@ def _initial_prompt(
             "terminou."
         )
     parts.append(
-        f"Quando terminar essa sessao de construcao, chame a tool write_workflow_notes "
+        f"Quando terminar essa sessao de construcao, chame a tool write_workflow_experience "
         f"(project_id={project_id}, workflow_id={workflow_id}) com um resumo conciso em markdown do "
-        f'que voce construiu ou alterou — use mode="append" (o padrao), nunca substitua as notes '
-        f"anteriores, pra sessao seguinte tambem saber o historico completo."
+        f'que voce construiu ou alterou — use mode="append" (o padrao), nunca substitua a experience '
+        f"anterior, pra sessao seguinte tambem saber o historico completo."
     )
     return "\n\n".join(parts)
 
@@ -288,7 +294,7 @@ def _write_launch_script(provider: CliProvider, prompt: str | None) -> str:
         # f'{provider} "{sanitized_prompt}"' — account for the space + two quotes.
         budget = _MAX_BATCH_LINE_LENGTH - len(provider) - 3
         if len(sanitized_prompt) > budget:
-            suffix = " [prompt truncado por tamanho — chame get_workflow/list_workflow_notes pra ver o resto]"
+            suffix = " [prompt truncado por tamanho — chame get_workflow/list_workflow_experiences pra ver o resto]"
             sanitized_prompt = sanitized_prompt[: budget - len(suffix)] + suffix
     cli_cmd = f'{provider} "{sanitized_prompt}"' if sanitized_prompt else provider
     lines = [

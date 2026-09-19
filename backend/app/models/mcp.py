@@ -23,13 +23,16 @@ class WorkflowSummary(BaseModel):
 
 class WorkflowWithNotes(Workflow):
     """get_workflow's MCP-specific return shape — the same Workflow fields the REST
-    API uses, plus `notes`: the human-written markdown guidance doc for this specific
-    workflow (see the "Notes" button next to the AI launch button in the editor
-    topbar), stored as a real sibling .md file next to the workflow's own JSON (see
-    app/storage/workflow_store.py::get_workflow_notes), not part of Workflow itself
-    so the REST API's persisted JSON shape doesn't carry it around on every save."""
+    API uses, plus two sibling markdown docs neither part of Workflow itself (so the
+    REST API's persisted JSON shape doesn't carry them around on every save):
+    `notes` — the human-written INSTRUCTIONS for what this workflow should do (see
+    the "Notes" button's "Instruções" tab in the editor topbar; app/storage/
+    workflow_store.py::get_workflow_notes), and `experience` — the AI-accumulated
+    build history, one summary per session (the "Experiência Adquirida" tab;
+    ::get_workflow_experience), written via write_workflow_experience."""
 
     notes: str = ""
+    experience: str = ""
 
 
 class AddNodeResult(BaseModel):
@@ -114,9 +117,9 @@ class RunWorkflowResult(BaseModel):
     was doing right before it stopped, without dumping the whole run."""
 
 
-class WriteWorkflowNotesResult(BaseModel):
-    notes: str
-    """Full Notes contents after this write — same shape get_workflow's `notes`
-    field returns."""
+class WriteWorkflowExperienceResult(BaseModel):
+    experience: str
+    """Full Experiência Adquirida contents after this write — same shape
+    get_workflow's `experience` field returns."""
     mode: str
     """"append" or "replace", echoing back which one was actually used."""

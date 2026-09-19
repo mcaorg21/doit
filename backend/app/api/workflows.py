@@ -15,6 +15,10 @@ class WorkflowNotes(BaseModel):
     notes: str
 
 
+class WorkflowExperience(BaseModel):
+    experience: str
+
+
 class VoiceAnswer(BaseModel):
     questionId: str
     answer: str
@@ -106,6 +110,17 @@ def get_workflow_notes(project_id: str, workflow_id: str):
 @router.put("/{workflow_id}/notes", response_model=WorkflowNotes)
 def set_workflow_notes(project_id: str, workflow_id: str, payload: WorkflowNotes):
     workflow_store.set_workflow_notes(project_id, workflow_id, payload.notes)
+    return payload
+
+
+@router.get("/{workflow_id}/experience", response_model=WorkflowExperience)
+def get_workflow_experience(project_id: str, workflow_id: str):
+    return WorkflowExperience(experience=workflow_store.get_workflow_experience(project_id, workflow_id))
+
+
+@router.put("/{workflow_id}/experience", response_model=WorkflowExperience)
+def set_workflow_experience(project_id: str, workflow_id: str, payload: WorkflowExperience):
+    workflow_store.set_workflow_experience(project_id, workflow_id, payload.experience)
     return payload
 
 

@@ -14,7 +14,7 @@ export const pt: Record<keyof typeof en, string> = {
   unsavedChanges: 'Alterações não salvas',
   undoTitle: 'Desfazer (Ctrl+Z)',
   redoTitle: 'Refazer (Ctrl+Y)',
-  notesButtonTitle: 'Notes — um guia em markdown deste workflow, também lido pelo Claude/Codex via o conector MCP',
+  notesButtonTitle: 'Notes — as Instruções e a Experiência Adquirida deste workflow, também lidas pelo Claude/Codex via o conector MCP',
   voiceButtonTitle: 'Construir por voz — dite uma instrução e continue no Claude ou no Codex',
   launchButtonTitle: 'Continuar este workflow no Claude ou no Codex',
   pullExperienceCheckboxLabel: 'Pegar experiência de outro workflow',
@@ -78,12 +78,20 @@ export const pt: Record<keyof typeof en, string> = {
   // Notes modal
   notesTitle: 'Notes',
   notesDescription:
-    'Um guia em markdown pra este workflow — o que ele faz, particularidades conhecidas, como validar. Salvo como um arquivo .md simples ao lado do próprio workflow; o Claude/Codex lê automaticamente via a tool get_workflow do conector MCP antes de trabalhar neste workflow.',
+    'Dois documentos separados pra este workflow, cada um salvo como um arquivo .md simples ao lado do próprio workflow e lido automaticamente pelo Claude/Codex via o conector MCP antes de trabalhar nele.',
+  instructionsDocumentTab: 'Instruções',
+  experienceDocumentTab: 'Experiência Adquirida',
+  instructionsDocumentDescription:
+    'O que este workflow deve fazer — objetivo, gatilho, credenciais, passo a passo. Você escreve isso à mão; um agente lê, mas normalmente não deveria editar.',
+  experienceDocumentDescription:
+    'O que sessões de construção anteriores já aprenderam aqui — o que funcionou, o que falhou, particularidades descobertas pelo caminho. Um agente anexa aqui automaticamente ao final de cada sessão; você também pode editar à mão se quiser.',
   editTab: 'Editar',
   previewTab: 'Pré-visualização',
   loading: 'Carregando…',
   notesPlaceholder: '# O que este workflow faz\n\n...',
   notesEmptyPreview: 'Nada pra pré-visualizar ainda — mude pra Editar e escreva um pouco de markdown.',
+  experiencePlaceholder: 'Nada registrado ainda — isso normalmente se preenche sozinho conforme sessões de construção terminam.',
+  experienceEmptyPreview: 'Nada pra pré-visualizar ainda — nenhuma experiência registrada pra este workflow.',
 
   // Voice launch modal
   voiceModalTitle: 'Construir por voz',

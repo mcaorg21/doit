@@ -17,8 +17,22 @@ def _workflow_notes_file(project_id: str, workflow_id: str):
     # a coding agent's own file tools (or a human in a text editor), not just through
     # this app's API. Deliberately no per-run isolation (unlike temp_files_dir/
     # cookies_dir): this is human-written guidance for the workflow itself, the same
-    # one document regardless of which run reads it.
+    # one document regardless of which run reads it. This is the "Instructions" half
+    # of the split with _workflow_experience_file below — see that function's
+    # docstring for why they're two separate files rather than one.
     return workflows_dir(project_id) / f"{workflow_id}.md"
+
+
+def _workflow_experience_file(project_id: str, workflow_id: str):
+    # A second sibling .md, deliberately separate from _workflow_notes_file above:
+    # that one is the human-written spec for what this workflow should do
+    # ("Instructions"), edited by hand and rarely touched by an agent. This one is
+    # the AI-accumulated build history ("Experiência Adquirida") — session summaries
+    # appended by write_workflow_experience every time an agent finishes a build/edit
+    # session. Splitting them out means "Pegar experiência de outro workflow" (the
+    # reference-workflow picker) can migrate specifically the LEARNED patterns from a
+    # sibling workflow instead of its (possibly unrelated) instructions.
+    return workflows_dir(project_id) / f"{workflow_id}.experience.md"
 
 
 def get_workflow_notes(project_id: str, workflow_id: str) -> str:
@@ -37,6 +51,23 @@ def set_workflow_notes(project_id: str, workflow_id: str, notes: str) -> None:
         return
     workflows_dir(project_id).mkdir(parents=True, exist_ok=True)
     nfile.write_text(notes, encoding="utf-8")
+
+
+def get_workflow_experience(project_id: str, workflow_id: str) -> str:
+    get_workflow(project_id, workflow_id)  # 404 if the workflow itself doesn't exist
+    efile = _workflow_experience_file(project_id, workflow_id)
+    return efile.read_text(encoding="utf-8") if efile.exists() else ""
+
+
+def set_workflow_experience(project_id: str, workflow_id: str, experience: str) -> None:
+    get_workflow(project_id, workflow_id)  # 404 if the workflow itself doesn't exist
+    efile = _workflow_experience_file(project_id, workflow_id)
+    if not experience.strip():
+        if efile.exists():
+            efile.unlink()
+        return
+    workflows_dir(project_id).mkdir(parents=True, exist_ok=True)
+    efile.write_text(experience, encoding="utf-8")
 
 
 def list_workflows(project_id: str) -> list[Workflow]:
@@ -233,6 +264,11 @@ def duplicate_workflow(project_id: str, workflow_id: str) -> Workflow:
     existing_notes = _workflow_notes_file(project_id, workflow_id)
     if existing_notes.exists():
         _workflow_notes_file(project_id, new_id).write_text(existing_notes.read_text(encoding="utf-8"), encoding="utf-8")
+    existing_experience = _workflow_experience_file(project_id, workflow_id)
+    if existing_experience.exists():
+        _workflow_experience_file(project_id, new_id).write_text(
+            existing_experience.read_text(encoding="utf-8"), encoding="utf-8"
+        )
     project_store.touch_project(project_id)
     return duplicate
 
@@ -245,6 +281,9 @@ def delete_workflow(project_id: str, workflow_id: str) -> None:
     notes_file = _workflow_notes_file(project_id, workflow_id)
     if notes_file.exists():
         notes_file.unlink()
+    experience_file = _workflow_experience_file(project_id, workflow_id)
+    if experience_file.exists():
+        experience_file.unlink()
     project_store.touch_project(project_id)
 
     from app.execution import scheduler, webhook_registry

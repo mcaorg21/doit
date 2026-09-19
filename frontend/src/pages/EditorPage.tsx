@@ -86,7 +86,9 @@ export default function EditorPage() {
   const [loaded, setLoaded] = useState(false)
   const [pendingDeleteNodeIds, setPendingDeleteNodeIds] = useState<string[]>([])
   const [notesOpen, setNotesOpen] = useState(false)
+  const [notesDocument, setNotesDocument] = useState<'instructions' | 'experience'>('instructions')
   const [notesDraft, setNotesDraft] = useState('')
+  const [experienceDraft, setExperienceDraft] = useState('')
   const [notesError, setNotesError] = useState<string | null>(null)
   const [notesTab, setNotesTab] = useState<'edit' | 'preview'>('edit')
 
@@ -101,9 +103,10 @@ export default function EditorPage() {
   const [pendingVoiceQuestion, setPendingVoiceQuestion] = useState<{ id: string; question: string } | null>(null)
   const voiceAnswerCapture = useVoiceCapture()
   // Set once a terminal actually opens (any provider, not just voice-guided) and
-  // cleared by the write_workflow_notes tool's workflow_notes_written event — the
-  // natural "I'm wrapping up" signal an agent sends — or by the human dismissing it
-  // manually if a session ends some other way (closed terminal, forgot to call it).
+  // cleared by the write_workflow_experience tool's workflow_experience_written
+  // event — the natural "I'm wrapping up" signal an agent sends — or by the human
+  // dismissing it manually if a session ends some other way (closed terminal,
+  // forgot to call it).
   const [building, setBuilding] = useState(false)
 
   type Snapshot = { nodes: Node<FlowNodeData>[]; edges: Edge<FlowEdgeData>[] }
@@ -265,6 +268,34 @@ export default function EditorPage() {
     },
     onError: (err: unknown) => {
       setNotesError(err instanceof ApiError || err instanceof Error ? err.message : 'Failed to save notes')
+    },
+  })
+
+  // "Experiência Adquirida" — same shape as notes above, but a separate document
+  // (backend/app/storage/workflow_store.py::get_workflow_experience) that only an
+  // agent normally writes to (write_workflow_experience), kept apart from `notes`/
+  // Instruções (the human-written spec) so the two never get mixed together again.
+  const experienceQuery = useQuery({
+    queryKey: ['workflowExperience', projectId, workflowId],
+    queryFn: () => workflowsApi.getExperience(projectId!, workflowId!),
+    enabled: notesOpen && !!projectId && !!workflowId,
+  })
+
+  useEffect(() => {
+    if (experienceQuery.data) setExperienceDraft(experienceQuery.data.experience)
+  }, [experienceQuery.data])
+
+  const experienceHtml = useMemo(() => marked.parse(experienceDraft, { breaks: true }) as string, [experienceDraft])
+
+  const saveExperienceMutation = useMutation({
+    mutationFn: (experience: string) => workflowsApi.setExperience(projectId!, workflowId!, experience),
+    onSuccess: (result) => {
+      setNotesError(null)
+      queryClient.setQueryData(['workflowExperience', projectId, workflowId], result)
+      setNotesOpen(false)
+    },
+    onError: (err: unknown) => {
+      setNotesError(err instanceof ApiError || err instanceof Error ? err.message : 'Failed to save experience')
     },
   })
 
@@ -772,7 +803,7 @@ export default function EditorPage() {
         case 'voice_question_timeout':
           setPendingVoiceQuestion((prev) => (prev?.id === msg.questionId ? null : prev))
           break
-        case 'workflow_notes_written':
+        case 'workflow_experience_written':
           setBuilding(false)
           break
         case 'node_result_captured':
@@ -1097,6 +1128,7 @@ export default function EditorPage() {
             onClick={() => {
               setNotesError(null)
               setNotesTab('edit')
+              setNotesDocument('instructions')
               setNotesOpen(true)
             }}
             title={t('notesButtonTitle')}
@@ -1361,67 +1393,97 @@ export default function EditorPage() {
         </div>
       )}
 
-      {notesOpen && (
-        <div className="modal-overlay" onClick={() => setNotesOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640 }}>
-            <h3>{t('notesTitle')}</h3>
-            <p className="hint" style={{ marginBottom: 8 }}>
-              {t('notesDescription')}
-            </p>
-            <div className="notes-tabs">
-              <button
-                type="button"
-                className={`notes-tab${notesTab === 'edit' ? ' active' : ''}`}
-                onClick={() => setNotesTab('edit')}
-              >
-                {t('editTab')}
-              </button>
-              <button
-                type="button"
-                className={`notes-tab${notesTab === 'preview' ? ' active' : ''}`}
-                onClick={() => setNotesTab('preview')}
-              >
-                {t('previewTab')}
-              </button>
+      {notesOpen &&
+        (() => {
+          const isInstructions = notesDocument === 'instructions'
+          const activeQuery = isInstructions ? notesQuery : experienceQuery
+          const activeDraft = isInstructions ? notesDraft : experienceDraft
+          const setActiveDraft = isInstructions ? setNotesDraft : setExperienceDraft
+          const activeHtml = isInstructions ? notesHtml : experienceHtml
+          const activeMutation = isInstructions ? saveNotesMutation : saveExperienceMutation
+          return (
+            <div className="modal-overlay" onClick={() => setNotesOpen(false)}>
+              <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640 }}>
+                <h3>{t('notesTitle')}</h3>
+                <p className="hint" style={{ marginBottom: 8 }}>
+                  {t('notesDescription')}
+                </p>
+                <div className="notes-tabs">
+                  <button
+                    type="button"
+                    className={`notes-tab${isInstructions ? ' active' : ''}`}
+                    onClick={() => setNotesDocument('instructions')}
+                  >
+                    {t('instructionsDocumentTab')}
+                  </button>
+                  <button
+                    type="button"
+                    className={`notes-tab${!isInstructions ? ' active' : ''}`}
+                    onClick={() => setNotesDocument('experience')}
+                  >
+                    {t('experienceDocumentTab')}
+                  </button>
+                </div>
+                <p className="hint" style={{ marginBottom: 8 }}>
+                  {isInstructions ? t('instructionsDocumentDescription') : t('experienceDocumentDescription')}
+                </p>
+                <div className="notes-tabs">
+                  <button
+                    type="button"
+                    className={`notes-tab${notesTab === 'edit' ? ' active' : ''}`}
+                    onClick={() => setNotesTab('edit')}
+                  >
+                    {t('editTab')}
+                  </button>
+                  <button
+                    type="button"
+                    className={`notes-tab${notesTab === 'preview' ? ' active' : ''}`}
+                    onClick={() => setNotesTab('preview')}
+                  >
+                    {t('previewTab')}
+                  </button>
+                </div>
+                {activeQuery.isLoading ? (
+                  <p className="hint">{t('loading')}</p>
+                ) : notesTab === 'edit' ? (
+                  <textarea
+                    autoFocus
+                    value={activeDraft}
+                    onChange={(e) => setActiveDraft(e.target.value)}
+                    placeholder={isInstructions ? t('notesPlaceholder') : t('experiencePlaceholder')}
+                    style={{
+                      width: '100%',
+                      minHeight: 320,
+                      fontFamily: 'var(--mono)',
+                      fontSize: 13,
+                      resize: 'vertical',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                ) : activeDraft.trim() ? (
+                  <div className="notes-preview" dangerouslySetInnerHTML={{ __html: activeHtml }} />
+                ) : (
+                  <p className="hint notes-preview-empty">
+                    {isInstructions ? t('notesEmptyPreview') : t('experienceEmptyPreview')}
+                  </p>
+                )}
+                {notesError && <div className="error-banner">{notesError}</div>}
+                <div className="modal-actions">
+                  <button className="btn" onClick={() => setNotesOpen(false)}>
+                    {t('cancel')}
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    disabled={activeMutation.isPending || activeQuery.isLoading}
+                    onClick={() => activeMutation.mutate(activeDraft)}
+                  >
+                    {t('saveButton')}
+                  </button>
+                </div>
+              </div>
             </div>
-            {notesQuery.isLoading ? (
-              <p className="hint">{t('loading')}</p>
-            ) : notesTab === 'edit' ? (
-              <textarea
-                autoFocus
-                value={notesDraft}
-                onChange={(e) => setNotesDraft(e.target.value)}
-                placeholder={t('notesPlaceholder')}
-                style={{
-                  width: '100%',
-                  minHeight: 320,
-                  fontFamily: 'var(--mono)',
-                  fontSize: 13,
-                  resize: 'vertical',
-                  boxSizing: 'border-box',
-                }}
-              />
-            ) : notesDraft.trim() ? (
-              <div className="notes-preview" dangerouslySetInnerHTML={{ __html: notesHtml }} />
-            ) : (
-              <p className="hint notes-preview-empty">{t('notesEmptyPreview')}</p>
-            )}
-            {notesError && <div className="error-banner">{notesError}</div>}
-            <div className="modal-actions">
-              <button className="btn" onClick={() => setNotesOpen(false)}>
-                {t('cancel')}
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={saveNotesMutation.isPending || notesQuery.isLoading}
-                onClick={() => saveNotesMutation.mutate(notesDraft)}
-              >
-                {t('saveButton')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          )
+        })()}
 
       {voiceOpen && (
         <div
@@ -1580,7 +1642,7 @@ export default function EditorPage() {
                   voiceAnswerCapture.stop()
                   answerVoiceQuestionMutation.mutate(
                     '(usuário encerrou a sessão guiada por voz — não há mais instruções. Finalize agora: não faça ' +
-                      'mais nenhuma alteração e chame a tool write_workflow_notes com um resumo em markdown do que ' +
+                      'mais nenhuma alteração e chame a tool write_workflow_experience com um resumo em markdown do que ' +
                       'foi construído ou alterado nesta sessão antes de parar.)',
                   )
                 }}

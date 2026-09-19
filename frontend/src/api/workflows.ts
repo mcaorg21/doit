@@ -37,6 +37,10 @@ export const workflowsApi = {
     api.get<{ notes: string }>(`/api/projects/${projectId}/workflows/${workflowId}/notes`),
   setNotes: (projectId: string, workflowId: string, notes: string) =>
     api.put<{ notes: string }>(`/api/projects/${projectId}/workflows/${workflowId}/notes`, { notes }),
+  getExperience: (projectId: string, workflowId: string) =>
+    api.get<{ experience: string }>(`/api/projects/${projectId}/workflows/${workflowId}/experience`),
+  setExperience: (projectId: string, workflowId: string, experience: string) =>
+    api.put<{ experience: string }>(`/api/projects/${projectId}/workflows/${workflowId}/experience`, { experience }),
   answerVoiceQuestion: (projectId: string, workflowId: string, questionId: string, answer: string) =>
     api.post<{ ok: boolean }>(`/api/projects/${projectId}/workflows/${workflowId}/voice-answer`, { questionId, answer }),
   generateCode: (

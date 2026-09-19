@@ -13,7 +13,7 @@ export const en = {
   unsavedChanges: 'Unsaved changes',
   undoTitle: 'Undo (Ctrl+Z)',
   redoTitle: 'Redo (Ctrl+Y)',
-  notesButtonTitle: "Notes — a markdown guide for this workflow, also read by Claude/Codex via the MCP connector",
+  notesButtonTitle: "Notes — this workflow's Instructions and Experience Gained, also read by Claude/Codex via the MCP connector",
   voiceButtonTitle: 'Build by voice — dictate an instruction and continue in Claude or Codex',
   launchButtonTitle: 'Continue this workflow in Claude or Codex',
   pullExperienceCheckboxLabel: 'Pull in experience from another workflow',
@@ -77,12 +77,20 @@ export const en = {
   // Notes modal
   notesTitle: 'Notes',
   notesDescription:
-    "A markdown guide for this workflow — what it does, known quirks, how to validate it. Saved as a plain .md file next to the workflow itself; Claude/Codex read it automatically via the MCP connector's get_workflow tool before working on this workflow.",
+    'Two separate documents for this workflow, each saved as a plain .md file next to it and read automatically by Claude/Codex via the MCP connector before working on this workflow.',
+  instructionsDocumentTab: 'Instructions',
+  experienceDocumentTab: 'Experience Gained',
+  instructionsDocumentDescription:
+    "What this workflow should do — objective, trigger, credentials, step by step. You write this by hand; an agent reads it but shouldn't normally edit it.",
+  experienceDocumentDescription:
+    'What past build sessions already learned here — what worked, what failed, quirks discovered along the way. An agent appends to this automatically at the end of each session; edit it by hand too if you want.',
   editTab: 'Edit',
   previewTab: 'Preview',
   loading: 'Loading…',
   notesPlaceholder: '# What this workflow does\n\n...',
   notesEmptyPreview: 'Nothing to preview yet — switch to Edit and write some markdown.',
+  experiencePlaceholder: 'Nothing logged yet — this usually fills in automatically as build sessions finish.',
+  experienceEmptyPreview: 'Nothing to preview yet — no experience logged for this workflow.',
 
   // Voice launch modal
   voiceModalTitle: 'Build by voice',

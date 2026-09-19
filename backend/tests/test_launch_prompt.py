@@ -29,19 +29,19 @@ def test_initial_prompt_without_instruction_is_unchanged_in_spirit():
     prompt = launch._initial_prompt("proj_1", "wf_1")
     assert prompt is not None
     assert "get_workflow" in prompt
-    assert "write_workflow_notes" in prompt
+    assert "write_workflow_experience" in prompt
     assert "ask_human_voice" not in prompt  # only mentioned for voice-guided sessions
 
 
 def test_initial_prompt_tells_agent_to_check_sibling_workflows_in_order():
     # Added so an agent building/editing one workflow reuses what a prior session
-    # already documented in a SIBLING workflow's notes (same project) instead of
-    # rediscovering login flows/selectors/data quirks from scratch each time.
+    # already learned in a SIBLING workflow's experience log (same project) instead
+    # of rediscovering login flows/selectors/data quirks from scratch each time.
     prompt = launch._initial_prompt("proj_1", "wf_1")
     assert prompt is not None
-    assert "list_workflow_notes(project_id='proj_1')" in prompt
-    assert prompt.index("get_workflow") < prompt.index("list_workflow_notes")
-    assert prompt.index("list_workflow_notes") < prompt.index("write_workflow_notes")
+    assert "list_workflow_experiences(project_id='proj_1')" in prompt
+    assert prompt.index("get_workflow") < prompt.index("list_workflow_experiences")
+    assert prompt.index("list_workflow_experiences") < prompt.index("write_workflow_experience")
 
 
 def test_initial_prompt_returns_none_without_both_ids():
@@ -52,24 +52,33 @@ def test_initial_prompt_returns_none_without_both_ids():
 # --- "Pegar experiência de outro workflow" (referenceWorkflowIds) ----------------
 
 
-def test_reference_workflows_block_names_workflow_and_tells_agent_to_fetch_notes(project):
+def test_reference_workflows_block_names_workflow_and_tells_agent_to_fetch_experience(project):
     ref = workflow_store.create_workflow(project.id, WorkflowCreate(name="Extração PAN - Relatório 1"))
-    workflow_store.set_workflow_notes(project.id, ref.id, "Login usa #email/#senha, confirma em .dashboard.")
+    workflow_store.set_workflow_experience(project.id, ref.id, "Login usa #email/#senha, confirma em .dashboard.")
 
     block = launch._reference_workflows_block(project.id, [ref.id])
     assert block is not None
     assert "Extração PAN - Relatório 1" in block
     assert ref.id in block
     assert "get_workflow" in block
-    # The notes TEXT itself must never be embedded directly here — cmd.exe silently
-    # truncates any single .bat line at ~8191 chars, and a real workflow's notes can
-    # easily blow past that (confirmed live). The agent fetches it via MCP instead,
-    # which has no such limit.
+    assert "experience" in block
+    # The experience TEXT itself must never be embedded directly here — cmd.exe
+    # silently truncates any single .bat line at ~8191 chars, and a real workflow's
+    # experience log can easily blow past that (confirmed live). The agent fetches
+    # it via MCP instead, which has no such limit.
     assert "Login usa #email/#senha" not in block
 
 
-def test_reference_workflows_block_skips_workflow_with_no_notes(project):
-    ref = workflow_store.create_workflow(project.id, WorkflowCreate(name="Sem notes ainda"))
+def test_reference_workflows_block_skips_workflow_with_no_experience(project):
+    ref = workflow_store.create_workflow(project.id, WorkflowCreate(name="Sem experiencia ainda"))
+    assert launch._reference_workflows_block(project.id, [ref.id]) is None
+
+
+def test_reference_workflows_block_ignores_instructions_only_workflow(project):
+    # notes/Instruções alone shouldn't make a workflow eligible as a reference — only
+    # experience (what was actually learned building it) counts.
+    ref = workflow_store.create_workflow(project.id, WorkflowCreate(name="So instrucoes"))
+    workflow_store.set_workflow_notes(project.id, ref.id, "# Rotina\n\nFaça login e extraia o relatório.")
     assert launch._reference_workflows_block(project.id, [ref.id]) is None
 
 
@@ -77,9 +86,9 @@ def test_reference_workflows_block_skips_nonexistent_workflow(project):
     assert launch._reference_workflows_block(project.id, ["wf_does_not_exist"]) is None
 
 
-def test_initial_prompt_includes_reference_block_after_list_workflow_notes(project):
+def test_initial_prompt_includes_reference_block_after_list_workflow_experiences(project):
     ref = workflow_store.create_workflow(project.id, WorkflowCreate(name="Relatório 2"))
-    workflow_store.set_workflow_notes(project.id, ref.id, "Particularidade: paginação por cursor.")
+    workflow_store.set_workflow_experience(project.id, ref.id, "Particularidade: paginação por cursor.")
     editing = workflow_store.create_workflow(project.id, WorkflowCreate(name="Relatório 3 (novo)"))
 
     prompt = launch._initial_prompt(project.id, editing.id, reference_workflow_ids=[ref.id])
@@ -87,7 +96,7 @@ def test_initial_prompt_includes_reference_block_after_list_workflow_notes(proje
     assert "Relatório 2" in prompt
     assert ref.id in prompt
     assert "Particularidade: paginação por cursor." not in prompt  # fetched via MCP, not embedded
-    assert prompt.index("list_workflow_notes") < prompt.index(ref.id)
+    assert prompt.index("list_workflow_experiences") < prompt.index(ref.id)
 
 
 def test_initial_prompt_without_reference_workflows_has_no_extra_block():
@@ -129,7 +138,7 @@ def test_initial_prompt_with_instruction_mentions_voice_loop_in_order():
     assert "abre o navegador e vai pro google" in prompt
     assert prompt.index("get_workflow") < prompt.index("abre o navegador e vai pro google")
     assert prompt.index("abre o navegador e vai pro google") < prompt.index("ask_human_voice")
-    assert prompt.index("ask_human_voice") < prompt.index("write_workflow_notes")
+    assert prompt.index("ask_human_voice") < prompt.index("write_workflow_experience")
 
 
 def test_sanitize_for_batch_arg_swaps_quotes_doubles_percent_collapses_newlines():
@@ -190,15 +199,16 @@ def test_write_launch_script_does_not_touch_a_normal_prompt(tmp_path, monkeypatc
         os.remove(script_path)
 
 
-def test_reference_workflow_with_huge_notes_never_blows_the_line_limit(project, tmp_path, monkeypatch):
-    # Regression test for the real bug: a genuinely huge notes doc (this project's
-    # actual multi-session notes were ~10KB) used to get embedded directly into the
-    # `codex "..."` line, silently corrupting the launch once cmd.exe truncated it
-    # past ~8191 chars. Now the reference block only names the workflow — this just
-    # confirms the whole pipeline (prompt build -> .bat write) stays safe regardless.
+def test_reference_workflow_with_huge_experience_never_blows_the_line_limit(project, tmp_path, monkeypatch):
+    # Regression test for the real bug: a genuinely huge experience log (this
+    # project's actual multi-session log was ~10KB) used to get embedded directly
+    # into the `codex "..."` line, silently corrupting the launch once cmd.exe
+    # truncated it past ~8191 chars. Now the reference block only names the
+    # workflow — this just confirms the whole pipeline (prompt build -> .bat write)
+    # stays safe regardless.
     monkeypatch.setattr(launch, "REPO_ROOT", tmp_path)
-    ref = workflow_store.create_workflow(project.id, WorkflowCreate(name="Relatorio com notes enormes"))
-    workflow_store.set_workflow_notes(project.id, ref.id, "nota de sessao de construcao " * 500)
+    ref = workflow_store.create_workflow(project.id, WorkflowCreate(name="Relatorio com experiencia enorme"))
+    workflow_store.set_workflow_experience(project.id, ref.id, "nota de sessao de construcao " * 500)
     editing = workflow_store.create_workflow(project.id, WorkflowCreate(name="Relatorio novo"))
 
     prompt = launch._initial_prompt(project.id, editing.id, reference_workflow_ids=[ref.id])
@@ -242,9 +252,9 @@ def test_launch_terminal_endpoint_accepts_instruction(monkeypatch):
     assert "ask_human_voice" in captured["prompt"]
 
 
-def test_launch_terminal_endpoint_references_workflow_by_name_not_full_notes(monkeypatch, project):
+def test_launch_terminal_endpoint_references_workflow_by_name_not_full_experience(monkeypatch, project):
     ref = workflow_store.create_workflow(project.id, WorkflowCreate(name="Extração PAN - Relatório 1"))
-    workflow_store.set_workflow_notes(project.id, ref.id, "Seletor de login: #email / #senha")
+    workflow_store.set_workflow_experience(project.id, ref.id, "Seletor de login: #email / #senha")
     editing = workflow_store.create_workflow(project.id, WorkflowCreate(name="Extração PAN - Relatório 2"))
 
     monkeypatch.setattr(launch, "_ensure_mcp_registered", lambda provider: (True, "MCP server already registered"))

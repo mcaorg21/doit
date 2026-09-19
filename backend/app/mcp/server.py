@@ -40,7 +40,7 @@ from app.models.mcp import (
     ValidateWorkflowResult,
     WorkflowSummary,
     WorkflowWithNotes,
-    WriteWorkflowNotesResult,
+    WriteWorkflowExperienceResult,
 )
 from app.models.run import RunStatus
 from app.models.workflow import Position, WFEdge, WFNode, Workflow, WorkflowCreate, WorkflowSave
@@ -92,14 +92,15 @@ mcp = FastMCP(
         "pass — call run_workflow: it runs the whole thing for real and tells you "
         "exactly which node broke, if any. Working on an EXISTING workflow (editing "
         "it further, running it, debugging a failure)? Call get_workflow first and "
-        "read its `notes` field before doing anything else — that's where a human "
-        "writes down what this specific workflow does, known quirks, and how to "
-        "validate/run it; it exists specifically to help you. If `notes` already has "
-        "content, or the workflow already has nodes, an earlier session already made "
+        "read BOTH its `notes` field (human-written instructions — what this workflow "
+        "should do, known quirks, how to validate/run it) and its `experience` field "
+        "(what past build sessions already learned/tried here) before doing anything "
+        "else; both exist specifically to help you. If `notes` or `experience` already "
+        "has content, or the workflow already has nodes, an earlier session already made "
         "progress on it — CONTINUE from what's there instead of rebuilding from "
         "scratch, even if the task you were given sounds like a fresh 'build X' "
         "request; treat it as the next step on top of the existing work. Only start "
-        "from zero if the workflow is genuinely empty (no nodes, no notes). At the "
+        "from zero if the workflow is genuinely empty (no nodes, no notes, no experience). At the "
         "START of a build/edit session, if the final objective for THIS session "
         "isn't already clear — either spelled out in `notes` as a goal/end result "
         "(not just quirks/validation steps), or unambiguous from the instruction you "
@@ -118,9 +119,9 @@ mcp = FastMCP(
         "next, call ask_human_voice with a short question like \"E agora?\" and wait "
         "for the answer instead of guessing — repeat this until the human signals "
         "they're done. When you finish a build/edit session — voice-guided or not — "
-        "call write_workflow_notes with a concise markdown summary of what you did, "
-        "so the notes stay useful for whoever (or whatever) works on this workflow "
-        "next."
+        "call write_workflow_experience with a concise markdown summary of what you "
+        "did, so the experience log stays useful for whoever (or whatever) works on "
+        "this workflow next."
     ),
 )
 
@@ -277,39 +278,43 @@ def list_workflows(project_id: str) -> list[dict]:
 
 
 @mcp.tool()
-def list_workflow_notes(project_id: str) -> list[dict]:
-    """Lists every OTHER workflow's `notes` in this project (skipping ones with
-    empty notes) — call this before starting real work on a workflow to see what's
-    already been learned/documented elsewhere in this SAME project (a similar login
-    flow, selectors, data quirks, gotchas). Returns [{workflowId, name, notes}]. If
-    anything here is relevant to what you're about to build or edit, reuse it
-    instead of rediscovering it from scratch — and say explicitly, by name, which
-    workflow(s) you drew from in your own write_workflow_notes summary."""
+def list_workflow_experiences(project_id: str) -> list[dict]:
+    """Lists every OTHER workflow's `experience` in this project (skipping ones with
+    no experience logged yet) — call this before starting real work on a workflow to
+    see what's already been learned there in this SAME project (a similar login
+    flow, selectors, data quirks, gotchas) — NOT their instructions, which may
+    describe a completely unrelated routine. Returns [{workflowId, name,
+    experience}]. If anything here is relevant to what you're about to build or
+    edit, reuse it instead of rediscovering it from scratch — and say explicitly, by
+    name, which workflow(s) you drew from in your own write_workflow_experience
+    summary."""
     try:
         workflows = workflow_store.list_workflows(project_id)
     except HTTPException as exc:
         raise ValueError(str(exc.detail)) from exc
     result = []
     for w in workflows:
-        notes = workflow_store.get_workflow_notes(project_id, w.id).strip()
-        if notes:
-            result.append({"workflowId": w.id, "name": w.name, "notes": notes})
+        experience = workflow_store.get_workflow_experience(project_id, w.id).strip()
+        if experience:
+            result.append({"workflowId": w.id, "name": w.name, "experience": experience})
     return result
 
 
 @mcp.tool()
 def get_workflow(project_id: str, workflow_id: str) -> WorkflowWithNotes:
-    """Returns a workflow's current nodes and edges, plus its `notes` field — call
+    """Returns a workflow's current nodes and edges, plus two markdown fields — call
     this before editing an existing workflow further (e.g. in a new conversation, or
     before run_workflow/demo_node) so you know what's already there instead of
-    guessing. ALWAYS read `notes` first if it's non-empty: it's human-written
-    guidance for THIS specific workflow (what it does, known quirks, what to check
-    if it breaks, how to run/validate it) — written via the "Notes" button next to
-    the AI launch button in the editor topbar, meant specifically to help you work
-    on this workflow correctly."""
+    guessing. ALWAYS read BOTH if non-empty: `notes` is human-written INSTRUCTIONS
+    for THIS specific workflow (what it should do, known quirks, how to validate/run
+    it) — written via the "Notes" button's "Instruções" tab in the editor topbar.
+    `experience` is the AI-accumulated build history — what past sessions already
+    tried/learned here — written via write_workflow_experience. Both exist
+    specifically to help you work on this workflow correctly."""
     workflow = _get_workflow(project_id, workflow_id)
     notes = workflow_store.get_workflow_notes(project_id, workflow_id)
-    return WorkflowWithNotes(**workflow.model_dump(), notes=notes)
+    experience = workflow_store.get_workflow_experience(project_id, workflow_id)
+    return WorkflowWithNotes(**workflow.model_dump(), notes=notes, experience=experience)
 
 
 @mcp.tool()
@@ -745,32 +750,36 @@ async def ask_human_voice(project_id: str, workflow_id: str, question: str, time
 
 
 @mcp.tool()
-def write_workflow_notes(project_id: str, workflow_id: str, summary: str, mode: str = "append") -> WriteWorkflowNotesResult:
-    """Write markdown into this workflow's Notes — the write counterpart to
-    get_workflow's read-only `notes` field, and the same file the "Notes" button in
-    the editor topbar edits. Call this when you finish a build/edit session
+def write_workflow_experience(
+    project_id: str, workflow_id: str, summary: str, mode: str = "append"
+) -> WriteWorkflowExperienceResult:
+    """Write markdown into this workflow's Experiência Adquirida — the write
+    counterpart to get_workflow's read-only `experience` field, and the same file
+    the "Notes" button's "Experiência Adquirida" tab in the editor topbar edits
+    (separate from `notes`/Instruções, which is the human-written spec — never
+    write session summaries there). Call this when you finish a build/edit session
     (especially one kicked off from a dictated voice instruction) with a CONCISE
-    markdown summary of what you built or changed — the next session reads `notes`
-    first, so this is how it learns what happened here. mode="append" (default)
-    adds `summary` after whatever notes already exist, separated by a horizontal
-    rule, so a human's own prior guidance is never lost. mode="replace" OVERWRITES
-    the whole file with just `summary` — only use this if the human explicitly
-    asked you to rewrite the notes from scratch."""
+    markdown summary of what you built or changed — the next session reads
+    `experience` first, so this is how it learns what happened here. mode="append"
+    (default) adds `summary` after whatever experience already exists, separated by
+    a horizontal rule, so earlier sessions' learnings are never lost. mode="replace"
+    OVERWRITES the whole file with just `summary` — only use this if the human
+    explicitly asked you to rewrite the experience log from scratch."""
     if mode not in ("append", "replace"):
         raise ValueError('mode must be "append" or "replace"')
     _get_workflow(project_id, workflow_id)
     summary = summary.strip()
     if mode == "append":
-        existing = workflow_store.get_workflow_notes(project_id, workflow_id).rstrip()
-        new_notes = f"{existing}\n\n---\n\n{summary}\n" if existing else f"{summary}\n"
+        existing = workflow_store.get_workflow_experience(project_id, workflow_id).rstrip()
+        new_experience = f"{existing}\n\n---\n\n{summary}\n" if existing else f"{summary}\n"
     else:
-        new_notes = f"{summary}\n"
-    workflow_store.set_workflow_notes(project_id, workflow_id, new_notes)
+        new_experience = f"{summary}\n"
+    workflow_store.set_workflow_experience(project_id, workflow_id, new_experience)
     # Called as the natural "wrapping up" step at the end of a build session — the
     # editor's "Building..." banner (set when a terminal was launched) listens for
     # this to clear itself, same event bus as node/edge mutations above.
-    workflow_events.publish(workflow_id, {"type": "workflow_notes_written"})
-    return WriteWorkflowNotesResult(notes=new_notes, mode=mode)
+    workflow_events.publish(workflow_id, {"type": "workflow_experience_written"})
+    return WriteWorkflowExperienceResult(experience=new_experience, mode=mode)
 
 
 @mcp.tool()
